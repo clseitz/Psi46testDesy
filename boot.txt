@@ -1,0 +1,20 @@
+
+ROC boot procedure
+
+s300
+
+optia 27
+
+vthrcomp
+
+caldelroc
+
+allon
+takedata 4000
+
+in case of read error:
+   dclose
+   dopen 8100100
+
+read out stuck:
+     wait for USB timeout (100s)
