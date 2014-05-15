@@ -303,7 +303,7 @@ class CTestboard
 #define PG_SYNC  0x2000
 
   RPC_EXPORT void Pg_SetCmd(uint16_t addr, uint16_t cmd);
-  //	RPC_EXPORT void Pg_SetCmdAll(vector<uint16_t> &cmd);
+  RPC_EXPORT void Pg_SetCmdAll(vector<uint16_t> &cmd);
   RPC_EXPORT void Pg_Stop();
   RPC_EXPORT void Pg_Single();
   RPC_EXPORT void Pg_Trigger();
@@ -430,7 +430,7 @@ class CTestboard
   // == Trigger Loop functions for Host-side DAQ ROC/Module testing ==============
 
   RPC_EXPORT bool SetI2CAddresses(vector<uint8_t> &roc_i2c);
-  RPC_EXPORT bool SetTrimValues( uint8_t roc_i2c, vector<int8_t> &trimvalues );
+  RPC_EXPORT bool SetTrimValues( uint8_t roc_i2c, vector<uint8_t> &trimvalues ); // uint8 in 2.15
 
   RPC_EXPORT void SetLoopTriggerDelay( uint16_t delay ); // [BC] (since 2.14)
   RPC_EXPORT void LoopInterruptReset();

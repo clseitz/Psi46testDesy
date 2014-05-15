@@ -2784,7 +2784,7 @@ CMD_PROC(select)
   for( ;      i <= rocmax; i++ ) roclist[i] = 1;
   for( ;      i < 16;      i++ ) roclist[i] = 0;
 
-  vector<int8_t> trimvalues(4160);
+  vector<uint8_t> trimvalues(4160); // uint8 in 2.15
   for( int i = 0; i < 4160; ++i ) trimvalues[i] = 15; // 15 = no trim
 
   cout << "setTrimValues for ROC";
@@ -4631,7 +4631,7 @@ CMD_PROC(modsc) // S-curve for modules, all pix
 
       try {
 	uint32_t rest;
-	tb.Daq_Read( dataB, Blocksize, rest, tbmch ); // 32768 gives zero
+	tb.Daq_Read( dataB, Blocksize, rest, tbmch );
 	data[tbmch].insert( data[tbmch].end(), dataB.begin(), dataB.end() );
 	cout << "data[" << tbmch << "] size " << data[tbmch].size()
 	     << ", remaining " << rest << endl;
@@ -5673,7 +5673,7 @@ CMD_PROC(effmap)
 
   uint16_t flags = 0; // or flags = FLAG_USE_CALS;
 
-  //flags |= 0x0010; // FLAG_FORCE_MASK
+  flags |= 0x0010; // FLAG_FORCE_MASK (needs SetTrimValues)
 
   gettimeofday( &tv, NULL );
   long s1 = tv.tv_sec; // seconds since 1.1.1970
@@ -5810,6 +5810,8 @@ CMD_PROC(effmap)
       if( cnt == nTrig   ) nPerfect++;
       //cout << setw(4) << cnt;
       //if( row%20 == 19 ) cout << endl << "   ";
+      if( cnt < nTrig )
+	cout << setw(2) << col << setw(3) << row << setw(4) << cnt << endl;
       Log.printf( " %i", cnt );
 
     } // row
@@ -6558,7 +6560,8 @@ CMD_PROC(trim)
   long s0 = tv.tv_sec; // seconds since 1.1.1970
   long u0 = tv.tv_usec; // microseconds
 
-  const int nTrig = 10;
+  //const int nTrig = 10;
+  const int nTrig = 20;
   const int thrLevel = nTrig/2;
   const int step = 1;
   const int xtalk = 0;
@@ -6579,7 +6582,7 @@ CMD_PROC(trim)
     tb.SetDAC( CtrlReg, 0 ); // this ROC, small Vcal
     dacval[roc][CtrlReg] = 0;
 
-    int start = 40;
+    int start = 50;
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // take threshold map, find hardest pixel
@@ -6726,7 +6729,7 @@ CMD_PROC(trim)
 
     printThrMap( 0, roc, nok );
 
-    vector<int8_t> trimvalues(4160);
+    vector<uint8_t> trimvalues(4160); // uint8 in 2.15
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row ) {
 	int i = 80*col+row;
@@ -7580,7 +7583,7 @@ int GetEff( int & n01, int & n50, int & n99 )
   uint16_t nTrig = 10;
   uint16_t flags = 0; // normal CAL
 
-  flags = 0x0002; // FLAG_USE_CALS;
+  //flags = 0x0002; // FLAG_USE_CALS;
   if( flags > 0 ) cout << "CALS used..." << endl;
 
   flags |= 0x0010; // FLAG_FORCE_MASK else noisy
@@ -8007,6 +8010,9 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   int dac;
   PAR_INT( dac, 1, 32 ); // only DACs, not registers
 
+  int nTrig; // size = 4160 * 256 * nTrig * 3 words = 32 MW for 10 trig
+  if( !PAR_IS_INT( nTrig, 1, 65500 ) ) nTrig = 10;
+
   if( dacval[0][dac] == -1 ) {
     cout << "DAC " << dac << " not active" << endl;
     return false;
@@ -8040,7 +8046,6 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   tb.uDelay(1000);
   tb.Flush();
 
-  uint16_t nTrig = 10; // size = 4160 * 256 * nTrig * 3 words = 32 MW for 10 trig
   uint16_t flags = 0; // normal CAL
   //flags = 0x0002; // FLAG_USE_CALS;
   if( flags > 0 ) cout << "CALS used..." << endl;
@@ -8053,44 +8058,91 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   int16_t dacUpper1 = dacStop( dac );
   int32_t nstp = dacUpper1 - dacLower1 + 1;
 
-  gettimeofday( &tv, NULL );
-  long s1 = tv.tv_sec; // seconds since 1.1.1970
-  long u1 = tv.tv_usec; // microseconds
-
   // measure:
 
   cout << "pulsing 4160 pixels with " << nTrig << " triggers for "
        << nstp << " DAC steps may take " << int( 4160 * nTrig * nstp *5e-6 ) + 1
        << " s..." << endl;
 
+  // header = 1 word
+  // pixel = +2 words
+  // size = 256 dacs * 4160 pix * nTrig * 3 words = 32 MW
+
+  vector<uint16_t> data;
+  data.reserve( nstp*nTrig*4160*3 );
+
   bool done = 0;
-  try {
-    done = 
-      tb.LoopSingleRocAllPixelsDacScan( 0, nTrig, flags, dac, dacLower1, dacUpper1 );
-    // =nb:~/psi/dtb/pixel-dtb-firmware/software/dtb_expert/trigger_loops.cpp
-    // loop cols
-    //   loop rows
-    //     loop dacs
-    //       loop trig
-  }
-  catch( CRpcError &e ) {
-    e.What();
-    return 0;
-  }
+  double tloop = 0;
+  double tread = 0;
 
-  tb.Daq_Stop(); // avoid extra (noise) data
+  while( done == 0 ) {
 
-  int dSize = tb.Daq_GetSize();
+    cout << "loop..." << endl << flush;
 
-  gettimeofday( &tv, NULL );
-  long s2 = tv.tv_sec; // seconds since 1.1.1970
-  long u2 = tv.tv_usec; // microseconds
-  double dt = s2-s1 + (u2-u1)*1e-6;
+    gettimeofday( &tv, NULL );
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
 
-  cout << "LoopSingleRocAllPixelsDacScan takes " << dt << " s"
-       << " = " << dt / 4160 / nTrig / nstp * 1e6 << " us / pix"
-       << endl;
-  cout << "done " << done << endl;
+    try {
+      done = 
+	tb.LoopSingleRocAllPixelsDacScan( 0, nTrig, flags, dac, dacLower1, dacUpper1 );
+      // =nb:~/psi/dtb/pixel-dtb-firmware/software/dtb_expert/trigger_loops.cpp
+      // loop cols
+      //   loop rows
+      //     loop dacs
+      //       loop trig
+    }
+    catch( CRpcError &e ) {
+      e.What();
+      return 0;
+    }
+
+    cout << "waiting for FPGA..." << endl;
+    int dSize = tb.Daq_GetSize();
+    cout << "DAQ size " << dSize << " words" << endl;
+
+    //tb.Daq_Stop(); // avoid extra (noise) data
+
+    gettimeofday( &tv, NULL );
+    long s2 = tv.tv_sec; // seconds since 1.1.1970
+    long u2 = tv.tv_usec; // microseconds
+    double dt = s2-s1 + (u2-u1)*1e-6;
+    tloop += dt;
+    cout << "LoopSingleRocAllPixelsDacScan takes " << dt << " s"
+	 << " = " << tloop / 4160 / nTrig / nstp * 1e6 << " us / pix"
+	 << endl;
+    cout << "done " << done << endl;
+
+    vector<uint16_t> dataB;
+    dataB.reserve( Blocksize );
+
+    try {
+      uint32_t rest;
+      tb.Daq_Read( dataB, Blocksize, rest );
+      data.insert( data.end(), dataB.begin(), dataB.end() );
+      cout << "data size " << data.size() << ", remaining " << rest << endl;
+      while( rest > 0 ) {
+	dataB.clear();
+	tb.Daq_Read( dataB, Blocksize, rest );
+	data.insert( data.end(), dataB.begin(), dataB.end() );
+	cout << "data size " << data.size() << ", remaining " << rest << endl;
+      }
+    }
+    catch( CRpcError &e ) {
+      e.What();
+      return 0;
+    }
+
+    gettimeofday( &tv, NULL );
+    long s3 = tv.tv_sec; // seconds since 1.1.1970
+    long u3 = tv.tv_usec; // microseconds
+    double dtr = s3-s2 + (u3-u2)*1e-6;
+    tread += dtr;
+    cout << "Daq_Read takes " << tread << " s"
+	 << " = " << 2*dSize / tread / 1024/1024 << " MiB/s"
+	 << endl;
+
+  } // while not done
 
   tb.SetDAC( dac, dacval[0][dac] ); // restore
 
@@ -8101,41 +8153,6 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   tb.roc_Chip_Mask();
   tb.roc_ClrCal();
   tb.Flush();
-
-  // header = 1 word
-  // pixel = +2 words
-  // size = 256 dacs * 4160 pix * nTrig * 3 words = 32 MW
-
-  cout << "DAQ size " << dSize << endl;
-
-  vector<uint16_t> data;
-  data.reserve( tb.Daq_GetSize() );
-
-  try {
-    uint32_t rest;
-    tb.Daq_Read( data, Blocksize, rest );
-    cout << "data size " << data.size() << ", remaining " << rest << endl;
-    while( rest > 0 ) {
-      vector<uint16_t> dataB;
-      dataB.reserve( Blocksize );
-      tb.Daq_Read( dataB, Blocksize, rest );
-      data.insert( data.end(), dataB.begin(), dataB.end() );
-      cout << "data size " << data.size() << ", remaining " << rest << endl;
-      dataB.clear();
-    }
-  }
-  catch( CRpcError &e ) {
-    e.What();
-    return 0;
-  }
-
-  gettimeofday( &tv, NULL );
-  long s3 = tv.tv_sec; // seconds since 1.1.1970
-  long u3 = tv.tv_usec; // microseconds
-  double dtr = s3-s2 + (u3-u2)*1e-6;
-  cout << "Daq_Read takes " << dtr << " s"
-       << " = " << 2*dSize / dtr / 1024/1024 << " MiB/s"
-       << endl;
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Close();
