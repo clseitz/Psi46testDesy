@@ -11,10 +11,10 @@ id  100 mA
 ia  100 mA
 
 - timing & levels:
-clk  5
-ctr  5  (CLK +  0)
-sda 20  (CLK + 15)
-tin 10  (CLK +  5)
+clk  2
+ctr  2  (CLK +  0)
+sda 17  (CLK + 15)
+tin  7  (CLK +  5)
 
 clklvl 10
 ctrlvl 10

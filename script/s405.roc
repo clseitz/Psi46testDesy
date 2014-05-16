@@ -1,4 +1,6 @@
 
+# psi46digV2.1
+
 log === set DTB parameters ===
 
 resoff
@@ -24,16 +26,23 @@ tinlvl 10
 --- pattern generator: set redout timing --------------------
 pgstop
 pgset 0 b101000  25  pg_resr pg_sync
-pgset 1 b000100 105  pg_cal, set WBC = pg_cal - 5
-pgset 2 b000010  16  pg_trg  shorter is better (caldelroc FW 2.11)
+pgset 1 b000100 106  pg_cal, set WBC = pg_cal - 7
+pgset 2 b000010  46  pg_trg  
 pgset 3 b000001   0  pg_tok, end of pgset
 
-trigdel 160  # delay in trigger loop [BC], 160 = 4 us
+trigdel 200  # delay in trigger loop [BC], 200 = 5 us
+
+# d1 1 (40 MHz clk on D1)
+# d1 4 (token on D1, see pixel_dtb.h)
+  d1 5 (trigg on D1, see pixel_dtb.h)
+  d2 6 (cal   on D2, see pixel_dtb.h)
+# d1 7 (reset on D1, see pixel_dtb.h)
+# d1 9 (sync  on D1, see pixel_dtb.h)
 
 select 0	  [set roclist, I2C]
 rocaddr 0	  [set ROC]
 
-dopen 40100100 [daq_open]
+dopen 40100100 0 [daq_open]
 
 --- power on --------------------------------
 pon
@@ -41,33 +50,30 @@ hvon
 
 mdelay 500
 
---- set divgV2 chip 309 DACs-----------------------------
+--- set divgV2.1 chip 405 DACs run 12544 Ia 25 trim 30
 
-dac   1    8  Vdig  needed for large events
-dac   2  160  Vana  ia 27 mA
-dac   3  130  Vsf   linearity
+dac   1    9  Vdig  
+dac   2   79  Vana  
+dac   3   33  Vsf   
 dac   4   12  Vcomp
 
-dac   7    1  VwllPr
-dac   9    1  VwllPr
+dac   7  160  VwllPr
+dac   9  160  VwllPr
 dac  10  252  VhldDel
 
 dac  11    1  Vtrim
-dac  12   90  VthrComp
+dac  12   97  VthrComp
 
-dac  13    1  VIBias_Bus
-dac  14   14  Vbias_sf
-dac  22   20  VIColOr
+dac  13   30  VIBias_Bus
+dac  22   99  VIColOr
 
-dac  15   64  VoffsetOp
-dac  17  140  VoffsetRO
-dac  18   45  VIon
+dac  17  244  VoffsetRO
 
-dac  19   40  Vcomp_ADC
-dac  20   60  VIref_ADC
+dac  19   10  Vcomp_ADC
+dac  20   88  VIref_ADC
 
 dac  25  222  Vcal
-dac  26  125  CalDel
+dac  26  102  CalDel
 
 dac 253    4  CtrlReg
 dac 254   99  WBC (159 to get 79 pixel/DC, but not 80 = erase)

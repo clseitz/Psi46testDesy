@@ -13,10 +13,10 @@ id  100 mA
 ia  100 mA
 
 - timing & levels:
-clk  4
-ctr  4  (CLK +  0)
-sda 19  (CLK + 15)
-tin  9  (CLK +  5)
+clk  2
+ctr  2  (CLK +  0)
+sda 17  (CLK + 15)
+tin  7  (CLK +  5)
 
 clklvl 10
 ctrlvl 10
@@ -50,30 +50,30 @@ hvon
 
 mdelay 500
 
---- set divgV2.1 chip 404 DACs-----------------------------
+--- set divgV2.1 chip 404 DACs run 12526 trim 32
 
-dac   1   10  Vdig  needed for large events
-dac   2   99  Vana  optia 25
+dac   1    9  Vdig  
+dac   2   84  Vana  
 dac   3   33  Vsf   linearity
-dac   4    6  Vcomp better multi-pulse eff (td52)
+dac   4    4  Vcomp better at low trim 13.5.2014
 
-dac   7  140  VwllPr (for effmap 98)
-dac   9  140  VwllPr
-dac  10  252  VhldDel
+dac   7  160  VwllPr (for effmap 98)
+dac   9  160  VwllPr
+dac  10  152  VhldDel
 
 dac  11    1  Vtrim
-dac  12   140 VthrComp
+dac  12  100  VthrComp
 
 dac  13   30  VIBias_Bus
 dac  22   99  VIColOr
 
 dac  17  210  VoffsetRO
 
-dac  19   10  Vcomp_ADC
-dac  20   99  VIref_ADC
+dac  19   50  Vcomp_ADC
+dac  20   80  VIref_ADC
 
 dac  25  222  Vcal
-dac  26  123  CalDel
+dac  26  136  CalDel
 
 dac 253    4  CtrlReg
 dac 254   99  WBC (159 to get 79 pixel/DC, but not 80 = erase)

@@ -11,10 +11,10 @@ id  100 mA
 ia  100 mA
 
 - timing & levels:
-clk  4
-ctr  4  (CLK +  0)
-sda 19  (CLK + 15)
-tin  9  (CLK +  5)
+clk  2
+ctr  2  (CLK +  0)
+sda 17  (CLK + 15)
+tin  7  (CLK +  5)
 
 clklvl 10
 ctrlvl 10
@@ -47,7 +47,7 @@ mdelay 500
 rowinvert
 
 dac   1   12  Vdig
-dac   2   99  Vana  ia 25 mA
+dac   2   92  Vana  ia 25 mA
 dac   3   30  Vsf   linearity
 dac   4   12  Vcomp
 

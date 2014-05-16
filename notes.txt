@@ -1,4 +1,10 @@
 
+Wed 15.5.2014
+upgrade dtb_v2.19.flash
+
+Wed 14.5.2014
+upgrade dtb_v2.17.flash
+
 Fri 2.5.2014
 upgrade dtb_v2.14.flash
 
@@ -12,19 +18,22 @@ v2.07  setLoopTriggerDelay [us]
 v2.10  Daq_FillLevel, bool Loop... true = done, false = interrupt
 
 v2.14  SetLoopTriggerDelay [BC]
-
+v2.15  SetTrimValues uint8 instead int8
+v2.17  Faster Daq_FillLevel() in TriggerLoops
+v2.18  FW 2.2 from Beat: fix missing 2 bytes problem
+v2.19  FLAG_FORCE_MASKED is now default, overide with FLAG_FORCE_UNMASKED
 
 --------------------------------------------------------------------------------
 
 rpc_calls updated
 
 git clone https://github.com/psi46/pixel-dtb-firmware.git
-mv pixel-dtb-firmware/  pixel-dtb-firmware-2-14
+mv pixel-dtb-firmware/  pixel-dtb-firmware-2-17
 
 cd tools-16MB/rpcgen
-generate.sh ~/psi/dtb/pixel-dtb-firmware-2-14/software/dtb_expert/pixel_dtb.h
+generate.sh ~/psi/dtb/pixel-dtb-firmware-2-17/software/dtb_expert/pixel_dtb.h
 
-cd tst214
+cd tst217
 cp ../tools-16MB/rpcgen/rpc_calls.cpp .
 
 up date pixel_dtb.h
@@ -32,32 +41,26 @@ up date pixel_dtb.h
 
 make
 
-cp ../pixel-dtb-firmware-2-14/FLASH/dtb_v2.14.flash .
+cp ../pixel-dtb-firmware-2-17/FLASH/dtb_v2.17.flash .
 
 upgrade
 
-=nb:~/psi/dtb/tst214 16:10> bin/psi46test m.log
 psi46test for DTB V2.0 (18.3.2014)
-reading psi46test.ini...
-logging to m.log
-USB opened DTB_WS6OKA
-
-DTB DTB_WS6OKA opened
-rpc_Receive 160 bytes
+USB opened DTB_WS6RT9
+DTB DTB_WS6RT9 opened
 --- DTB info-------------------------------------
-Board id:    78
+Board id:    80
 HW version:  DTB1.2
-FW version:  2.1
-SW version:  2.14
-USB id:      DTB_WS6OKA
-MAC address: 40D85511804E
-Hostname:    pixelDTB078
-
+FW version:  2.2
+SW version:  2.19
+USB id:      DTB_WS6RT9
+MAC address: 40D855118050
+Hostname:    pixelDTB080
 > rpcinfo
 --- DTB RPC info ----------------------------------------
 RPC version:     2.0
-RPC timestamp:   
-Number of calls: 125
+RPC timestamp:   14.05.2014 13:36:21
+Number of calls: 126
 Function calls:
     0: uint16_t GetRpcVersion();
     1: int32_t GetRpcCallId(string&);
@@ -114,79 +117,77 @@ Function calls:
    52: uint8_t GetStatus();
    53: void SetRocAddress(uint8_t);
    54: void Pg_SetCmd(uint16_t, uint16_t);
-   55: void Pg_Stop();
-   56: void Pg_Single();
-   57: void Pg_Trigger();
-   58: void Pg_Loop(uint16_t);
-   59: uint32_t Daq_Open(uint32_t, uint8_t);
-   60: void Daq_Close(uint8_t);
-   61: void Daq_Start(uint8_t);
-   62: void Daq_Stop(uint8_t);
-   63: uint32_t Daq_GetSize(uint8_t);
-   64: uint8_t Daq_FillLevel(uint8_t);
-   65: uint8_t Daq_FillLevel();
-   66: uint8_t Daq_Read(HWvectorR&, uint32_t, uint8_t);
-   67: uint8_t Daq_Read(HWvectorR&, uint32_t, uint32_t&, uint8_t);
-   68: void Daq_Select_ADC(uint16_t, uint8_t, uint8_t, uint8_t);
-   69: void Daq_Select_Deser160(uint8_t);
-   70: void Daq_Select_Deser400();
-   71: void Daq_Deser400_Reset(uint8_t);
-   72: void Daq_Select_Datagenerator(uint16_t);
-   73: void Daq_DeselectAll();
-   74: void roc_I2cAddr(uint8_t);
-   75: void roc_ClrCal();
-   76: void roc_SetDAC(uint8_t, uint8_t);
-   77: void roc_Pix(uint8_t, uint8_t, uint8_t);
-   78: void roc_Pix_Trim(uint8_t, uint8_t, uint8_t);
-   79: void roc_Pix_Mask(uint8_t, uint8_t);
-   80: void roc_Pix_Cal(uint8_t, uint8_t, bool);
-   81: void roc_Col_Enable(uint8_t, bool);
-   82: void roc_Col_Mask(uint8_t);
-   83: void roc_Chip_Mask();
-   84: bool TBM_Present();
-   85: void tbm_Enable(bool);
-   86: void tbm_Addr(uint8_t, uint8_t);
-   87: void mod_Addr(uint8_t);
-   88: void tbm_Set(uint8_t, uint8_t);
-   89: bool tbm_Get(uint8_t, uint8_t&);
-   90: bool tbm_GetRaw(uint8_t, uint32_t&);
-   91: bool GetPixelAddressInverted();
-   92: void SetPixelAddressInverted(bool);
-
-   93: int32_t CountReadouts(int32_t);
-   94: int32_t CountReadouts(int32_t, int32_t);
-   95: int32_t CountReadouts(int32_t, int32_t, int32_t);
-   96: int32_t PH(int32_t, int32_t, int32_t, int16_t);
-   97: int32_t PixelThreshold(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, bool, bool);
-   98: bool test_pixel_address(int32_t, int32_t);
-   99: int8_t CalibratePixel(int16_t, int16_t, int16_t, int16_t&, int32_t&);
-  100: int8_t CalibrateDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
-  101: int8_t CalibrateDacDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
-  102: int16_t TrimChip(vector<int16_t>&);
-  103: int16_t CalibrateMap(int16_t, vectorR<int16_t>&, vectorR<int32_t>&, vectorR<uint32_t>&);
-  104: int16_t TriggerRow(int16_t, int16_t, vector<int16_t>&, int16_t);
-  105: bool TestColPixel(uint8_t, uint8_t, bool, vectorR<uint8_t>&);
-
-  106: void Ethernet_Send(string&);
-  107: uint32_t Ethernet_RecvPackets();
-
-  108: void LoopInterruptReset();
-  109: void SetLoopTriggerDelay(uint16_t);
-  110: bool SetI2CAddresses(vector<uint8_t>&);
-  111: bool SetTrimValues(uint8_t, vector<int8_t>&);
-  112: bool LoopMultiRocAllPixelsCalibrate(vector<uint8_t>&, uint16_t, uint16_t);
-  113: bool LoopMultiRocOnePixelCalibrate(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t);
-  114: bool LoopSingleRocAllPixelsCalibrate(uint8_t, uint16_t, uint16_t);
-  115: bool LoopSingleRocOnePixelCalibrate(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t);
-  116: bool LoopMultiRocAllPixelsDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  117: bool LoopMultiRocOnePixelDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  118: bool LoopSingleRocAllPixelsDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  119: bool LoopSingleRocOnePixelDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  120: bool LoopMultiRocAllPixelsDacDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  121: bool LoopMultiRocOnePixelDacDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  122: bool LoopSingleRocAllPixelsDacDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  123: bool LoopSingleRocOnePixelDacDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  124: void VectorTest(vector<uint16_t>&, vectorR<uint16_t>&);
+   55: void Pg_SetCmdAll(vector<uint16_t>&);
+   56: void Pg_Stop();
+   57: void Pg_Single();
+   58: void Pg_Trigger();
+   59: void Pg_Loop(uint16_t);
+   60: uint32_t Daq_Open(uint32_t, uint8_t);
+   61: void Daq_Close(uint8_t);
+   62: void Daq_Start(uint8_t);
+   63: void Daq_Stop(uint8_t);
+   64: uint32_t Daq_GetSize(uint8_t);
+   65: uint8_t Daq_FillLevel(uint8_t);
+   66: uint8_t Daq_FillLevel();
+   67: uint8_t Daq_Read(HWvectorR&, uint32_t, uint8_t);
+   68: uint8_t Daq_Read(HWvectorR&, uint32_t, uint32_t&, uint8_t);
+   69: void Daq_Select_ADC(uint16_t, uint8_t, uint8_t, uint8_t);
+   70: void Daq_Select_Deser160(uint8_t);
+   71: void Daq_Select_Deser400();
+   72: void Daq_Deser400_Reset(uint8_t);
+   73: void Daq_Select_Datagenerator(uint16_t);
+   74: void Daq_DeselectAll();
+   75: void roc_I2cAddr(uint8_t);
+   76: void roc_ClrCal();
+   77: void roc_SetDAC(uint8_t, uint8_t);
+   78: void roc_Pix(uint8_t, uint8_t, uint8_t);
+   79: void roc_Pix_Trim(uint8_t, uint8_t, uint8_t);
+   80: void roc_Pix_Mask(uint8_t, uint8_t);
+   81: void roc_Pix_Cal(uint8_t, uint8_t, bool);
+   82: void roc_Col_Enable(uint8_t, bool);
+   83: void roc_Col_Mask(uint8_t);
+   84: void roc_Chip_Mask();
+   85: bool TBM_Present();
+   86: void tbm_Enable(bool);
+   87: void tbm_Addr(uint8_t, uint8_t);
+   88: void mod_Addr(uint8_t);
+   89: void tbm_Set(uint8_t, uint8_t);
+   90: bool tbm_Get(uint8_t, uint8_t&);
+   91: bool tbm_GetRaw(uint8_t, uint32_t&);
+   92: bool GetPixelAddressInverted();
+   93: void SetPixelAddressInverted(bool);
+   94: int32_t CountReadouts(int32_t);
+   95: int32_t CountReadouts(int32_t, int32_t);
+   96: int32_t CountReadouts(int32_t, int32_t, int32_t);
+   97: int32_t PH(int32_t, int32_t, int32_t, int16_t);
+   98: int32_t PixelThreshold(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, bool, bool);
+   99: bool test_pixel_address(int32_t, int32_t);
+  100: int8_t CalibratePixel(int16_t, int16_t, int16_t, int16_t&, int32_t&);
+  101: int8_t CalibrateDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
+  102: int8_t CalibrateDacDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
+  103: int16_t TrimChip(vector<int16_t>&);
+  104: int16_t CalibrateMap(int16_t, vectorR<int16_t>&, vectorR<int32_t>&, vectorR<uint32_t>&);
+  105: int16_t TriggerRow(int16_t, int16_t, vector<int16_t>&, int16_t);
+  106: bool TestColPixel(uint8_t, uint8_t, bool, vectorR<uint8_t>&);
+  107: void Ethernet_Send(string&);
+  108: uint32_t Ethernet_RecvPackets();
+  109: void LoopInterruptReset();
+  110: void SetLoopTriggerDelay(uint16_t);
+  111: bool SetI2CAddresses(vector<uint8_t>&);
+  112: bool SetTrimValues(uint8_t, vector<uint8_t>&);
+  113: bool LoopMultiRocAllPixelsCalibrate(vector<uint8_t>&, uint16_t, uint16_t);
+  114: bool LoopMultiRocOnePixelCalibrate(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t);
+  115: bool LoopSingleRocAllPixelsCalibrate(uint8_t, uint16_t, uint16_t);
+  116: bool LoopSingleRocOnePixelCalibrate(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t);
+  117: bool LoopMultiRocAllPixelsDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  118: bool LoopMultiRocOnePixelDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  119: bool LoopSingleRocAllPixelsDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  120: bool LoopSingleRocOnePixelDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  121: bool LoopMultiRocAllPixelsDacDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  122: bool LoopMultiRocOnePixelDacDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  123: bool LoopSingleRocAllPixelsDacDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  124: bool LoopSingleRocOnePixelDacDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  125: void VectorTest(vector<uint16_t>&, vectorR<uint16_t>&);
 
 --------------------------------------------------------------------------------
 3.5.2014

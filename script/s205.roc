@@ -11,10 +11,10 @@ id  100 mA
 ia  100 mA
 
 - timing & levels:
-clk  4
-ctr  4  (CLK +  0)
-sda 19  (CLK + 15)
-tin  9  (CLK +  5)
+clk  2
+ctr  2  (CLK +  0)
+sda 17  (CLK + 15)
+tin  7  (CLK +  5)
 
 clklvl 10
 ctrlvl 10
@@ -45,7 +45,7 @@ mdelay 500
 
 rowinvert
 
-dac   1   15  Vdig  beam test 2013
+dac   1   15  Vdig  beam test 2013 run 6656 or 10891
 dac   2   81  Vana  ia 25 mA
 dac   3   30  Vsf   linearity
 dac   4   12  Vcomp
@@ -55,7 +55,7 @@ dac   9   60  VwllPr
 dac  10  252  VhldDel
 
 dac  11    1  Vtrim
-dac  12   73  VthrComp
+dac  12   72  VthrComp
 
 dac  13   20  VIBias_Bus
 dac  14   14  Vbias_sf

@@ -5774,6 +5774,8 @@ CMD_PROC(effmap)
 
   int err = 0;
 
+  int nmiss = 0;
+
   for( int col = 0; col < 52; ++col ) {
     //cout << endl << setw(2) << col << " ";
 
@@ -5791,18 +5793,25 @@ CMD_PROC(effmap)
 	       << endl;
 	if( err ) break;
 
-	if( pix.n > 0 )
+	if( pix.n > 0 ) {
 	  if( pix.x == col && pix.y == row )
 	    cnt++;
-
+	  else {
+	    nmiss++;
+	    cout
+	      << "trig " << k
+	      << " get pixel number " << pix.x << " " << pix.y
+	      << " expect " << col << " " << row << endl;
+	  }
+	}
 	if( pix.n > 1 )
 	  cout << pix.n << " responses at pix " << col << " " << row
 	       << ", trig " << k << endl;
 
       } // trig
 
+      if( nmiss > 99 ) err = 1;
       if( err ) break;
-
       h11->Fill( cnt );
       h21->Fill( col, row, cnt );
       if( cnt >  0 ) nok++;
@@ -7600,7 +7609,7 @@ int GetEff( int & n01, int & n50, int & n99 )
   // pixel = +2 words
   // size = 4160 * nTrig * 3 = 124'800 words
 
-  //tb.Daq_Stop();
+  tb.Daq_Stop();
 
   vector<uint16_t> data;
   data.reserve( tb.Daq_GetSize() );
@@ -7747,14 +7756,16 @@ CMD_PROC(caldelroc) // scan and set CalDel using all pixel: 17 s
       if( step == 10 ) {
 	step = 4;
 	idel -= 10; // go back and measure finer
+	n0 = 0;
       }
       else if( step == 4 ) {
 	step = 2;
 	idel -= 4; // go back and measure finer
+	n0 = 0;
       }
     }
 
-    if( n01 < 5 && step == 2 ) n0++; // quiet
+    if( n01 < 4 && step == 2 ) n0++; // count empty responses
     if( n0 > 3 ) done = 1; // we are past the active range
 
     idel += step;
@@ -8061,7 +8072,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   // measure:
 
   cout << "pulsing 4160 pixels with " << nTrig << " triggers for "
-       << nstp << " DAC steps may take " << int( 4160 * nTrig * nstp *5e-6 ) + 1
+       << nstp << " DAC steps may take " << int( 4160 * nTrig * nstp *6e-6 ) + 1
        << " s..." << endl;
 
   // header = 1 word
@@ -8337,7 +8348,7 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
 
   cout << "pulsing " << nTrig << " triggers for "
        << nstp1 << " x " << nstp2 << " DAC steps may take "
-       << int( nTrig * nstp1 * nstp2 * 5e-6 ) + 1
+       << int( nTrig * nstp1 * nstp2 * 6e-6 ) + 1
        << " s..." << endl;
 
   try {
