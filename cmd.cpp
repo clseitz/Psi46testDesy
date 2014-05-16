@@ -1127,11 +1127,11 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
   vector<std::pair<int,int> > goodvalues;
 
   int x, y;
-  printf("      0     1     2     3     4     5     6     7\n" );
+  printf("deser adj 0     1     2     3     4     5     6     7\n" );
 
   for( y = 0; y < 25; y++) { // clk
 
-    printf("%2i:", y);
+    printf( "clk %2i:", y);
 
     for( x = 0; x < 8; x++ ) { // deser160 phase
 
@@ -1173,14 +1173,14 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
   tb.Daq_Close();
 #endif
 
-  printf( "Old values: %i %i\n", delayAdjust, deserAdjust );
+  printf( "Old values: clk delay %i, deserAdjust %i\n", delayAdjust, deserAdjust );
 
   if( goodvalues.size() == 0 ) {
     printf( "No value found where header could be read back - no adjustments made.\n" );
     y = delayAdjust;
     tb.Sig_SetDelay( SIG_CLK, y );
-    tb.Sig_SetDelay( SIG_SDA, y+15 );
     tb.Sig_SetDelay( SIG_CTR, y );
+    tb.Sig_SetDelay( SIG_SDA, y+15 );
     tb.Sig_SetDelay( SIG_TIN, y+5 );
     return true;
   }
@@ -1192,11 +1192,11 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
   const int select = floor( 0.5*goodvalues.size() - 0.5 );
   delayAdjust = goodvalues[select].first;
   deserAdjust = goodvalues[select].second;
-  printf( "New values: clock %i deser %i\n", delayAdjust, deserAdjust );
+  printf( "New values: clock delay %i, deserAdjust %i\n", delayAdjust, deserAdjust );
   y = delayAdjust;
   tb.Sig_SetDelay( SIG_CLK, y );
-  tb.Sig_SetDelay( SIG_SDA, y+15 );
   tb.Sig_SetDelay( SIG_CTR, y );
+  tb.Sig_SetDelay( SIG_SDA, y+15 );
   tb.Sig_SetDelay( SIG_TIN, y+5 );
 
   return true;
