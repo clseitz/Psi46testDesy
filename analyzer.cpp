@@ -32,8 +32,13 @@ int DecodePixel( const vector<uint16_t> &x, int &pos, PixelReadoutData &pix )
   if( pos >= int( x.size() ) ) return 1; // missing data
 
   // need to skip some junk at the beginning (DP 3.4.2014 at FEC):
-  // scan for header:
-  while( pos < int( x.size() ) && (x[pos] & 0x8ffc) != 0x87f8 ) {
+  // scan for ROC header:
+  // while( pos < int( x.size() ) && (x[pos] & 0x8ffc) != 0x87f8 ) {
+  //   cout << "pos " << pos << " skip " << hex << x.at(pos) << dec << endl;
+  //   pos++;
+  // }
+  // scan for FPGA header:
+  while( pos < int( x.size() ) && (x[pos] & 0x8000) != 0x8000 ) {
     cout << "pos " << pos << " skip " << hex << x.at(pos) << dec << endl;
     pos++;
   }
