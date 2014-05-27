@@ -1119,8 +1119,8 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Pg_SetCmd(20, PG_RESR);
-  tb.Pg_SetCmd(0, PG_TOK);
+  //DP tb.Pg_SetCmd(20, PG_RESR);
+  //tb.Pg_SetCmd(0, PG_TOK);
 
   vector<uint16_t> data;
 
