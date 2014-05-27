@@ -8604,6 +8604,21 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
 	  nstp1, -0.5, nstp1-0.5,
 	  nstp2, -0.5, nstp2-0.5 );
 
+
+
+  if( h23 ) delete h23;
+  h23 = new
+    TH2D( Form( "N_Trig2DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
+          Form( "N_Trig2 vs DAC %02i vs DAC %02i col %02i row %02i;DAC %02i;DAC %02i;readouts",
+                dac1, dac2, col, row, dac1, dac2 ),
+          nstp1, -0.5, nstp1-0.5,
+          nstp2, -0.5, nstp2-0.5 );
+  
+  TH1D *h_one = new TH1D( Form("h_optimal_DAC%02i_col%02i_row%02i", dac2, col, row ),
+                          Form("h_optimal_DAC%02i_col%02i_row%02i", dac2, col, row ),
+                          nstp1, -0.5, nstp1-0.5);
+  
+
   PixelReadoutData pix;
 
   int pos = 0;
@@ -8646,6 +8661,11 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
       h21->Fill( idac, jdac, ph );
       h22->Fill( idac, jdac, cnt );
 
+      if ( cnt  > nTrig/2 )
+        {
+          h23->Fill( idac, jdac, cnt );
+        }
+      
     } // dac
 
     if( err ) break;
@@ -8656,10 +8676,54 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
 
   h21->Write();
   h22->Write();
+  h23->Write();
+
   h21->SetStats(0);
-  h21->Draw("colz");
+  //h21->Draw("colz");
+  h23->Draw("colz");
   c1->Update();
-  cout << "histos 21, 22" << endl;
+  cout << "histos 21, 22, 23 " << endl;
+
+
+  int dac1Mean = int(h23->GetMean(1));
+  int dac2Mean = int(h23->GetMean(2));
+
+  // look for a better value: 
+
+  int nm = 0;
+  int i0 = 0;
+  int i9 = 0;
+
+  for( int j = 0; j < nstp1; ++j ) 
+    {    
+      int cnt = h23->GetBinContent(dac1Mean,j);
+      h_one->Fill(j,h23->GetBinContent(dac1Mean,j));
+      //cout << " " << cnt;
+      //Log.printf( "%i %i\n", j, cnt );
+      
+      if( cnt > nm ) {
+	nm = cnt;
+	i0 = j; // begin of plateau
+      }
+      if( cnt >= nm ) {
+        i9 = j; // end of plateau
+      }      
+    } 
+
+  //
+  cout << "Proposed values for dac1=" << dac1 << " : "  << dac1Mean << endl;
+  int dac2Best = i0 + (i9-i0)/4;
+  cout << "Proposed values for dac2=" << dac2 << " are: " << endl;
+  cout << " 1) 25% from Plateu " << dac2Best << endl;
+  cout << " 2) Mean "  << dac2Mean << endl;
+  cout << "For dac2: " << dac2 << " Plateu begin-end " << i0 << "-" << i9 << endl;
+
+  Log.printf( "dac1 %i %i\n", dac1, int(dac1Mean) );
+  Log.printf( "dac2 %i %i\n", dac2, int(dac2Best) );
+  Log.printf( "dac2 %i Plateu Begin%i End%i\n", dac2, i0, i9 );
+  
+  h_one->Write();
+  delete h_one;
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
