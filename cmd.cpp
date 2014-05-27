@@ -10069,7 +10069,7 @@ void cmd() // called once from psi46test
   CMD_REG( pgsingle, "pgsingle                      send single pattern" );
   CMD_REG( pgtrig,   "pgtrig                        enable external pattern trigger" );
   CMD_REG( pgloop,   "pgloop <period>               start patterngenerator in loop mode" );
-  CMD_REG( trigdel,  "trigdel <delay>               delay in trigger loop [us]" );
+  CMD_REG( trigdel,  "trigdel <delay>               delay in trigger loop [bc]" );
 
   CMD_REG( upd,       "upd                          Open DAQ and allocate memory" );
 
