@@ -5455,6 +5455,12 @@ CMD_PROC(calsdac) // calsdac col row dac (cals PH vs dac)
 	  Form( "CALS vs DAC %i col %02i row %02i;DAC %i [DAC];<CALS> [ADC]", dac, col, row, dac ),
 	  nstp, -0.5, nstp-0.5 );
 
+  if( h12 ) delete h12;
+  h12 = new
+    TH1D( Form( "resp_cals_dac%02i_%02i_%02i", dac, col, row ),
+	  Form( "CALS responses vs DAC %i col %02i row %02i;DAC %i [DAC];responses", dac, col, row, dac ),
+	  nstp, -0.5, nstp-0.5 );
+
   // print:
 
   double phmin = 255;
@@ -5467,6 +5473,7 @@ CMD_PROC(calsdac) // calsdac col row dac (cals PH vs dac)
     Log.printf( " %i", (ph > -0.1 ) ? int(ph+0.5) : -1 );
     if( ph > -0.5 && ph < phmin ) phmin = ph;
     h11->Fill( i, ph );
+    h12->Fill( i, nReadouts.at(i) );
 
   } // dacs
   cout << endl;
@@ -5475,10 +5482,11 @@ CMD_PROC(calsdac) // calsdac col row dac (cals PH vs dac)
   Log.flush();
 
   h11->Write();
+  h12->Write();
   h11->SetStats(0);
   h11->Draw();
   c1->Update();
-  cout << "histos 11" << endl;
+  cout << "histos 11, 12" << endl;
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
