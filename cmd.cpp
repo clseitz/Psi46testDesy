@@ -3051,6 +3051,28 @@ CMD_PROC(show) // DP
 }
 
 //------------------------------------------------------------------------------
+CMD_PROC(wdac) // write DACs to file
+{
+  char chip[80];
+  PAR_STRING( chip, 80 );
+  string cname = chip;
+  ostringstream fname; // output string stream
+  fname << "dacParameters_" << cname.c_str() << ".dat";
+  ofstream dacFile( fname.str().c_str() ); // love it!
+
+  for( int32_t i = 0; i < 16; i++ )
+    if( roclist[i] ) {
+      for( int j = 1; j < 256; ++j )
+	if( dacval[i][j] > -1 ) {
+	  dacFile << setw(3) << j << "  " << dacnam[j]
+		  << setw(5) << dacval[i][j] << endl;
+	}
+    }
+  cout << "DAC values written to " << fname.str() << endl;
+  return true;
+}
+
+//------------------------------------------------------------------------------
 int32_t dacStrt( int32_t num ) // min DAC range
 {
   if(      num == VD )
@@ -10836,6 +10858,7 @@ void cmd() // called once from psi46test
   CMD_REG( ctl,      "ctl <value>                   set control register" );
   CMD_REG( wbc,      "wbc <value>                   set WBC" );
   CMD_REG( show,     "show                          print dacs" );
+  CMD_REG( wdac,     "wdac chip                     write dacParameters" );
 
   CMD_REG( cole,     "cole <range>                  enable column" );
   CMD_REG( cold,     "cold <range>                  disable columns" );
