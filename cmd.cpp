@@ -62,6 +62,7 @@ int deserAdjust =  4; //  4    4     5    6        5
 //int deserAdjust =  5; //  FEC 30 cm cable
 
 int dacval[16][256]; // DP
+string dacnam[256];
 
 int roclist[16] = {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
@@ -713,8 +714,8 @@ CMD_PROC(id) // digital current limit [mA]
 CMD_PROC(getva) // measure analog supply voltage
 {
   double v = tb.GetVA();
-  printf( "VA = %1.3f V\n", v );
-  Log.printf( "VA = %1.3f V\n", v );
+  printf( "VA %1.3f V\n", v );
+  Log.printf( "VA %1.3f V\n", v );
   return true;
 }
 
@@ -722,8 +723,8 @@ CMD_PROC(getva) // measure analog supply voltage
 CMD_PROC(getvd) // measure digital supply voltage
 {
   double v = tb.GetVD();
-  printf( "VD = %1.3f V\n", v );
-  Log.printf( "VD = %1.3f V\n", v );
+  printf( "VD %1.3f V\n", v );
+  Log.printf( "VD %1.3f V\n", v );
   return true;
 }
 
@@ -735,9 +736,9 @@ CMD_PROC(getia) // measure analog supply current
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
       nrocs++;
-  printf( "IA = %4.1f mA for %i ROCs = %4.1f mA per ROC\n",
+  printf( "IA %4.1f mA for %i ROCs = %4.1f mA per ROC\n",
 	  ia, nrocs, ia/nrocs );
-  Log.printf( "IA = %4.1f mA for %i ROCs = %4.1f mA per ROC\n",
+  Log.printf( "IA %4.1f mA for %i ROCs = %4.1f mA per ROC\n",
 	  ia, nrocs, ia/nrocs );
   return true;
 }
@@ -746,8 +747,8 @@ CMD_PROC(getia) // measure analog supply current
 CMD_PROC(getid) // measure digital supply current
 {
   double id = tb.GetID()*1E3; // [mA]
-  printf( "ID = %1.1f mA\n", id );
-  Log.printf( "ID = %1.1f mA\n", id );
+  printf( "ID %1.1f mA\n", id );
+  Log.printf( "ID %1.1f mA\n", id );
   return true;
 }
 
@@ -3042,7 +3043,7 @@ CMD_PROC(show) // DP
     if( roclist[i] ) {
       for( int j = 1; j < 256; ++j )
 	if( dacval[i][j] > -1 ) {
-	  printf( "%3i %4i\n", j, dacval[i][j] );
+	  cout << dacnam[j] << setw(5) << j << setw(5) << dacval[i][j] << endl;
 	  Log.printf( "%3i %4i\n", j, dacval[i][j] );
 	}
     }
@@ -10668,35 +10669,12 @@ CMD_PROC(goto)
 //------------------------------------------------------------------------------
 void cmdHelp()
 {
-  if( settings.port_prober >= 0 ) {
-    fputs( "\n"
-	  "+-- control commands ------------------------------------------+\n"
-	  "| h                  display this text                         |\n"
-	  "| exit               exit commander                            |\n"
-	  "+-- wafer test ------------------------------------------------+\n"
-	  "| go                 start wafer test (press <cr> to stop)     |\n"
-	  "| test               run chip test                             |\n"
-	  "| pr <command>       send command to prober                    |\n"
-	  "| sep                prober z-axis separation                  |\n"
-	  "| contact            prober z-axis contact                     |\n"
-	  "| first              go to first die and clear wafer map       |\n"
-	  "| next               go to next die                            |\n"
-	  "| goto <x> <y>       go to specifed die                        |\n"
-	  "| chippos <ABCD>     move to chip A, B, C or D                 |\n"
-	  "+--------------------------------------------------------------+\n",
-	  stdout);
-  }
-  else {
-    fputs( "\n"
-	  "+-- control commands ------------------------------------------+\n"
-	  "| h                  display this text                         |\n"
-	  "| exit               exit commander                            |\n"
-	  "| quit               exit commander                            |\n"
-	  "+-- chip test -------------------------------------------------+\n"
-	  "| test <chip id>     run chip test                             |\n"
-	  "+--------------------------------------------------------------+\n",
-	  stdout);
-  }
+  fputs( "+-cmd commands ----------------------+\n"
+	 "| help      list of commands         |\n"
+	 "| exit      exit commander           |\n"
+	 "| quit      exit commander           |\n"
+	 "+------------------------------------+\n",
+	 stdout);
 }
 
 //------------------------------------------------------------------------------
@@ -10803,8 +10781,43 @@ void cmd() // called once from psi46test
   CMD_REG( showctr,  "showctr                       show CTR signal" );
   CMD_REG( showsda,  "showsda                       show SDA signal" );
 
-  CMD_REG( takedata, "takedata period               readout 40 MHz/period (to stop enter any key)" );
-  CMD_REG( modtd,    "modtd period                  module take data 40MHz/period (press any key to stop)" );
+  CMD_REG( tbmdis,   "tbmdis                        disable TBM" );
+  CMD_REG( tbmsel,   "tbmsel <hub> <port>           set hub and port address, port 6=all" );
+  CMD_REG( modsel,   "modsel <hub>                  set hub address for module" );
+  CMD_REG( tbmset,   "tbmset <reg> <value>          set TBM register" );
+
+  CMD_REG( adcsingle,"adcsingle                     ADC problem test 3" );
+  CMD_REG( adchisto, "adchisto                      ADC problem test 1" );
+  CMD_REG( adcpeak,  "adcpeak                       ADC problem test 2" );
+#ifdef PLOT
+  CMD_REG( adctransfer, "adctransfer" );
+#endif
+  CMD_REG( analyze,  "analyze                       test analyzer chain" );
+  CMD_REG( readback, "readback                      extended read back" );
+
+  CMD_REG( adctest,  "adctest                       check ADC pulse height readout" );
+  CMD_REG( ethsend,  "ethsend <string>              send <string> in a Ethernet packet" );
+  CMD_REG( ethrx,    "ethrx                         shows number of received packets" );
+  CMD_REG( shmoo,    "shmoo vx xrange vy ymin yrange" );
+  CMD_REG( phscan,   "phscan                        ROC pulse height scan" );
+  CMD_REG( readback, "readback                      read out ROC data" );
+
+  if( settings.port_prober >= 0)
+    CMD_REG( test,     "test                          run chip test" );
+  else
+    CMD_REG( test,     "test <chip id>                run PSI chip test" );
+
+  if( settings.port_prober >= 0 ) {
+
+    CMD_REG( go,       "go init|cont                  start wafer test (press <cr> to stop)" );
+    CMD_REG( pr,       "pr <command>                  send command to prober" );
+    CMD_REG( sep,      "sep                           prober z-axis separation" );
+    CMD_REG( contact,  "contact                       prober z-axis contact" );
+    CMD_REG( first,    "first                         go to first die and clear wafer map" );
+    CMD_REG( next,     "next                          go to next die" );
+    CMD_REG( goto,     "goto                          go to specified die" );
+    CMD_REG( chippos,  "chippos <ABCD>                move to chip A, B, C or D" );
+  }
 
   CMD_REG( dselmod,  "dselmod                       select deser400 for DAQ channel 0" );
   CMD_REG( dmodres,  "dmodres                       reset all deser400" );
@@ -10839,7 +10852,7 @@ void cmd() // called once from psi46test
   CMD_REG( fire2,    "fire col row [nTrig]          correlation" );
 
   CMD_REG( daci,     "daci roc dac                  current vs dac" );
-  CMD_REG( vthrcomp, "vthrcomp                      Id vs VthrComp" );
+  CMD_REG( vthrcompi,"vthrcompi                     Id vs VthrComp" );
   CMD_REG( caldel,   "caldel col row                CalDel efficiency scan" );
   CMD_REG( caldelmap,"caldelmap                     map of CalDel range" );
   CMD_REG( caldelroc,"caldelroc                     ROC CalDel efficiency scan" );
@@ -10847,7 +10860,12 @@ void cmd() // called once from psi46test
   CMD_REG( modpixsc, "modpixsc col row ntrig        module pixel S-curve" );
   CMD_REG( modsc,    "modsc ntrig                   module S-curves MultiRoc" );
   CMD_REG( modsc1,   "modsc1 ntrig                  module S-curves SingleRoc" );
+  CMD_REG( modmap,   "modmap nTrig                  module map" );
 
+  CMD_REG( takedata, "takedata period               readout 40 MHz/period (to stop enter any key)" );
+  CMD_REG( modtd,    "modtd period                  module take data 40MHz/period (press any key to stop)" );
+
+  CMD_REG( vthrcomp, "vthrcomp target               set VthrComp to target Vcal" );
   CMD_REG( trim,     "trim target                   set Vtrim and trim bits" );
   CMD_REG( tbits,    "tbits                         set trim bits for efficiency" );
   CMD_REG( thrdac,   "thrdac col row                Threshold vs DAC one pixel" );
@@ -10868,51 +10886,55 @@ void cmd() // called once from psi46test
   CMD_REG( effmap,   "effmap nTrig                  pixel alive map" );
   CMD_REG( bbtest,   "bbtest nTrig                  CALS map = bump bond test" );
 
-  CMD_REG( modmap,   "modmap nTrig                  module map" );
-
-  CMD_REG( tbmdis,   "tbmdis                        disable TBM" );
-  CMD_REG( tbmsel,   "tbmsel <hub> <port>           set hub and port address, port 6=all" );
-  CMD_REG( modsel,   "modsel <hub>                  set hub address for module" );
-  CMD_REG( tbmset,   "tbmset <reg> <value>          set TBM register" );
-
-  CMD_REG( adcsingle,"adcsingle                     ADC problem test 3" );
-  CMD_REG( adchisto, "adchisto                      ADC problem test 1" );
-  CMD_REG( adcpeak,  "adcpeak                       ADC problem test 2" );
-#ifdef PLOT
-  CMD_REG( adctransfer, "adctransfer" );
-#endif
-  CMD_REG( analyze,  "analyze                       test analyzer chain" );
-  CMD_REG( readback, "readback                      extended read back" );
-
-  CMD_REG( adctest,  "adctest                       check ADC pulse height readout" );
-  CMD_REG( ethsend,  "ethsend <string>              send <string> in a Ethernet packet" );
-  CMD_REG( ethrx,    "ethrx                         shows number of received packets" );
-  CMD_REG( shmoo,    "shmoo vx xrange vy ymin yrange" );
-  CMD_REG( phscan,   "phscan                        ROC pulse height scan" );
-  CMD_REG( readback, "readback                      read out ROC data" );
-
-  if( settings.port_prober >= 0)
-    CMD_REG( test,     "test                          run chip test" );
-  else
-    CMD_REG( test,     "test <chip id>                run chip test" );
-
-  if( settings.port_prober >= 0 ) {
-
-    CMD_REG( go,       "go init|cont                  start wafer test (press <cr> to stop)" );
-    CMD_REG( pr,       "pr <command>                  send command to prober" );
-    CMD_REG( sep,      "sep                           prober z-axis separation" );
-    CMD_REG( contact,  "contact                       prober z-axis contact" );
-    CMD_REG( first,    "first                         go to first die and clear wafer map" );
-    CMD_REG( next,     "next                          go to next die" );
-    CMD_REG( goto,     "goto                          go to specified die" );
-    CMD_REG( chippos,  "chippos <ABCD>                move to chip A, B, C or D" );
-  }
-
-  CMD_REG( h,        "h                             simple help" );
-
   cmdHelp();
 
   cmd_intp.SetScriptPath( settings.path );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  for( size_t iroc = 0; iroc < 16; ++iroc )
+    for( size_t idac = 0; idac < 256; ++idac )
+      dacval[iroc][idac] = -1; // DP
+
+  dacnam[  1] = "Vdig      ";
+  dacnam[  2] = "Vana      ";
+  dacnam[  3] = "Vsf       "; // or Vsh
+  dacnam[  4] = "Vcomp     ";
+
+  dacnam[  5] = "Vleak_comp"; // only analog
+  dacnam[  6] = "VrgPr     "; // removed on dig
+  dacnam[  7] = "VwllPr    ";
+  dacnam[  8] = "VrgSh     "; // removed on dig
+  dacnam[  9] = "VwllSh    ";
+
+  dacnam[ 10] = "VhldDel   ";
+  dacnam[ 11] = "Vtrim     ";
+  dacnam[ 12] = "VthrComp  ";
+
+  dacnam[ 13] = "VIBias_Bus";
+  dacnam[ 14] = "Vbias_sf  ";
+
+  dacnam[ 15] = "VoffsetOp ";
+  dacnam[ 16] = "VIbiasOp  "; // analog
+  dacnam[ 17] = "VoffsetRO "; //
+  dacnam[ 17] = "PHOffset  "; // digV2.1
+  dacnam[ 18] = "VIon      ";
+
+  dacnam[ 19] = "Vcomp_ADC "; // dig
+  dacnam[ 20] = "VIref_ADC "; // dig
+  dacnam[ 20] = "PHscale   "; // digV2.1
+  dacnam[ 21] = "VIbias_roc"; // analog
+  dacnam[ 22] = "VIColOr   ";
+
+  dacnam[ 25] = "VCal      ";
+  dacnam[ 26] = "CalDel    ";
+
+  dacnam[ 31] = "VD        ";
+  dacnam[ 32] = "VA        ";
+
+  dacnam[253] = "CtrlReg   ";
+  dacnam[254] = "WBC       ";
+  dacnam[255] = "RBReg";
 
   // init globals (to something other than the default zero):
 

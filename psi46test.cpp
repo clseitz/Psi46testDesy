@@ -58,8 +58,6 @@ MyMainFrame::MyMainFrame( const TGWindow *p, UInt_t w, UInt_t h )
   fMain->AddFrame( fEcanvas,
 		   new TGLayoutHints( kLHintsExpandX | kLHintsExpandY, 1, 1, 1, 1 ) );
 
-  //TCanvas *c1 = fEcanvas->GetCanvas();
-
   // Set a name to the main frame:
   fMain->SetWindowName("psi46test");
 
@@ -108,10 +106,6 @@ int main( int argc, char* argv[] )
     return 3;
   }
 
-  for( size_t iroc = 0; iroc < 16; ++iroc )
-    for( size_t idac = 0; idac < 256; ++idac )
-      dacval[iroc][idac] = -1; // DP
-
   // open test board on USB:
 
   Log.section("DTB");
@@ -157,16 +151,6 @@ int main( int argc, char* argv[] )
       }
 
     Log.flush();
-
-    // Beat Meier:
-
-    vector<uint16_t> vx;
-    vx.resize(13);
-    for (unsigned int i=0; i<vx.size(); i++) vx[i] = i+1000;
-    tb.VectorTest(vx, vx);
-    printf("vx={");
-    for (unsigned int i=0; i<vx.size(); i++) printf(" %i",int(vx[i]));
-    printf(" }\n");
 
 #ifdef ROOT
     TFile* histoFile = new TFile( "Test.root", "RECREATE" );
