@@ -12,7 +12,7 @@
 #include <math.h>
 #include <time.h> // clock
 #include <sys/time.h> // gettimeofday, timeval
-#include <fstream>
+#include <fstream> // gainfile, dacPar
 #include <iostream> // cout
 #include <iomanip> // setw
 #include <sstream> // stringstream
@@ -95,6 +95,23 @@ TH1D * h16;
 TH2D * h21;
 TH2D * h22;
 TH2D * h23;
+
+//------------------------------------------------------------------------------
+class TBstate
+{
+  bool daqOpen;
+  uint32_t daqSize;
+
+public:
+  TBstate() : daqOpen(0), daqSize(0) { }
+  ~TBstate() { }
+  void SetDaqOpen( const bool open ) { daqOpen = open; }
+  bool GetDaqOpen() { return daqOpen; }
+  void SetDaqSize( const uint32_t size ) { daqSize = size; }
+  uint32_t GetDaqSize() { return daqSize; }
+};
+
+TBstate tbState;
 
 //------------------------------------------------------------------------------
 CMD_PROC(scan) // scan for DTB on USB
@@ -209,7 +226,7 @@ CMD_PROC(setled)
 CMD_PROC(log) // put comment into log from script or command line
 {
   char s[256];
-  PAR_STRINGEOL( s,255 );
+  PAR_STRINGEOL( s, 255 );
   Log.printf( "%s\n", s );
   return true;
 }
@@ -1063,8 +1080,14 @@ CMD_PROC(dopen)
   if( !PAR_IS_INT( channel, 0, 7 ) ) channel = 0;
 
   buffersize = tb.Daq_Open( buffersize, channel );
-  printf( "%i words allocated for data buffer %i\n", buffersize, channel );
-  if( buffersize == 0 ) printf( "error\n" );
+  if( buffersize == 0 )
+    cout << "Daq_Open error for channel " << channel << ", size " << buffersize << endl;
+  else {
+    cout << buffersize << " words allocated for data buffer " << channel << endl;
+    tbState.SetDaqOpen(1);
+    tbState.SetDaqSize(buffersize);
+  }
+
   return true;
 }
 
@@ -5845,9 +5868,9 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
 
   if( h11 ) delete h11;
   h11 = new
-    TH1D( Form( "thr_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "thr vs DAC %i col %02i row %02i;DAC %i [DAC];threshold [small Vcal DAC]",
-		dac, col, row, dac ),
+    TH1D( Form( "thr_dac%02i_%02i_%02i_bits%02i", dac, col, row, trim ),
+	  Form( "thr vs DAC %i col %2i row %2i bits %i;DAC %i [DAC];threshold [small Vcal DAC]",
+		dac, col, row, trim, dac ),
 	  nstp, dacstrt-0.5, dacstop+0.5 );
 
   tb.roc_Col_Enable( col, true );
@@ -7051,14 +7074,12 @@ CMD_PROC(vthrcomp)
     tb.roc_I2cAddr(roc);
 
     int vthr = dacval[roc][VthrComp];
-    int vtrm = 0;
-    dacval[roc][Vtrim] = vtrm;
-    tb.SetDAC( Vtrim, vtrm ); // no trim
+    int vtrm = dacval[roc][Vtrim];
 
     cout << endl
 	 << setw(2) << "ROC " << roc
 	 << ", VthrComp " << vthr
-	 << ", Vtrim 0"
+	 << ", Vtrim " << vtrm
 	 << endl;
 
     int vctl = dacval[roc][CtrlReg];
@@ -7069,12 +7090,6 @@ CMD_PROC(vthrcomp)
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // take threshold map, find hardest pixel
-
-    int tbits = 15; // 15 = off
-
-    for( int row = 79; row >= 0; --row )
-      for( int col = 0; col < 52; ++col )
-	modtrm[roc][col][row] = tbits; // used in RocThrMap
 
     cout << "measuring Vcal threshold map from guess " << guess << endl;
 
@@ -7087,8 +7102,8 @@ CMD_PROC(vthrcomp)
 
     if( h10 ) delete h10;
     h10 = new
-      TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
-	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+      TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ),
 	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
@@ -7136,6 +7151,7 @@ CMD_PROC(vthrcomp)
     if( vmin > target ) vstp = 1; // towards softer threshold
 
     tb.roc_Col_Enable( colmin, true );
+    int tbits = modtrm[roc][colmin][rowmin];
     tb.roc_Pix_Trim( colmin, rowmin, tbits );
 
     tb.Daq_Stop();
@@ -9948,7 +9964,7 @@ CMD_PROC(adctest)
 CMD_PROC(ethsend)
 {
   char msg[45];
-  PAR_STRINGEOL(msg,45);
+  PAR_STRINGEOL( msg, 45 );
   string message = msg;
   tb.Ethernet_Send(message);
   DO_FLUSH;
@@ -10316,11 +10332,11 @@ bool ReportChip( int &x, int &y )
 CMD_PROC(pr)
 {
   char s[256];
-  PAR_STRINGEOL(s,250);
+  PAR_STRINGEOL( s, 250 );
 
   printf( " REQ %s\n", s);
-  char *answer = prober.printf( "%s", s);
-  printf( " RSP %s\n", answer);
+  char *answer = prober.printf( "%s", s );
+  printf( " RSP %s\n", answer );
   return true;
 }
 
@@ -10407,7 +10423,7 @@ CMD_PROC(test)
   }
   else {
     char id[42];
-    PAR_STRINGEOL(id,40);
+    PAR_STRINGEOL( id, 40 );
     test_chip(id);
   }
 
@@ -10456,12 +10472,12 @@ bool ChangeChipPos(int pos)
 CMD_PROC(chippos)
 {
   char s[4];
-  PAR_STRING(s,2);
-  if( s[0] >= 'a') s[0] -= 'a' - 'A';
-  if( s[0] == 'B') return true; // chip B not existing
+  PAR_STRING( s, 2 );
+  if( s[0] >= 'a' ) s[0] -= 'a' - 'A';
+  if( s[0] == 'B' ) return true; // chip B not existing
 
   int i;
-  for( i=0; i<4; i++) {
+  for( i = 0; i < 4; i++ ) {
     if( s[0] == chipPosChar[i] ) {
       ChangeChipPos(i);
       return true;
@@ -10967,6 +10983,7 @@ void cmd() // called once from psi46test
 	modtrm[roc][col][row] =  15;
       }
 
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // gain file:
 
   ifstream gainFile( gainFileName.c_str() );
