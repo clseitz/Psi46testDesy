@@ -32,10 +32,6 @@ extern CChip g_chipdata;
 extern int delayAdjust;
 extern int deserAdjust;
 
-extern int dacval[16][256]; // DP
-
-//extern TCanvas * c1;
-
 void cmd();
 
 #ifdef ROOT
