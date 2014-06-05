@@ -6610,7 +6610,7 @@ CMD_PROC(thrmap) // uses tb.PixelThreshold
   h11 = new
     TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ),
 	  Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ),
-	  255, -0.5, 254.5 ); // 255 = overflow
+	  256, -0.5, 255.5 ); // 255 = overflow
 
   if( h21 ) delete h21;
   h21 = new TH2D( Form( "ThrMap_Vthr%i_Vtrm%i", vthr, vtrm ),
@@ -7089,7 +7089,7 @@ CMD_PROC(vthrcomp)
     h10 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
 	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
-	    255, -0.5, 254.5 ); // 255 = overflow
+	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -7265,7 +7265,7 @@ CMD_PROC(trim)
     h10 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
 	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
-	    255, -0.5, 254.5 ); // 255 = overflow
+	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -7386,7 +7386,7 @@ CMD_PROC(trim)
     h12 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
 	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
-	    255, -0.5, 254.5 ); // 255 = overflow
+	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -7408,7 +7408,7 @@ CMD_PROC(trim)
     h13 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4", vthr, vtrm, tbits ),
 	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
-	    255, -0.5, 254.5 ); // 255 = overflow
+	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -7430,7 +7430,7 @@ CMD_PROC(trim)
     h14 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2", vthr, vtrm, tbits ),
 	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
-	    255, -0.5, 254.5 ); // 255 = overflow
+	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -7452,7 +7452,7 @@ CMD_PROC(trim)
     h15 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2_1", vthr, vtrm, tbits ),
 	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
-	    255, -0.5, 254.5 ); // 255 = overflow
+	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -7474,7 +7474,7 @@ CMD_PROC(trim)
     h16 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2_1_1", vthr, vtrm, tbits ),
 	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1 1;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
-	    255, -0.5, 254.5 ); // 255 = overflow
+	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -7518,9 +7518,9 @@ CMD_PROC(trim)
 
 //------------------------------------------------------------------------------
 // Daniel Pitzl, DESY, 30.5.2014: fine tune trim bits (full efficiency)
-CMD_PROC(tbits)
+CMD_PROC(trimbits)
 {
-  Log.section( "TBITS", true );
+  Log.section( "TRIMBITS", true );
 
   timeval tv;
   gettimeofday( &tv, NULL );
@@ -7598,7 +7598,7 @@ CMD_PROC(tbits)
       int trm = modtrm[roc][col][row];
 
       cout << "pixel " << setw(2) << col << setw(3) << row
-	   << " tbits " << trm
+	   << " trimbits " << trm
 	   << " responses " << cnt
 	   << endl;
 
@@ -7627,7 +7627,7 @@ CMD_PROC(tbits)
 	GetPixData( roc, col, row, nTrig, cnt, ph, rms );
 
 	cout << "pixel " << setw(2) << col << setw(3) << row
-	     << " tbits " << trm
+	     << " trimbits " << trm
 	     << " responses " << cnt
 	     << endl;
 
@@ -10889,7 +10889,7 @@ void cmd() // called once from psi46test
 
   CMD_REG( vthrcomp, "vthrcomp target               set VthrComp to target Vcal" );
   CMD_REG( trim,     "trim target                   set Vtrim and trim bits" );
-  CMD_REG( tbits,    "tbits                         set trim bits for efficiency" );
+  CMD_REG( trimbits, "trimbits                      set trim bits for efficiency" );
   CMD_REG( thrdac,   "thrdac col row                Threshold vs DAC one pixel" );
   CMD_REG( thrmap,   "thrmap guess                  threshold map trimmed" );
   CMD_REG( thrmapsc, "thrmapsc stop (4=cals)        threshold map" );
