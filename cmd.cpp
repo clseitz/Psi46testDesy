@@ -1335,7 +1335,6 @@ void DecodePixel( unsigned int raw )
   int r1 =    (raw >>  3) & 7;
   int r0 =    (raw >>  0) & 7;
 
-  //if( tb.GetPixelAddressInverted() ) {
   if( tb.invertAddress ) {
     r2 ^= 0x7;
     r1 ^= 0x7;
@@ -1368,7 +1367,7 @@ class Decoder
 public:
   Decoder() : printEvery(0), nReadout(0), nPixel(0), f(0), nSamples(0), samples(0) {}
   ~Decoder() { Close(); }
-  bool Open(const char *filename);
+  bool Open( const char *filename );
   void Close() { if( f) fclose(f); f = 0; delete[] samples; }
   bool Sample( uint16_t sample );
   void DumpSamples( int n );
@@ -1424,11 +1423,10 @@ void Decoder::Translate( unsigned long raw )
   int c =    (raw >> 12) & 7;
   c = c*6 + ((raw >>  9) & 7);
 
-  int r2 =    (raw >>  6) & 7;
-  int r1 =    (raw >>  3) & 7;
-  int r0 =    (raw >>  0) & 7;
+  int r2 =   (raw >>  6) & 7;
+  int r1 =   (raw >>  3) & 7;
+  int r0 =   (raw >>  0) & 7;
 
-  //if( tb.GetPixelAddressInverted() ) {
   if( tb.invertAddress ) {
     r2 ^= 0x7;
     r1 ^= 0x7;
@@ -3043,7 +3041,8 @@ CMD_PROC(show) // DP
     if( roclist[i] ) {
       for( int j = 1; j < 256; ++j )
 	if( dacval[i][j] > -1 ) {
-	  cout << dacnam[j] << setw(5) << j << setw(5) << dacval[i][j] << endl;
+	  cout << setw(3) << j << "  " << dacnam[j]
+	       << setw(5) << dacval[i][j] << endl;
 	  Log.printf( "%3i %4i\n", j, dacval[i][j] );
 	}
     }
@@ -10885,8 +10884,8 @@ void cmd() // called once from psi46test
   CMD_REG( modsc1,   "modsc1 ntrig                  module S-curves SingleRoc" );
   CMD_REG( modmap,   "modmap nTrig                  module map" );
 
-  CMD_REG( takedata, "takedata period               readout 40 MHz/period (to stop enter any key)" );
-  CMD_REG( modtd,    "modtd period                  module take data 40MHz/period (press any key to stop)" );
+  CMD_REG( takedata, "takedata period               readout 40 MHz/period (stop: s enter)" );
+  CMD_REG( modtd,    "modtd period                  module take data 40MHz/period (stop: s enter)" );
 
   CMD_REG( vthrcomp, "vthrcomp target               set VthrComp to target Vcal" );
   CMD_REG( trim,     "trim target                   set Vtrim and trim bits" );
