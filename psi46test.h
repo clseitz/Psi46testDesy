@@ -11,11 +11,11 @@
 #include "config.h"
 #include "pixel_dtb.h"
 #include "settings.h"
-#include "prober.h"
+//DP#include "prober.h"
 #include "protocol.h"
-#include "pixelmap.h"
-#include "test.h"
-#include "chipdatabase.h"
+//DP#include "pixelmap.h"
+//DP#include "test.h"
+//DP#include "chipdatabase.h"
 
 #define VERSIONINFO TITLE " " VERSION " (" TIMESTAMP ")" // from config.h
 
@@ -24,13 +24,13 @@ extern int nEntry; // counts the entries in the log file
 
 extern CTestboard tb;
 extern CSettings settings;  // global settings
-extern CProber prober; // prober
+//DP extern CProber prober; // prober
 extern CProtocol Log;  // log file
 
-extern CChip g_chipdata;
+//DP extern CChip g_chipdata;
 
 extern int delayAdjust;
-extern int deserAdjust;
+//DP extern int deserAdjust;
 
 void cmd();
 

@@ -1,7 +1,9 @@
 
 .PHONY: all clean distclean
 
-OBJS = cmd.o command.o pixel_dtb.o protocol.o psi46test.o rpc.o rpc_calls.o settings.o usb.o datastream.o analyzer.o color.o chipdatabase.o defectlist.o pixelmap.o prober.o ps.o linux/rs232.o error.o histo.o profiler.o scanner.o test_dig.o rpc_error.o
+OBJS = cmd.o command.o pixel_dtb.o protocol.o settings.o psi46test.o datastream.o analyzer.o linux/rs232.o profiler.o rpc.o rpc_calls.o usb.o rpc_error.o
+# chipdatabase.o color.o defectlist.o error.o histo.o pixelmap.o prober.o ps.o scanner.o
+# test_dig.o
 # plot.o
 
 ROOTCFLAGS = $(shell $(ROOTSYS)/bin/root-config --cflags)

@@ -1,4 +1,3 @@
-// profiler.h
 
 #pragma once
 

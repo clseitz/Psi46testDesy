@@ -1,4 +1,6 @@
 
+// read psi46test.ini into CSettings
+
 #include "settings.h"
 
 bool CSettings::read_int( int &value, int min, int max )
@@ -41,17 +43,6 @@ bool CSettings::read( const char filename[] )
 
   if( !read_string( port_tb,     20     ) ) goto read_error;
   if( !read_string( path,       254     ) ) goto read_error;
-  if( !read_int( port_prober,    -1,  99) ) goto read_error;
-  if( !read_int( sensor,          0,   1) ) goto read_error;
-  if( !read_int( clock,           0,  50) ) goto read_error;
-  if( !read_int( errorRep,        0,   5) ) goto read_error;
-  if( !read_int( l1_bl_shift,  -100, 100) ) goto read_error;
-
-  if( !read_int( vcomp,           0, 255) ) goto read_error;
-  if( !read_int( vhlddel,         0, 255) ) goto read_error;
-  if( !read_int( vthr,            0, 255) ) goto read_error;
-  if( !read_int( caldel,          0, 255) ) goto read_error;
-  if( !read_int( vcal,            0, 255) ) goto read_error;
 
   ok = true;
  read_error:

@@ -23,4 +23,3 @@
 // if defined -> CTestboard is thread safe (Boost thread library needed)
 
 // #define ENABLE_MULTITHREADING
-

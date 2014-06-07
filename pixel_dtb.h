@@ -86,15 +86,31 @@ class CTestboard
   CTestboard() { RPC_INIT rpc_io = &usb;
     // Set defaults for deser160 variables:
     delayAdjust = 4;
-    deserAdjust = 4;
+    //deserAdjust = 4;
     invertAddress = 0;
   }
   ~CTestboard() { RPC_EXIT }
 
   //FIXME not nice but better than global variables:
   int delayAdjust;
-  int deserAdjust;
+  //int deserAdjust;
   bool invertAddress;
+
+  // Host = PC
+
+  int32_t GetHostRpcCallCount() { return rpc_cmdListSize; }
+
+  bool GetHostRpcCallName(int32_t id, stringR &callName) {
+    callName = rpc_cmdName[id]; return true; }
+
+  std::vector<std::string> GetHostRpcCallNames() { 
+
+    std::vector<std::string> rpc_cmdList;
+    for(size_t i = 0; i < rpc_cmdListSize; i++ )
+      rpc_cmdList.push_back( rpc_cmdName[i] );
+
+    return rpc_cmdList;
+  }
 
   // === RPC ==============================================================
 
@@ -107,6 +123,24 @@ class CTestboard
   RPC_EXPORT bool    GetRpcCallName(int32_t id, stringR &callName);
 
   RPC_EXPORT uint32_t GetRpcCallHash();
+
+  bool RpcLink() { // from pxar/core/rpc/rpc_calls.h
+
+    bool error = false;
+    for( unsigned short i = 2; i < rpc_cmdListSize; i++ ) {
+      try { rpc_GetCallId(i); }
+      catch( CRpcError &e ) {
+	e.SetFunction(0);
+	if( !error ) cout << "Missing DTB functions: " << endl; // first line
+	std::string fname(rpc_cmdName[i]);
+	std::string fname_pretty;
+	rpc_TranslateCallName( fname, fname_pretty );
+	cout << fname_pretty.c_str() << endl;
+	error = true;
+      }
+    }
+    return !error;
+  }
 
   // === DTB connection ====================================================
 

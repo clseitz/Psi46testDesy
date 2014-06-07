@@ -29,7 +29,7 @@ int nEntry; // counts the chip tests
 
 CTestboard tb;
 CSettings settings;  // global settings
-CProber prober;
+//DP CProber prober;
 CProtocol Log;
 
 char filename[512]; // log file
@@ -190,15 +190,6 @@ int main( int argc, char* argv[] )
       printf( "Connect testboard and try command 'scan' to find connected devices.\n" );
       printf( "Make sure you have permission to access USB devices.\n" );
     }
-
-    // open wafer prober:
-
-    if( settings.port_prober >= 0 )
-      if( !prober.open( settings.port_prober ) ) {
-	printf( "Prober: could not open port %i\n", settings.port_prober );
-	Log.puts( "Prober: could not open port\n" );
-	return 4;
-      }
 
     Log.flush();
 

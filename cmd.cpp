@@ -28,10 +28,10 @@
 #include "psi46test.h"
 #include "analyzer.h" // includes datastream.h
 //#include "plot.h"
-#include "histo.h"
+//#include "histo.h"
 
 #include "command.h"
-#include "defectlist.h"
+//#include "defectlist.h"
 #include "rpc.h"
 
 using namespace std;
@@ -58,7 +58,7 @@ const uint32_t Blocksize = 4*1024*1024; //
 
 //             cable length:     5   48  prober 450 cm  bump bonder
 int delayAdjust =  4; //  4    0    19    5       16
-int deserAdjust =  4; //  4    4     5    6        5
+//int deserAdjust =  4; //  4    4     5    6        5
 //int deserAdjust =  5; //  FEC 30 cm cable
 
 int dacval[16][256]; // DP
@@ -101,14 +101,20 @@ class TBstate
 {
   bool daqOpen;
   uint32_t daqSize;
+  int deserAdjust;
 
 public:
   TBstate() : daqOpen(0), daqSize(0) { }
   ~TBstate() { }
+
   void SetDaqOpen( const bool open ) { daqOpen = open; }
   bool GetDaqOpen() { return daqOpen; }
+
   void SetDaqSize( const uint32_t size ) { daqSize = size; }
   uint32_t GetDaqSize() { return daqSize; }
+
+  void SetDeserAdjust( const uint32_t phase160 ) { deserAdjust = phase160; }
+  uint32_t GetDeserAdjust() { return deserAdjust; }
 };
 
 TBstate tbState;
@@ -1099,7 +1105,7 @@ CMD_PROC(dsel) // dsel 160 or 400
   if( MHz > 200 )
     tb.Daq_Select_Deser400();
   else
-    tb.Daq_Select_Deser160(deserAdjust);
+    tb.Daq_Select_Deser160( tbState.GetDeserAdjust() );
   DO_FLUSH;
   return true;
 }
@@ -1146,7 +1152,7 @@ CMD_PROC(deser)
   int shift;
   PAR_INT( shift, 0, 7 );
   tb.Daq_Select_Deser160(shift);
-  deserAdjust = shift;
+  tbState.SetDeserAdjust(shift);
   DO_FLUSH;
   return true;
 }
@@ -1213,12 +1219,12 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
   tb.Daq_Close();
 #endif
 
-  printf( "Old values: clk delay %i, deserAdjust %i\n", delayAdjust, deserAdjust );
+  printf( "Old values: clk delay %i, deserAdjust %i\n", delayAdjust, tbState.GetDeserAdjust() );
 
   if( goodvalues.size() == 0 ) {
 
     printf( "No value found where header could be read back - no adjustments made.\n" );
-    tb.Daq_Select_Deser160(deserAdjust); // back to default
+    tb.Daq_Select_Deser160( tbState.GetDeserAdjust() ); // back to default
     y = delayAdjust; // back to default
     tb.Sig_SetDelay( SIG_CLK, y );
     tb.Sig_SetDelay( SIG_CTR, y );
@@ -1233,24 +1239,15 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
   }
   const int select = floor( 0.5*goodvalues.size() - 0.5 );
   delayAdjust = goodvalues[select].first;
-  deserAdjust = goodvalues[select].second;
-  printf( "New values: clock delay %i, deserAdjust %i\n", delayAdjust, deserAdjust );
+  tbState.SetDeserAdjust( goodvalues[select].second );
+  printf( "New values: clock delay %i, deserAdjust %i\n", delayAdjust, tbState.GetDeserAdjust() );
+  tb.Daq_Select_Deser160( tbState.GetDeserAdjust() ); // set new
   y = delayAdjust;
   tb.Sig_SetDelay( SIG_CLK, y );
   tb.Sig_SetDelay( SIG_CTR, y );
   tb.Sig_SetDelay( SIG_SDA, y+15 );
   tb.Sig_SetDelay( SIG_TIN, y+5 );
 
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(dselroc)
-{
-  int shift;
-  PAR_INT( shift, 0, 7 );
-  tb.Daq_Select_Deser160(shift);
-  DO_FLUSH;
   return true;
 }
 
@@ -1857,7 +1854,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -2079,7 +2076,7 @@ CMD_PROC(modtd) // module take data (trigger f = 40 MHz / period)
   data1.reserve( Blocksize );
 
   unsigned int nev[2] = {0};
-  unsigned int pev = 0; // previous nev
+  //unsigned int pev = 0; // previous nev
   unsigned int ndq = 0;
   unsigned int got = 0;
   unsigned int rst = 0;
@@ -2091,7 +2088,7 @@ CMD_PROC(modtd) // module take data (trigger f = 40 MHz / period)
 
   int PX[16] = {0};
   uint32_t NN[16][52][80] = {{{0}}};
-  uint32_t PN[16][52][80] = {{{0}}}; // previous NN
+  //uint32_t PN[16][52][80] = {{{0}}}; // previous NN
   uint32_t PH[16][52][80] = {{{0}}};
 
   if( h11 ) delete h11;
@@ -3556,7 +3553,7 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -3648,7 +3645,7 @@ CMD_PROC(fire) // fire col row (nTrig) [cal and read]
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -3778,7 +3775,7 @@ CMD_PROC(fire2) // fire2 col row (nTrig) [2-row correlation]
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -3948,7 +3945,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   tb.Daq_Open( Blocksize, tbmch );
 #endif
   if( nrocs == 1 )
-    tb.Daq_Select_Deser160(deserAdjust);
+    tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   else {
     tb.Daq_Select_Deser400();
     tb.Daq_Deser400_Reset(3);
@@ -6077,7 +6074,7 @@ CMD_PROC(effmap)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -6727,7 +6724,7 @@ CMD_PROC(thrmapsc) // raw data S-curve: 60 s / ROC
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -7568,7 +7565,7 @@ CMD_PROC(trimbits)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -7924,7 +7921,7 @@ CMD_PROC(phmap)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -8108,7 +8105,7 @@ CMD_PROC(calsmap) // test PH map through sensor
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -8241,7 +8238,7 @@ CMD_PROC(bbtest) // bump bond test
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -8519,7 +8516,7 @@ CMD_PROC(caldelroc) // scan and set CalDel using all pixel: 17 s
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
 
   // all on:
@@ -8680,7 +8677,7 @@ CMD_PROC(phcal) // PH vs Vcal tb.LoopSingleRocAllPixelsCalibrate 77 s
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
 
   // all on:
@@ -8849,7 +8846,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -9140,7 +9137,7 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -9538,7 +9535,7 @@ CMD_PROC(analyze)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
 
   tb.Daq_Start();
   tb.uDelay(10);
@@ -9591,7 +9588,7 @@ CMD_PROC(adcsingle)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.Daq_Start();
   tb.uDelay(10);
 
@@ -9642,7 +9639,7 @@ CMD_PROC(adcpeak)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
 
   tb.Daq_Start();
   tb.uDelay(10);
@@ -9709,7 +9706,7 @@ CMD_PROC(adchisto)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
 
   tb.Daq_Start();
   tb.uDelay(10);
@@ -9835,7 +9832,7 @@ CMD_PROC(adctransfer)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
 
   tb.Daq_Start();
   tb.uDelay(10);
@@ -9943,7 +9940,7 @@ CMD_PROC(adctest)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160( deserAdjust );
+  tb.Daq_Select_Deser160( tbState.GetDeserAdjust() );
 
   // single pixel readout
   try {
@@ -10067,7 +10064,7 @@ CMD_PROC(shmoo)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
 
   PrintScale( xmin, xmax );
   for( int y = ymin; y <= ymax; y++ ) {
@@ -10108,7 +10105,7 @@ CMD_PROC(phscan)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
   tb.Daq_Start();
 
   // scan vcal
@@ -10189,7 +10186,7 @@ CMD_PROC(readback)
 #endif
   tb.Pg_Stop();
   tb.Pg_SetCmd(0, PG_TOK);
-  tb.Daq_Select_Deser160(deserAdjust);
+  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
 
   // take data:
 
@@ -10244,462 +10241,6 @@ CMD_PROC(readback)
   default: printf( "? = %04X\n", value); break;
   }
 
-  return true;
-}
-
-//------------------------------------------------------------------------------
-int chipPos = 0;
-
-char chipPosChar[] = "ABCD";
-
-//------------------------------------------------------------------------------
-void GetTimeStamp(char datetime[])
-{
-  time_t t;
-  struct tm *dt;
-  time(&t);
-  dt = localtime(&t);
-  strcpy(datetime, asctime(dt));
-}
-
-
-bool ReportWafer()
-{
-  char *msg;
-  Log.section( "WAFER", false);
-
-  // ProductID
-  msg = prober.printf( "GetProductID" );
-  if( strlen(msg)<=3 ) {
-    printf( "missing wafer product id!\n" );
-    Log.printf( "productId?\n" );
-    return false;
-  }
-  Log.printf( "%s", msg+3);
-  strcpy(g_chipdata.productId, msg+3);
-
-  // WaferID
-  msg = prober.printf( "GetWaferID" );
-  if( strlen(msg)<=3 ) {
-    printf( " missing wafer id!\n" );
-    Log.printf( " waferId?\n" );
-    return false;
-  }
-  Log.printf( " %s", msg+3);
-  strcpy(g_chipdata.waferId, msg+3);
-
-  // Wafer Number
-  int num;
-  msg = prober.printf( "GetWaferNum" );
-  if( strlen(msg)>3)
-    if( sscanf(msg+3, "%i", &num) == 1) {
-      Log.printf( " %i\n", num);
-      strcpy(g_chipdata.waferNr, msg+3);
-      return true;
-    }
-
-  printf( " missing wafer number!\n" );
-  Log.printf( " wafernum?\n" );
-  return false;
-}
-
-//------------------------------------------------------------------------------
-bool ReportChip( int &x, int &y )
-{
-  char *pos = prober.printf( "ReadMapPosition" );
-  int len = strlen(pos);
-  if( len<3) return false;
-  pos += 3;
-
-  float posx, posy;
-  if( sscanf(pos, "%i %i %f %f", &x, &y, &posx, &posy) != 4) {
-    printf( " error reading chip information\n" );
-    return false;
-  }
-  nEntry++;
-  printf( "#%05i: %i%i%c -> ", nEntry, y, x, chipPosChar[chipPos]);
-  fflush(stdout);
-  Log.section( "CHIP", false);
-  Log.printf( " %i %i %c %9.1f %9.1f\n",
-	     x, y, chipPosChar[chipPos], posx, posy);
-  g_chipdata.mapX   = x;
-  g_chipdata.mapY   = y;
-  g_chipdata.mapPos = chipPos;
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(pr)
-{
-  char s[256];
-  PAR_STRINGEOL( s, 250 );
-
-  printf( " REQ %s\n", s);
-  char *answer = prober.printf( "%s", s );
-  printf( " RSP %s\n", answer );
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(sep)
-{
-  prober.printf( "MoveChuckSeparation" );
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(contact)
-{
-  prober.printf( "MoveChuckContact" );
-  return true;
-}
-
-//------------------------------------------------------------------------------
-bool test_wafer()
-{
-  int x, y;
-
-  g_chipdata.Invalidate();
-
-  if( !ReportWafer() ) return true;
-  if( !ReportChip(x,y) ) return true;
-  g_chipdata.nEntry = nEntry;
-
-  GetTimeStamp(g_chipdata.startTime);
-  Log.timestamp( "BEGIN" );
-  tb.SetLed(0x10);
-  bool repeat;
-  int bin = test_roc_dig(repeat);
-  tb.SetLed(0x00);
-  tb.Flush();
-  GetTimeStamp(g_chipdata.endTime);
-  Log.timestamp( "END" );
-  Log.puts( "\n" );
-  Log.flush();
-  printf( "%3i\n", bin);
-
-  printf( " RSP %s\n", prober.printf( "BinMapDie %i", bin));
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-bool test_chip(char chipid[])
-{
-  nEntry++;
-
-  g_chipdata.Invalidate();
-  g_chipdata.nEntry = nEntry;
-  printf( "#%05i: %s -> ", nEntry, chipid);
-  fflush(stdout);
-  Log.section( "CHIP1", false);
-  Log.printf( " %s\n", chipid);
-  strcpy(g_chipdata.chipId, chipid);
-
-  GetTimeStamp(g_chipdata.startTime);
-  Log.timestamp( "BEGIN" );
-
-  tb.SetLed(0x10);
-  bool repeat;
-  int bin = test_roc_dig(repeat);
-  tb.SetLed(0x00);
-  tb.Flush();
-
-  GetTimeStamp(g_chipdata.endTime);
-  Log.timestamp( "END" );
-  Log.puts( "\n" );
-  Log.flush();
-
-  printf( "%3i\n", bin);
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(test)
-{
-  if( settings.port_prober >= 0 ) {
-    test_wafer();
-  }
-  else {
-    char id[42];
-    PAR_STRINGEOL( id, 40 );
-    test_chip(id);
-  }
-
-  //	FILE *f = fopen( "g_chipdata.txt", "wt" );
-  //	if( f) { g_chipdata.Save(f);  fclose(f); }
-
-  return true;
-}
-
-
-#define CSX   8050
-#define CSY  10451
-
-const int CHIPOFFSET[4][4][2] =
-  {	// from -> to  0           1           2           3
-    /*   0  */ { {   0,   0},{-CSX,   0},{   0,-CSY},{-CSX,-CSY} },
-    /*   1  */ { { CSX,   0},{   0,   0},{ CSX,-CSY},{   0,-CSY} },
-    /*   2  */ { {   0, CSY},{-CSX, CSY},{   0,   0},{-CSX,   0} },
-    /*   3  */ { { CSX, CSY},{   0, CSY},{ CSX,   0},{   0,   0} },
-  };
-
-//------------------------------------------------------------------------------
-bool ChangeChipPos(int pos)
-{
-  int rsp;
-  char *answer = prober.printf( "MoveChuckSeparation" );
-  if( sscanf(answer, "%i", &rsp)!=1) rsp = -1;
-  if( rsp != 0) { printf( " RSP %s\n", answer); return false; }
-
-  int x = CHIPOFFSET[chipPos][pos][0];
-  int y = CHIPOFFSET[chipPos][pos][1];
-
-  answer = prober.printf( "MoveChuckPosition %i %i H", x, y);
-  if( sscanf(answer, "%i", &rsp)!=1) rsp = -1;
-  if( rsp != 0) { printf( " RSP %s\n", answer); return false; }
-
-  answer = prober.printf( "SetMapHome" );
-  if( sscanf(answer, "%i", &rsp)!=1) rsp = -1;
-  if( rsp != 0) { printf( " RSP %s\n", answer); return false; }
-
-  chipPos = pos;
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(chippos)
-{
-  char s[4];
-  PAR_STRING( s, 2 );
-  if( s[0] >= 'a' ) s[0] -= 'a' - 'A';
-  if( s[0] == 'B' ) return true; // chip B not existing
-
-  int i;
-  for( i = 0; i < 4; i++ ) {
-    if( s[0] == chipPosChar[i] ) {
-      ChangeChipPos(i);
-      return true;
-    }
-  }
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CDefectList deflist[4];
-
-bool goto_def(int i)
-{
-  int x, y;
-  if( !deflist[chipPos].get(i, x, y)) return false;
-  char *answer = prober.printf( "StepNextDie %i %i", x, y);
-
-  int rsp;
-  if( sscanf(answer, "%i", &rsp)!=1) rsp = -1;
-  if( rsp!=0) printf( " RSP %s\n", answer);
-
-  return rsp == 0;
-}
-
-//------------------------------------------------------------------------------
-bool go_TestDefects()
-{
-  if( deflist[chipPos].size() == 0) return true;
-
-  printf( " Begin Defect Chip %c Test\n", chipPosChar[chipPos]);
-
-  // goto first position
-  int i = 0;
-  if( !goto_def(i)) return false;
-
-  prober.printf( "MoveChuckContact" );
-
-  do {
-    int x, y;
-    g_chipdata.Invalidate();
-
-    if( !ReportChip(x,y) ) break;
-    GetTimeStamp(g_chipdata.startTime);
-    Log.timestamp( "BEGIN" );
-    bool repeat;
-    int bin = test_roc_dig(repeat);
-    GetTimeStamp(g_chipdata.endTime);
-    Log.timestamp( "END" );
-    Log.puts( "\n" );
-    Log.flush();
-    printf( "%3i\n", bin);
-    prober.printf( "BinMapDie %i", bin);
-
-    if( keypressed() ) {
-      printf( " wafer test interrupted!\n" );
-      break;
-    }
-
-    tb.mDelay(100);
-    i++;
-  }
-  while( goto_def(i) );
-
-  prober.printf( "MoveChuckSeparation" );
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-bool TestSingleChip( int &bin, bool &repeat )
-{
-  int x, y;
-  g_chipdata.Invalidate();
-
-  if( !ReportChip(x,y) ) return false;
-  GetTimeStamp(g_chipdata.startTime);
-  Log.timestamp( "BEGIN" );
-  tb.SetLed(0x10);
-  bin = test_roc_dig(repeat);
-  tb.SetLed(0x00);
-  tb.Flush();
-
-  //		if( 0<bin && bin<13) deflist[chipPos].add(x,y);
-  GetTimeStamp(g_chipdata.endTime);
-  Log.timestamp( "END" );
-  Log.puts( "\n" );
-  Log.flush();
-  printf( "%3i\n", bin);
-  return true;
-}
-
-//------------------------------------------------------------------------------
-bool go_TestChips()
-{
-  printf( " Begin Chip %c Test\n", chipPosChar[chipPos]);
-  prober.printf( "MoveChuckContact" );
-  tb.mDelay(200);
-
-  while( true) {
-    int bin = 0;
-    bool repeat;
-    if( !TestSingleChip(bin,repeat) ) break;
-
-    int nRep = settings.errorRep;
-    if( nRep > 0 && repeat) {
-      prober.printf( "BinMapDie %i", bin);
-      prober.printf( "MoveChuckSeparation" );
-      tb.mDelay(100);
-      prober.printf( "MoveChuckContact" );
-      tb.mDelay(200);
-      if( !TestSingleChip(bin,repeat)) break;
-      nRep--;
-    }
-
-    if( keypressed() ) {
-      prober.printf( "BinMapDie %i", bin);
-      printf( " wafer test interrupted!\n" );
-      break;
-    }
-
-    // prober step
-    int rsp;
-    char *answer = prober.printf( "BinStepDie %i", bin);
-    if( sscanf(answer, "%i", &rsp)!=1) rsp = -1;
-    if( rsp != 0) printf( " RSP %s\n", answer);
-    tb.mDelay(100);
-
-    // last chip ?
-    if( rsp == 0)   // ok -> next chip
-      continue;
-    if( rsp == 703) { // end of wafer -> return
-      prober.printf( "MoveChuckSeparation" );
-      return true;
-    }
-
-    printf( " prober error! test stopped\n" );
-    break;
-  }
-
-  prober.printf( "MoveChuckSeparation" );
-  return false;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(go)
-{
-  static bool isRunning = false;
-
-  char s[12];
-  if( PAR_IS_STRING(s, 10) ) {
-    if( strcmp(s,"init" ) == 0) { isRunning = false; }
-    else if( strcmp(s,"cont" ) == 0) { isRunning = true; }
-    else { printf( " illegal parameter" );  return true; }
-  }
-
-  if( !isRunning ) {
-    ChangeChipPos(0);
-    for( int k=0; k<4; k++) deflist[k].clear();
-    prober.printf( "StepFirstDie" );
-    isRunning = true;
-  }
-
-  printf( " wafer test running\n" );
-  if( !ReportWafer() ) return true;
-
-  while( true) {
-    // test chips
-    if( !go_TestChips() ) break;
-
-    // test defect chips
-    prober.printf( "StepFirstDie" );
-    if( !go_TestDefects()) break;
-
-    // next chip position
-    if( chipPos < 3 ) {
-      if( chipPos != 0 )  { // exclude chip B (1)
-	if( !ChangeChipPos(chipPos+1) ) break;
-      }
-      else {
-	if( !ChangeChipPos(chipPos+1) ) break;
-	//				if( !ChangeChipPos(chipPos+2)) break; // exclude chip B (1)
-      }
-      char *answer = prober.printf( "StepFirstDie" );
-      int rsp;
-      if( sscanf(answer, "%i", &rsp)!=1) rsp = -1;
-      if( rsp != 0) {
-	printf( " RSP %s\n", answer);
-	break;
-      }
-    }
-    else {
-      ChangeChipPos(0);
-      isRunning = false;
-      break;
-    }
-  }
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(first)
-{
-  printf( " RSP %s\n", prober.printf( "StepFirstDie" ));
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(next)
-{
-  printf( " RSP %s\n", prober.printf( "StepNextDie" ));
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(goto)
-{
-  int x, y;
-  PAR_INT(x, -100, 100);
-  PAR_INT(y, -100, 100);
-
-  char *msg = prober.printf( "StepNextDie %i %i", x, y);
-  printf( " RSP %s\n", msg);
   return true;
 }
 
@@ -10839,26 +10380,8 @@ void cmd() // called once from psi46test
   CMD_REG( phscan,   "phscan                        ROC pulse height scan" );
   CMD_REG( readback, "readback                      read out ROC data" );
 
-  if( settings.port_prober >= 0)
-    CMD_REG( test,     "test                          run chip test" );
-  else
-    CMD_REG( test,     "test <chip id>                run PSI chip test" );
-
-  if( settings.port_prober >= 0 ) {
-
-    CMD_REG( go,       "go init|cont                  start wafer test (press <cr> to stop)" );
-    CMD_REG( pr,       "pr <command>                  send command to prober" );
-    CMD_REG( sep,      "sep                           prober z-axis separation" );
-    CMD_REG( contact,  "contact                       prober z-axis contact" );
-    CMD_REG( first,    "first                         go to first die and clear wafer map" );
-    CMD_REG( next,     "next                          go to next die" );
-    CMD_REG( goto,     "goto                          go to specified die" );
-    CMD_REG( chippos,  "chippos <ABCD>                move to chip A, B, C or D" );
-  }
-
   CMD_REG( dselmod,  "dselmod                       select deser400 for DAQ channel 0" );
   CMD_REG( dmodres,  "dmodres                       reset all deser400" );
-  CMD_REG( dselroc,  "dselroc <value>               select deser160 for DAQ channel 0" );
   CMD_REG( dselroca, "dselroca <value>              select adc for channel 0" );
   CMD_REG( dseloff,  "dseloff                       deselect all" );
   CMD_REG( deser160, "deser160                      allign deser160" );
