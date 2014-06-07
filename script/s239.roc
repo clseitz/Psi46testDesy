@@ -28,7 +28,7 @@ pgset 1 b000100 105  pg_cal, set WBC = pg_cal - 5
 pgset 2 b000010  16  pg_trg  shorter is better (caldelroc FW 2.11)
 pgset 3 b000001   0  pg_tok, end of pgset
 
-trigdel 160  # delay in trigger loop [BC], 160 = 4 us
+trigdel 200  # delay in trigger loop [BC], 200 = 5 us
 
 select 0	  [set roclist, I2C]
 rocaddr 0	  [set ROC]

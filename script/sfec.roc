@@ -35,7 +35,7 @@ pgset 1 b000100  45  pg_cal, set WBC = pg_cal - 6
 pgset 2 b000010  20  pg_trg  
 pgset 3 b000001   0  pg_tok, end of pgset
 
-trigdel 10  # delay in trigger loop [us]
+trigdel 200  # delay in trigger loop [BC], 200 = 5 us
 
 # d1 1 (40 MHz clk on D1)
 # d1 4 (token on D1, see pixel_dtb.h)

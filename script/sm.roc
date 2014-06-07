@@ -119,7 +119,6 @@ pgset 1 b000100 166  pg_cal (WBC + 6 for digV2)
 pgset 2 b100010   0  pg_trg pg_sync. (delay zero = end of pgset)
 
 trigdel 250  # delay in trigger loop [BC], needed for large WBC
--trigdel 160  # delay in trigger loop [BC], 160 = 4 us
 
 pgsingle
 
