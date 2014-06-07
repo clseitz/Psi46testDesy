@@ -10799,11 +10799,11 @@ void cmd() // called once from psi46test
   CMD_REG( pgloop,   "pgloop <period>               start patterngenerator in loop mode" );
   CMD_REG( trigdel,  "trigdel <delay>               delay in trigger loop [BC]" );
 
-  CMD_REG( upd,       "upd                          Open DAQ and allocate memory" );
+  CMD_REG( upd,       "upd <histo>                  re-draw ROOT histo in canvas" );
 
   CMD_REG( dopen,    "dopen <buffer size> [<ch>]    Open DAQ and allocate memory" );
-  CMD_REG( dsel,     "dsel MHz                      select deserializer 160 or 400 MHz" );
-  CMD_REG( dreset,   "dreset reset                  DESER400 reset" );
+  CMD_REG( dsel,     "dsel <MHz>                    select deserializer 160 or 400 MHz" );
+  CMD_REG( dreset,   "dreset <reset>                DESER400 reset 1, 2, or 3" );
   CMD_REG( dclose,   "dclose [<channel>]            Close DAQ" );
   CMD_REG( dstart,   "dstart [<channel>]            Enable DAQ" );
   CMD_REG( dstop,    "dstop [<channel>]             Disable DAQ" );

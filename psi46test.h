@@ -17,7 +17,7 @@
 #include "test.h"
 #include "chipdatabase.h"
 
-#define VERSIONINFO TITLE " " VERSION " (" TIMESTAMP ")"
+#define VERSIONINFO TITLE " " VERSION " (" TIMESTAMP ")" // from config.h
 
 // global variables:
 extern int nEntry; // counts the entries in the log file

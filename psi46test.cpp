@@ -1,13 +1,9 @@
 /* -------------------------------------------------------------
  *
- *  file:        psi46test.cpp
+ *  main program for psi46test
  *
- *  description: main program for PSI46V2 Wafer tester
- *
- *  author:      Beat Meier
- *  modified:    6.2.2006
- *
- *  rev:
+ *  author:      Beat Meier, PSI, 2006
+ *  modified:    Daniel Pitzl, DESY, 2014
  *
  * -------------------------------------------------------------
  */
@@ -84,9 +80,26 @@ TCanvas * MyMainFrame::GetCanvas() {
 #endif
 
 //------------------------------------------------------------------------------
+uint32_t GetHashForString(const char * s)
+{
+  // Using some primes
+  uint32_t h = 31;
+  while (*s) { h = (h * 54059) ^ (s[0] * 76963); s++; }
+  return h%86969;
+}
+
+//------------------------------------------------------------------------------
+uint32_t GetHashForStringVector( const std::vector<std::string> & v )
+{
+  uint32_t ret = 0;
+  for( size_t i = 0; i < v.size(); i++ )
+    ret += (i+1) * GetHashForString( v[i].c_str() );
+  return ret;
+}
+
+//------------------------------------------------------------------------------
 int main( int argc, char* argv[] )
 {
-  string usbId;
   printf( VERSIONINFO "\n" );
 
   if( argc != 2) { help(); return 1; }
@@ -109,6 +122,7 @@ int main( int argc, char* argv[] )
   // open test board on USB:
 
   Log.section("DTB");
+  string usbId;
 
   try {
     if( !tb.FindDTB(usbId) ) {
@@ -126,10 +140,46 @@ int main( int argc, char* argv[] )
 	Log.puts( info.c_str() );
 	tb.Welcome();
 	tb.Flush();
+
+	// check DTB SW hash code:
+
+	string dtb_hashcmd;
+	tb.GetRpcCallName( 5, dtb_hashcmd );
+	if( dtb_hashcmd.compare( "GetRpcCallHash$I" ) != 0 )
+	  cout << "Your DTB flash file is outdated:"
+	       << " it does not provide an RPC hash value for compatibility checks."
+	       << endl
+	       << "please upgrade to the flash file corresponding to this version of psi46test"
+	       << endl;
+	else {
+
+	  // Get hash for the PC RPC command list:
+
+	  uint32_t pcCmdHash = GetHashForStringVector( tb.GetHostRpcCallNames() );
+	  cout << "PC  hash " << pcCmdHash << endl;
+
+	  uint32_t dtbCmdHash = tb.GetRpcCallHash();
+	  cout << "DTB hash " << dtbCmdHash << endl;
+
+	  // If they don't match check RPC calls one by one and print offenders:
+
+	  if( dtbCmdHash != pcCmdHash ) {
+	    cout << "RPC call hashes of DTB and PC do not match!" << endl;
+	    cout << "please: upgrade .flash" << endl;
+
+	    if( !tb.RpcLink() )
+	      cout << "Please upgrade your DTB with the correct flash file." << endl;
+	    else
+	      cout << "but all required functions are present: OK to proceed" << endl;
+	  }
+	  else
+	    cout << "RPC call hashes of PC and DTB match: " << pcCmdHash << endl;
+	}
+
       }
       catch( CRpcError &e ) {
 	e.What();
-	printf( "ERROR: DTB software version could not be identified, please update it!\n" );
+	printf( "ERROR: DTB software version could not be identified, please upgrade the flash file\n" );
 	tb.Close();
 	printf( "Connection to Board %s has been cancelled\n", usbId.c_str() );
       }

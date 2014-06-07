@@ -5,8 +5,8 @@
 // === psi46test version ====================================================
 
 #define TITLE        "psi46test for DTB"
-#define VERSION      "V2.0"
-#define TIMESTAMP    "18.3.2014"
+#define VERSION      "V2.2"
+#define TIMESTAMP    "4.6.2014"
 
 
 // === set profiling options ================================================
