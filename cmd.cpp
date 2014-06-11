@@ -31,7 +31,7 @@
 //#include "histo.h"
 
 #include "command.h"
-//#include "defectlist.h"
+//DP#include "defectlist.h"
 #include "rpc.h"
 
 using namespace std;
@@ -57,9 +57,9 @@ const uint32_t Blocksize = 4*1024*1024; //
 //const uint32_t Blocksize = 64*1024*1024; // ERROR
 
 //             cable length:     5   48  prober 450 cm  bump bonder
-int delayAdjust =  4; //  4    0    19    5       16
-//int deserAdjust =  4; //  4    4     5    6        5
-//int deserAdjust =  5; //  FEC 30 cm cable
+//int clockPhase =  4; //  4    0    19    5       16
+//int deserPhase =  4; //  4    4     5    6        5
+//int deserPhase =  5; //  FEC 30 cm cable
 
 int dacval[16][256]; // DP
 string dacnam[256];
@@ -101,10 +101,11 @@ class TBstate
 {
   bool daqOpen;
   uint32_t daqSize;
-  int deserAdjust;
+  int clockPhase;
+  int deserPhase;
 
 public:
-  TBstate() : daqOpen(0), daqSize(0) { }
+  TBstate() : daqOpen(0), daqSize(0), clockPhase(4), deserPhase(4) { }
   ~TBstate() { }
 
   void SetDaqOpen( const bool open ) { daqOpen = open; }
@@ -113,11 +114,56 @@ public:
   void SetDaqSize( const uint32_t size ) { daqSize = size; }
   uint32_t GetDaqSize() { return daqSize; }
 
-  void SetDeserAdjust( const uint32_t phase160 ) { deserAdjust = phase160; }
-  uint32_t GetDeserAdjust() { return deserAdjust; }
+  void SetClockPhase( const uint32_t phase ) { clockPhase = phase; }
+  uint32_t GetClockPhase() { return clockPhase; }
+
+  void SetDeserPhase( const uint32_t phase160 ) { deserPhase = phase160; }
+  uint32_t GetDeserPhase() { return deserPhase; }
 };
 
 TBstate tbState;
+
+//------------------------------------------------------------------------------
+CMD_PROC(showtb) // test board state
+{
+  Log.section( "TBSTATE", true );
+
+  cout << " 40 MHz clock phase " << tbState.GetClockPhase() << " ns" << endl;
+  cout << "160 MHz deser phase " << tbState.GetDeserPhase() << " ns" << endl;
+  if( tbState.GetDaqOpen() )
+    cout << "DAQ memeory size " << tbState.GetDaqSize() << " words" << endl;
+  else
+    cout << "no DAQ open" << endl;
+
+  Log.printf( "Clock phase %i\n", tbState.GetClockPhase() );
+  Log.printf( "Deser phase %i\n", tbState.GetDeserPhase() );
+  if( tbState.GetDaqOpen() )
+    Log.printf( "DAQ memory size %i\n", tbState.GetDaqSize() );
+  else
+    Log.printf( "DAQ not open\n" );
+
+  cout << "PixelAddressInverted " << tb.GetPixelAddressInverted() << endl;
+  cout << "PixelAddressInverted " << tb.invertAddress << endl;
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(status)
+{
+  uint8_t status = tb.GetStatus();
+  printf( "SD card detect: %c\n", (status&8) ? '1' : '0' );
+  printf( "CRC error:      %c\n", (status&4) ? '1' : '0' );
+  printf( "Clock good:     %c\n", (status&2) ? '1' : '0' );
+  printf( "CLock present:  %c\n", (status&1) ? '1' : '0' );
+
+  if( tbState.GetDaqOpen() )
+    cout << "allocated DAQ block in DTB memory " << tbState.GetDaqSize() << " words" << endl;
+  else
+    cout << "DAQ not open" << endl;
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 CMD_PROC(scan) // scan for DTB on USB
@@ -129,7 +175,7 @@ CMD_PROC(scan) // scan for DTB on USB
 
   try {
     if( !tb->EnumFirst(nDev) ) throw int(1);
-    for( nr=0; nr<nDev; nr++ ) {
+    for( nr = 0; nr < nDev; nr++ ) {
       if( !tb->EnumNext(name) ) throw int(2);
       if( name.size() < 4 ) continue;
       if( name.compare(0, 4, "DTB_" ) == 0 )
@@ -191,6 +237,7 @@ CMD_PROC(open)
 	    tb.ConnectionError(), usbId.c_str() );
     return true;
   }
+
   printf( "DTB %s opened\n", usbId.c_str() );
 
   string info;
@@ -347,17 +394,6 @@ CMD_PROC(info)
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(ver)
-{
-  string hw;
-  tb.GetHWVersion(hw);
-  int fw = tb.GetFWVersion();
-  int sw = tb.GetSWVersion();
-  printf( "%s: FW=%i.%02i SW=%i.%02i\n", hw.c_str(), fw/256, fw%256, sw/256, sw%256 );
-  return true;
-}
-
-//------------------------------------------------------------------------------
 CMD_PROC(version)
 {
   string hw;
@@ -372,14 +408,14 @@ CMD_PROC(version)
 CMD_PROC(boardid)
 {
   int id = tb.GetBoardId();
-  printf( "\nBoard Id = %i\n", id );
+  printf( "Board Id = %i\n", id );
   return true;
 }
 
 //------------------------------------------------------------------------------
 CMD_PROC(init)
 {
-  tb.Init();
+  tb.Init(); // done at power up?
   DO_FLUSH;
   return true;
 }
@@ -387,14 +423,14 @@ CMD_PROC(init)
 //------------------------------------------------------------------------------
 CMD_PROC(flush)
 {
-  tb.Flush();
+  tb.Flush(); // USB commands to DTB
   return true;
 }
 
 //------------------------------------------------------------------------------
 CMD_PROC(clear)
 {
-  tb.Clear();
+  tb.Clear(); // rpc_io->Clear()
   return true;
 }
 
@@ -472,7 +508,11 @@ CMD_PROC(clk) // clock phase delay (relative to what?)
   int ns, duty;
   PAR_INT( ns, 0, 400 );
   if( !PAR_IS_INT( duty, -8, 8 ) ) duty = 0;
-  tb.Sig_SetDelay( SIG_CLK, ns, duty );
+  tb.Sig_SetDelay( SIG_CLK, ns,    duty );
+  tb.Sig_SetDelay( SIG_CTR, ns,    duty );
+  tb.Sig_SetDelay( SIG_SDA, ns+15, duty );
+  tb.Sig_SetDelay( SIG_TIN, ns+ 5, duty );
+  tbState.SetClockPhase(ns);
   DO_FLUSH;
   return true;
 }
@@ -839,17 +879,6 @@ CMD_PROC(resoff)
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(status)
-{
-  uint8_t status = tb.GetStatus();
-  printf( "SD card detect: %c\n", (status&8) ? '1' : '0' );
-  printf( "CRC error:      %c\n", (status&4) ? '1' : '0' );
-  printf( "Clock good:     %c\n", (status&2) ? '1' : '0' );
-  printf( "CLock present:  %c\n", (status&1) ? '1' : '0' );
-  return true;
-}
-
-//------------------------------------------------------------------------------
 CMD_PROC(rocaddr)
 {
   int addr;
@@ -1105,7 +1134,7 @@ CMD_PROC(dsel) // dsel 160 or 400
   if( MHz > 200 )
     tb.Daq_Select_Deser400();
   else
-    tb.Daq_Select_Deser160( tbState.GetDeserAdjust() );
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   DO_FLUSH;
   return true;
 }
@@ -1119,7 +1148,7 @@ CMD_PROC(dselmod)
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(dselroca)
+CMD_PROC(dselroca) // activate ADC for analog ROC ?
 {
   int datasize;
   PAR_INT( datasize, 1, 2047 );
@@ -1152,7 +1181,7 @@ CMD_PROC(deser)
   int shift;
   PAR_INT( shift, 0, 7 );
   tb.Daq_Select_Deser160(shift);
-  tbState.SetDeserAdjust(shift);
+  tbState.SetDeserPhase(shift);
   DO_FLUSH;
   return true;
 }
@@ -1171,20 +1200,20 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
   vector<std::pair<int,int> > goodvalues;
 
   int x, y;
-  printf("deser adj 0     1     2     3     4     5     6     7\n" );
+  printf("deser phs 0     1     2     3     4     5     6     7\n" );
 
   for( y = 0; y < 25; y++ ) { // clk
 
     printf( "clk %2i:", y );
 
+    tb.Sig_SetDelay( SIG_CLK, y );
+    tb.Sig_SetDelay( SIG_CTR, y );
+    tb.Sig_SetDelay( SIG_SDA, y+15 );
+    tb.Sig_SetDelay( SIG_TIN, y+5 );
+
     for( x = 0; x < 8; x++ ) { // deser160 phase
 
       tb.Daq_Select_Deser160(x);
-
-      tb.Sig_SetDelay( SIG_CLK, y );
-      tb.Sig_SetDelay( SIG_SDA, y+15 );
-      tb.Sig_SetDelay( SIG_CTR, y );
-      tb.Sig_SetDelay( SIG_TIN, y+5 );
       tb.uDelay(10);
 
       tb.Daq_Start();
@@ -1211,21 +1240,25 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
 	  printf( "  %03X ", int(data[0] & 0xffc) );
       }
       else printf( "  ... " );
-    } // deser
+
+    } // deser phase
+
     printf( "\n" );
-  } // clk
+
+  } // clk phase
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Close();
 #endif
 
-  printf( "Old values: clk delay %i, deserAdjust %i\n", delayAdjust, tbState.GetDeserAdjust() );
+  printf( "Old values: clk delay %i, deserPhase %i\n",
+	  tbState.GetClockPhase(), tbState.GetDeserPhase() );
 
   if( goodvalues.size() == 0 ) {
 
     printf( "No value found where header could be read back - no adjustments made.\n" );
-    tb.Daq_Select_Deser160( tbState.GetDeserAdjust() ); // back to default
-    y = delayAdjust; // back to default
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase() ); // back to default
+    y = tbState.GetClockPhase(); // back to default
     tb.Sig_SetDelay( SIG_CLK, y );
     tb.Sig_SetDelay( SIG_CTR, y );
     tb.Sig_SetDelay( SIG_SDA, y+15 );
@@ -1238,11 +1271,12 @@ CMD_PROC(deser160) // scan DESER160 and clock phase for header 7F8
     printf( "%i %i\n", it->first, it->second );
   }
   const int select = floor( 0.5*goodvalues.size() - 0.5 );
-  delayAdjust = goodvalues[select].first;
-  tbState.SetDeserAdjust( goodvalues[select].second );
-  printf( "New values: clock delay %i, deserAdjust %i\n", delayAdjust, tbState.GetDeserAdjust() );
-  tb.Daq_Select_Deser160( tbState.GetDeserAdjust() ); // set new
-  y = delayAdjust;
+  tbState.SetClockPhase( goodvalues[select].first );
+  tbState.SetDeserPhase( goodvalues[select].second );
+  printf( "New values: clock delay %i, deserPhase %i\n",
+	  tbState.GetClockPhase(), tbState.GetDeserPhase() );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() ); // set new
+  y = tbState.GetClockPhase();
   tb.Sig_SetDelay( SIG_CLK, y );
   tb.Sig_SetDelay( SIG_CTR, y );
   tb.Sig_SetDelay( SIG_SDA, y+15 );
@@ -1277,6 +1311,7 @@ CMD_PROC(dclose)
   int channel;
   if( !PAR_IS_INT( channel, 0, 7 ) ) channel = 0;
   tb.Daq_Close(channel);
+  tbState.SetDaqOpen(0);
   DO_FLUSH;
   return true;
 }
@@ -1551,7 +1586,7 @@ CMD_PROC(dread) // daq read and print
 	double vc = ph;
 	if( ldb ) vc = PHtoVcal( ph, ix, iy );
 	if( ldb ) cout << setw(3) << ix <<  setw(3) << iy << setw(4) << ph << ",";
-	//if( ldb ) cout << "(" << vc << ")";
+	if( ldb ) cout << "(" << vc << ")";
 	if( npx%8 == 7 && ldb ) cout << endl;
 	if( ix < 52 && iy < 80 ) {
 	  nn[ix][iy]++; // hit map
@@ -1566,6 +1601,9 @@ CMD_PROC(dread) // daq read and print
     even = 1-even;
   } // data
   if( ldb ) cout << endl;
+
+  cout << npx << " pixels" << endl;
+  cout << nrr << " address errors" << endl;
 
   h21->Write();
   gStyle->SetOptStat(10); // entries
@@ -1588,8 +1626,6 @@ CMD_PROC(dread) // daq read and print
 	  cout << " ";
       cout << "|" << endl;
     }
-    cout << npx << " pixels" << endl;
-    cout << nrr << " address errors" << endl;
   }
   */
   return true;
@@ -1854,7 +1890,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -2416,24 +2452,24 @@ CMD_PROC(showclk)
   tb.SignalProbeD2(17);
   tb.SignalProbeA2(PROBEA_CLK);
   tb.uDelay(10);
-  tb.SignalProbeADC(PROBEA_CLK, gain-1);
+  tb.SignalProbeADC( PROBEA_CLK, gain-1 );
   tb.uDelay(10);
 
-  tb.Daq_Select_ADC(nSamples, 1, 1);
+  tb.Daq_Select_ADC( nSamples, 1, 1 );
   tb.uDelay(1000);
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  for( i=0; i<20; i++ ) {
-    tb.Sig_SetDelay(SIG_CLK, 26-i);
+  for( i = 0; i < 20; i++ ) {
+    tb.Sig_SetDelay( SIG_CLK, 26-i );
     tb.uDelay(10);
     tb.Daq_Start();
     tb.Pg_Single();
     tb.uDelay(1000);
     //tb.Daq_Stop();
-    tb.Daq_Read(data[i], 1024);
+    tb.Daq_Read( data[i], 1024 );
     if( data[i].size() != nSamples ) {
-      printf( "Data size %i: %i\n", i, int(data[i].size()));
+      printf( "Data size %i: %i\n", i, int( data[i].size() ) );
       return true;
     }
   }
@@ -2445,8 +2481,8 @@ CMD_PROC(showclk)
   int n = 20*nSamples;
   vector<double> values(n);
   int x = 0;
-  for( k=0; k<nSamples; k++ )
-    for( i=0; i<20; i++) {
+  for( k = 0; k < nSamples; k++ )
+    for( i = 0; i < 20; i++ ) {
       int y = (data[i])[k] & 0x0fff;
       if( y & 0x0800) y |= 0xfffff000;
       values[x++] = y;
@@ -2481,7 +2517,7 @@ CMD_PROC(showctr)
   tb.SignalProbeADC(PROBEA_CTR, gain-1);
   tb.uDelay(10);
 
-  tb.Daq_Select_ADC(nSamples, 1, 1);
+  tb.Daq_Select_ADC( nSamples, 1, 1 );
   tb.uDelay(1000);
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
@@ -2493,9 +2529,9 @@ CMD_PROC(showctr)
     tb.Pg_Single();
     tb.uDelay(1000);
     //tb.Daq_Stop();
-    tb.Daq_Read(data[i], 1024);
+    tb.Daq_Read( data[i], 1024 );
     if( data[i].size() != nSamples ) {
-      printf( "Data size %i: %i\n", i, int(data[i].size()));
+      printf( "Data size %i: %i\n", i, int( data[i].size() ) );
       return true;
     }
   }
@@ -2507,8 +2543,8 @@ CMD_PROC(showctr)
   int n = 20*nSamples;
   vector<double> values(n);
   int x = 0;
-  for( k=0; k<nSamples; k++ )
-    for( i=0; i<20; i++ ) {
+  for( k = 0; k < nSamples; k++ )
+    for( i = 0; i < 20; i++ ) {
       int y = (data[i])[k] & 0x0fff;
       if( y & 0x0800) y |= 0xfffff000;
       values[x++] = y;
@@ -2559,7 +2595,7 @@ CMD_PROC(showsda)
     //tb.Daq_Stop();
     tb.Daq_Read( data[i], 1024 );
     if( data[i].size() != nSamples ) {
-      printf( "Data size %i: %i\n", i, int(data[i].size()));
+      printf( "Data size %i: %i\n", i, int( data[i].size() ) );
       return true;
     }
   }
@@ -2571,8 +2607,8 @@ CMD_PROC(showsda)
   int n = 20*nSamples;
   vector<double> values(n);
   int x = 0;
-  for( k=0; k<nSamples; k++ )
-    for( i=0; i<20; i++ ) {
+  for( k = 0; k < nSamples; k++ )
+    for( i = 0; i < 20; i++ ) {
       int y = (data[i])[k] & 0x0fff;
       if( y & 0x0800) y |= 0xfffff000;
       values[x++] = y;
@@ -2619,7 +2655,7 @@ CMD_PROC(decoding)
   unsigned short t;
   vector<uint16_t> data[16];
   tb.Pg_SetCmd(0, PG_TOK + 0);
-  tb.Daq_Select_Deser160(2);
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(10);
   Log.section( "decoding" );
 #ifdef DAQOPENCLOSE
@@ -2847,7 +2883,7 @@ CMD_PROC(tbmset)
 */
 
 //------------------------------------------------------------------------------
-CMD_PROC(select)
+CMD_PROC(select) // define active ROCs
 {
   int rocmin, rocmax;
   PAR_RANGE( rocmin, rocmax, 0, 15 );
@@ -3343,9 +3379,16 @@ CMD_PROC(daci) // currents vs dac
 // pixe 0:51 0:79 15
 // daci 12
 {
-  int32_t roc, dac;
-  PAR_INT( roc, 0, 15 );
+  int32_t roc = 0;
+  //PAR_INT( roc, 0, 15 );
+
+  int32_t dac;
   PAR_INT( dac, 0, 32 );
+
+  if( dacval[roc][dac] == -1 ) {
+    cout << "DAC " << dac << " not active" << endl;
+    return false;
+  }
 
   tb.roc_I2cAddr(roc);
 
@@ -3362,13 +3405,13 @@ CMD_PROC(daci) // currents vs dac
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "ID_DAC%02i", dac ),
-	  Form( "Digital current vs DAC %02i;DAC %02i [DAC];ID [mA]", dac, dac ),
+	  Form( "Digital current vs %s;%s [DAC];ID [mA]", dacnam[dac].c_str(), dacnam[dac].c_str() ),
 	  nstp, dacstrt-0.5, dacstop+0.5 );
 
   if( h12 ) delete h12;
   h12 = new
     TH1D ( Form( "IA_DAC%02i", dac ),
-	   Form( "Analog current vs DAC %02i;DAC %02i [DAC];ID [mA]", dac, dac ),
+	   Form( "Analog current vs %s;%s [DAC];IA [mA]", dacnam[dac].c_str(), dacnam[dac].c_str() ),
 	   nstp, dacstrt-0.5, dacstop+0.5 );
 
   for( int32_t i = dacstrt; i <= dacstop; i += dacstep ) {
@@ -3553,7 +3596,7 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -3642,21 +3685,30 @@ CMD_PROC(fire) // fire col row (nTrig) [cal and read]
   tb.roc_Pix_Trim( col, row, trim );
   tb.roc_Pix_Cal ( col, row, false );
 
+  cout << "fire"
+       << " col " << col
+       << " row " << row
+       << " trim " << trim
+       << " nTrig " << nTrig
+       << endl;
+
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
+  tb.Flush();
 
   for( int k = 0; k < nTrig; k++ ) {
     tb.Pg_Single();
     tb.uDelay(20);
   }
+  tb.Flush();
 
-  //tb.Daq_Stop();
-  cout << "DAQ size " << tb.Daq_GetSize() << endl;
+  tb.Daq_Stop();
+  cout << "  DAQ size " << tb.Daq_GetSize() << endl;
 
   vector<uint16_t> data;
   data.reserve( tb.Daq_GetSize() );
@@ -3669,9 +3721,9 @@ CMD_PROC(fire) // fire col row (nTrig) [cal and read]
   tb.Flush();
 #endif
 
-  cout << "data size " << data.size();
+  cout << "  data size " << data.size();
   for( size_t i = 0; i < data.size(); i++ ) {
-    if( (data[i] & 0xffc) == 0x7f8 ) cout << " :";
+    if( (data[i] & 0xffc) == 0x7f8 ) cout << ":";
     printf( " %4X", data[i] ); // full word with FPGA markers
   //printf( " %3X", data[i] & 0xfff ); // 12 bits per word
   }
@@ -3736,7 +3788,7 @@ CMD_PROC(fire) // fire col row (nTrig) [cal and read]
     rms = sqrt( (double)phsu2 / cnt - ph*ph );
     vc = vcsum / cnt;
   }
-  cout << "pixel " << setw(2) << col << setw(3) << row
+  cout << "  pixel " << setw(2) << col << setw(3) << row
        << " responses " << cnt
        << ", PH " << ph
        << ", RMS " << rms
@@ -3775,7 +3827,7 @@ CMD_PROC(fire2) // fire2 col row (nTrig) [2-row correlation]
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -3945,7 +3997,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   tb.Daq_Open( Blocksize, tbmch );
 #endif
   if( nrocs == 1 )
-    tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   else {
     tb.Daq_Select_Deser400();
     tb.Daq_Deser400_Reset(3);
@@ -4213,10 +4265,12 @@ CMD_PROC(caldel) // scan and set CalDel using one pixel
   PAR_INT( col, 0, 51 );
   PAR_INT( row, 0, 79 );
 
+  int nTrig;
+  if( !PAR_IS_INT( nTrig, 1, 65500 ) ) nTrig = 100;
+
   Log.section( "CALDEL", false );
   Log.printf( " pixel %i %i\n", col, row );
 
-  int nTrig = 99; // enough
   uint8_t dac = CalDel;
   int val = dacval[0][CalDel];
   vector<int16_t> nReadouts; // size 0
@@ -4231,10 +4285,13 @@ CMD_PROC(caldel) // scan and set CalDel using one pixel
   int nstp = nReadouts.size();
   cout << "DAC steps " << nstp << endl;
 
+  int wbc = dacval[0][WBC];
+
   if( h11 ) delete h11;
   h11 = new
-    TH1D( Form( "caldel_%02i_%02i", col, row ),
-	  Form( "CalDel scan col %02i row %02i;CalDel [DAC];responses", col, row ),
+    TH1D( Form( "caldel_%02i_%02i_wbc%03i", col, row, wbc ),
+	  Form( "CalDel scan col %i row %i WBC %i;CalDel [DAC];responses",
+		col, row, wbc ),
 	  nstp, -0.5, nstp-0.5 );
 
   // analyze:
@@ -4406,8 +4463,8 @@ CMD_PROC(modcaldel) // set caldel for modules (using one pixel)
   long u0 = tv.tv_usec; // microseconds
 
   int mm[16];
-  int m0[16];
-  int m9[16];
+  //int m0[16];
+  //int m9[16];
 
   for( size_t roc = 0; roc < 16; ++roc ) {
 
@@ -4470,8 +4527,8 @@ CMD_PROC(modcaldel) // set caldel for modules (using one pixel)
     cout << "eff plateau " << nm << " from " << i0 << " to " << i9 << endl;
 
     mm[roc] = nm;
-    m0[roc] = i0;
-    m9[roc] = i9;
+    //m0[roc] = i0;
+    //m9[roc] = i9;
 
     if( nm > nTrig/2 ) {
       //int i2 = i0 + (i9-i0)/2; // mid OK for Vcal
@@ -5587,20 +5644,22 @@ CMD_PROC(phdac) // phdac col row dac (PH vs dac)
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "ph_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "PH vs DAC %i col %02i row %02i;DAC %i [DAC];<PH> [ADC]", dac, col, row, dac ),
+	  Form( "PH vs %s col %02i row %02i;%s [DAC];<PH> [ADC]",
+		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
   if( h12 ) delete h12;
   h12 = new
     TH1D( Form( "vcal_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "Vcal vs DAC %i col %02i row %02i;DAC %i [DAC];calibrated PH [large Vcal DAC]",
-		dac, col, row, dac ),
+	  Form( "Vcal vs %s col %02i row %02i;%s [DAC];calibrated PH [large Vcal DAC]",
+		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
   if( h14 ) delete h14;
   h14 = new
     TH1D( Form( "rms_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "RMS vs DAC %i col %02i row %02i;DAC %i [DAC];<PH> [ADC]", dac, col, row, dac ),
+	  Form( "RMS vs %s col %02i row %02i;%s [DAC];<PH> [ADC]",
+		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
   // tb.CalibrateDacScan runs on the FPGA
@@ -5707,13 +5766,15 @@ CMD_PROC(calsdac) // calsdac col row dac (cals PH vs dac)
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "cals_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "CALS vs DAC %i col %02i row %02i;DAC %i [DAC];<CALS> [ADC]", dac, col, row, dac ),
+	  Form( "CALS vs  %s col %02i row %02i;%s [DAC];<CALS> [ADC]",
+		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
   if( h12 ) delete h12;
   h12 = new
     TH1D( Form( "resp_cals_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "CALS responses vs DAC %i col %02i row %02i;DAC %i [DAC];responses", dac, col, row, dac ),
+	  Form( "CALS responses vs  %s col %02i row %02i;%s [DAC];responses",
+		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
   // print:
@@ -5790,8 +5851,8 @@ CMD_PROC(effdac) // effdac col row dac (efficiency vs dac)
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "eff_dac%02i_roc%02i_col%02i_row%02i", dac, roc, col, row ),
-	  Form( "Eff vs DAC %i ROC %02i col %02i row %02i;DAC %i [DAC];responses",
-		dac, roc, col, row, dac ),
+	  Form( "Eff vs %s ROC %02i col %02i row %02i;%s [DAC];responses",
+		dacnam[dac].c_str(), roc, col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
   // print:
@@ -5866,8 +5927,8 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "thr_dac%02i_%02i_%02i_bits%02i", dac, col, row, trim ),
-	  Form( "thr vs DAC %i col %2i row %2i bits %i;DAC %i [DAC];threshold [small Vcal DAC]",
-		dac, col, row, trim, dac ),
+	  Form( "thr vs %s col %2i row %2i bits %i;%s [DAC];threshold [small Vcal DAC]",
+		dacnam[dac].c_str(), col, row, trim, dacnam[dac].c_str() ),
 	  nstp, dacstrt-0.5, dacstop+0.5 );
 
   tb.roc_Col_Enable( col, true );
@@ -6074,7 +6135,7 @@ CMD_PROC(effmap)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -6629,7 +6690,8 @@ CMD_PROC(thrmap) // uses tb.PixelThreshold
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ),
-	  Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ),
+	  Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels",
+		vthr, vtrm ),
 	  256, -0.5, 255.5 ); // 255 = overflow
 
   if( h21 ) delete h21;
@@ -6724,7 +6786,7 @@ CMD_PROC(thrmapsc) // raw data S-curve: 60 s / ROC
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -7051,6 +7113,9 @@ CMD_PROC(vthrcomp)
   int target;
   PAR_INT( target, 0, 255 ); // Vcal [DAC] threshold target
 
+  int guess;
+  if( !PAR_IS_INT( guess, 0, 255 ) ) guess = 50;
+
   Log.section( "VTHRCOMP", true );
 
   timeval tv;
@@ -7083,8 +7148,6 @@ CMD_PROC(vthrcomp)
     tb.SetDAC( CtrlReg, 0 ); // this ROC, small Vcal
     dacval[roc][CtrlReg] = 0;
 
-    int guess = 50;
-
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // take threshold map, find hardest pixel
 
@@ -7100,7 +7163,8 @@ CMD_PROC(vthrcomp)
     if( h10 ) delete h10;
     h10 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ),
-	    Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels",
+		  vthr, vtrm ),
 	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
@@ -7139,7 +7203,8 @@ CMD_PROC(vthrcomp)
     if( h11 ) delete h11;
     h11 = new
       TH1D( Form( "thr_vs_VthrComp_col%i_row%i", colmin, rowmin ),
-	    Form( "Threshold vs VthrComp pix %i %i target %i;VthrComp [DAC];threshold [small Vcal DAC]", colmin, rowmin, target ),
+	    Form( "Threshold vs VthrComp pix %i %i target %i;VthrComp [DAC];threshold [small Vcal DAC]",
+		  colmin, rowmin, target ),
 	    200, 0, 200 );
 
     // VthrComp has negative slope: higher = softer
@@ -7277,7 +7342,8 @@ CMD_PROC(trim)
     if( h10 ) delete h10;
     h10 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
-	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels",
+		  vthr, vtrm, tbits ),
 	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
@@ -7332,7 +7398,8 @@ CMD_PROC(trim)
     if( h11 ) delete h11;
     h11 = new
       TH1D( Form( "thr_vs_Vtrim_col%i_row%i", colmax, rowmax ),
-	    Form( "Threshold vs Vtrim pix %i %i;Vtrim [DAC];threshold [small Vcal DAC]", colmax, rowmax ),
+	    Form( "Threshold vs Vtrim pix %i %i;Vtrim [DAC];threshold [small Vcal DAC]",
+		  colmax, rowmax ),
 	    100, 0, 200 ); // 255 = overflow
 
     tb.Daq_Stop();
@@ -7398,7 +7465,8 @@ CMD_PROC(trim)
     if( h12 ) delete h12;
     h12 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
-	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels",
+		  vthr, vtrm, tbits ),
 	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
@@ -7420,7 +7488,8 @@ CMD_PROC(trim)
     if( h13 ) delete h13;
     h13 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4", vthr, vtrm, tbits ),
-	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4;threshold [small Vcal DAC];pixels",
+		  vthr, vtrm, tbits ),
 	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
@@ -7442,7 +7511,8 @@ CMD_PROC(trim)
     if( h14 ) delete h14;
     h14 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2", vthr, vtrm, tbits ),
-	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2;threshold [small Vcal DAC];pixels",
+		  vthr, vtrm, tbits ),
 	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
@@ -7464,7 +7534,8 @@ CMD_PROC(trim)
     if( h15 ) delete h15;
     h15 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2_1", vthr, vtrm, tbits ),
-	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1;threshold [small Vcal DAC];pixels",
+		  vthr, vtrm, tbits ),
 	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
@@ -7486,7 +7557,8 @@ CMD_PROC(trim)
     if( h16 ) delete h16;
     h16 = new
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2_1_1", vthr, vtrm, tbits ),
-	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1 1;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1 1;threshold [small Vcal DAC];pixels",
+		  vthr, vtrm, tbits ),
 	    256, -0.5, 255.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
@@ -7565,7 +7637,7 @@ CMD_PROC(trimbits)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -7921,7 +7993,7 @@ CMD_PROC(phmap)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -8105,7 +8177,7 @@ CMD_PROC(calsmap) // test PH map through sensor
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -8238,7 +8310,7 @@ CMD_PROC(bbtest) // bump bond test
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -8516,7 +8588,7 @@ CMD_PROC(caldelroc) // scan and set CalDel using all pixel: 17 s
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
 
   // all on:
@@ -8663,10 +8735,10 @@ CMD_PROC(caldelroc) // scan and set CalDel using all pixel: 17 s
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(phcal) // PH vs Vcal tb.LoopSingleRocAllPixelsCalibrate 77 s 
+CMD_PROC(gaindac) // calibrated PH vs Vcal: check gain
 
 {
-  Log.section( "PHCAL", false );
+  Log.section( "GAINDAC", false );
   Log.printf( " CtrlReg %i\n", dacval[0][CtrlReg] );
 
   timeval tv;
@@ -8677,7 +8749,7 @@ CMD_PROC(phcal) // PH vs Vcal tb.LoopSingleRocAllPixelsCalibrate 77 s
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
 
   // all on:
@@ -8709,7 +8781,7 @@ CMD_PROC(phcal) // PH vs Vcal tb.LoopSingleRocAllPixelsCalibrate 77 s
   for( int col = 0; col < 52; col++ )
     for( int row = 0; row < 80; row++ ) {
       hph[j] = TH1D( Form( "PH_Vcal_c%02i_r%02i", col, row ),
-		     Form( "PH vs Vcal col %02i row %02i;Vcal [DAC];<PH> [ADC]", col, row ),
+		     Form( "PH vs Vcal col %i row %i;Vcal [DAC];<PH> [ADC]", col, row ),
 		     256, -0.5, 255.5 );
       j++;
     }
@@ -8846,7 +8918,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -8977,17 +9049,17 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   int cal = dacval[0][Vcal];
   if( h21 ) delete h21;
   h21 = new TH2D( Form( "PH_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
-		 Form( "PH vs DAC %02i CR %i Vcal %i map;pixel;DAC %02i;PH [ADC]",
-		       dac, ctl, cal, dac ),
-		 4160, -0.5, 4160-0.5,
-		 nstp, -0.5, nstp-0.5 );
+		  Form( "PH vs %s CR %i Vcal %i map;pixel;%s [DAC];PH [ADC]",
+			dacnam[dac].c_str(), ctl, cal, dacnam[dac].c_str() ),
+		  4160, -0.5, 4160-0.5,
+		  nstp, -0.5, nstp-0.5 );
 
   if( h22 ) delete h22;
   h22 = new TH2D( Form( "N_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
-		 Form( "N vs DAC %02i CR %i Vcal %i map;pixel;DAC %02i;readouts",
-		       dac, ctl, cal, dac ),
-		 4160, -0.5, 4160-0.5,
-		 nstp, -0.5, nstp-0.5 );
+		  Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];readouts",
+			dacnam[dac].c_str(), ctl, cal, dacnam[dac].c_str() ),
+		  4160, -0.5, 4160-0.5,
+		  nstp, -0.5, nstp-0.5 );
 
   if( h11 ) delete h11;
   h11 = new TH1D( "Responses",
@@ -9137,7 +9209,7 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay(100);
   tb.Daq_Start();
   tb.uDelay(100);
@@ -9269,31 +9341,35 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
 #endif
 
   if( h21 ) delete h21;
-  h21 = new TH2D( Form( "PH_DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
-		 Form( "PH vs DAC %02i vs DAC %02i col %02i row %02i;DAC %02i;DAC %02i;PH [ADC]",
-		       dac1, dac2, col, row, dac1, dac2 ),
-		 nstp1, -0.5, nstp1-0.5,
-		 nstp2, -0.5, nstp2-0.5 );
+  h21 = new
+    TH2D( Form( "PH_DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
+	  Form( "PH vs %s vs %s col %i row %i;%s [DAC];%s [DAC];PH [ADC]",
+		dacnam[dac1].c_str(), dacnam[dac2].c_str(), col, row,
+		dacnam[dac1].c_str(), dacnam[dac2].c_str() ),
+	  nstp1, -0.5, nstp1-0.5,
+	  nstp2, -0.5, nstp2-0.5 );
 
   if( h22 ) delete h22;
   h22 = new
     TH2D( Form( "N_DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
-	  Form( "N vs DAC %02i vs DAC %02i col %02i row %02i;DAC %02i;DAC %02i;readouts",
-		dac1, dac2, col, row, dac1, dac2 ),
+	  Form( "N vs %s vs %s col %i row %i;%s [DAC];%s [DAC];readouts",
+		dacnam[dac1].c_str(), dacnam[dac2].c_str(), col, row,
+		dacnam[dac1].c_str(), dacnam[dac2].c_str() ),
 	  nstp1, -0.5, nstp1-0.5,
 	  nstp2, -0.5, nstp2-0.5 );
 
   if( h23 ) delete h23;
   h23 = new
     TH2D( Form( "N_Trig2DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
-          Form( "N_Trig2 vs DAC %02i vs DAC %02i col %02i row %02i;DAC %02i;DAC %02i;readouts",
-                dac1, dac2, col, row, dac1, dac2 ),
+          Form( "N_Trig2 vs %s vs %s col %i row %i;%s [DAC];%s [DAC];readouts",
+		dacnam[dac1].c_str(), dacnam[dac2].c_str(), col, row,
+		dacnam[dac1].c_str(), dacnam[dac2].c_str() ),
           nstp1, -0.5, nstp1-0.5,
           nstp2, -0.5, nstp2-0.5 );
   
-  TH1D *h_one = new TH1D( Form("h_optimal_DAC%02i_col%02i_row%02i", dac2, col, row ),
-                          Form("h_optimal_DAC%02i_col%02i_row%02i", dac2, col, row ),
-                          nstp1, -0.5, nstp1-0.5);
+  TH1D *h_one = new TH1D( Form( "h_optimal_DAC%02i_col%02i_row%02i", dac2, col, row ),
+                          Form( "optimal DAC %i col %i row %i", dac2, col, row ),
+                          nstp1, -0.5, nstp1-0.5 );
 
   // unpack data:
 
@@ -9535,7 +9611,7 @@ CMD_PROC(analyze)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 
   tb.Daq_Start();
   tb.uDelay(10);
@@ -9588,7 +9664,7 @@ CMD_PROC(adcsingle)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.Daq_Start();
   tb.uDelay(10);
 
@@ -9639,7 +9715,7 @@ CMD_PROC(adcpeak)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 
   tb.Daq_Start();
   tb.uDelay(10);
@@ -9706,7 +9782,7 @@ CMD_PROC(adchisto)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 
   tb.Daq_Start();
   tb.uDelay(10);
@@ -9832,7 +9908,7 @@ CMD_PROC(adctransfer)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 
   tb.Daq_Start();
   tb.uDelay(10);
@@ -9940,7 +10016,7 @@ CMD_PROC(adctest)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserAdjust() );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 
   // single pixel readout
   try {
@@ -10064,7 +10140,7 @@ CMD_PROC(shmoo)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 
   PrintScale( xmin, xmax );
   for( int y = ymin; y <= ymax; y++ ) {
@@ -10105,7 +10181,7 @@ CMD_PROC(phscan)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
 #endif
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.Daq_Start();
 
   // scan vcal
@@ -10186,7 +10262,7 @@ CMD_PROC(readback)
 #endif
   tb.Pg_Stop();
   tb.Pg_SetCmd(0, PG_TOK);
-  tb.Daq_Select_Deser160(tbState.GetDeserAdjust());
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 
   // take data:
 
@@ -10274,13 +10350,26 @@ void cmd() // called once from psi46test
   CMD_REG( log,      "log <text>                    writes text to log file" );
   CMD_REG( upgrade,  "upgrade <filename>            upgrade DTB" );
   CMD_REG( rpcinfo,  "rpcinfo                       lists DTB functions" );
-  CMD_REG( ver,      "ver                           shows DTB software version number" );
   CMD_REG( version,  "version                       shows DTB software version" );
   CMD_REG( info,     "info                          shows detailed DTB info" );
   CMD_REG( boardid,  "boardid                       get board id" );
   CMD_REG( init,     "init                          inits the testboard" );
   CMD_REG( flush,    "flush                         flushes usb buffer" );
   CMD_REG( clear,    "clear                         clears usb data buffer" );
+
+  CMD_REG( pon,      "pon                           switch ROC power on" );
+  CMD_REG( poff,     "poff                          switch ROC power off" );
+  CMD_REG( va,       "va <mV>                       set VA supply in mV" );
+  CMD_REG( vd,       "vd <mV>                       set VD supply in mV" );
+  CMD_REG( ia,       "ia <mA>                       set IA limit in mA" );
+  CMD_REG( id,       "id <mA>                       set ID limit in mA" );
+
+  CMD_REG( getva,    "getva                         set VA in V" );
+  CMD_REG( getvd,    "getvd                         set VD in V" );
+  CMD_REG( getia,    "getia                         set IA in mA" );
+  CMD_REG( getid,    "getid                         set ID in mA" );
+  CMD_REG( optia,    "optia <ia>                    set Vana to desired ROC Ia [mA]" );
+
   CMD_REG( hvon,     "hvon                          switch HV on" );
   CMD_REG( hvoff,    "hvoff                         switch HV off" );
   CMD_REG( reson,    "reson                         activate reset" );
@@ -10304,6 +10393,7 @@ void cmd() // called once from psi46test
   CMD_REG( ctrmode,  "ctrmode <mode>                ctr mode" );
   CMD_REG( sdamode,  "sdamode <mode>                sda mode" );
   CMD_REG( tinmode,  "tinmode <mode>                tin mode" );
+  CMD_REG( showtb,   "showtb                        print DTB state" );
 
   CMD_REG( sigoffset,"sigoffset <offset>            output signal offset" );
   CMD_REG( lvds,     "lvds                          LVDS inputs" );
@@ -10313,19 +10403,6 @@ void cmd() // called once from psi46test
   CMD_REG( clkok,    "clkok                         Check if ext clock is present" );
   CMD_REG( fsel,     "fsel <freqdiv>                clock frequency select" );
   CMD_REG( stretch,  "stretch <src> <delay> <width> stretch clock" );
-
-  CMD_REG( pon,      "pon                           switch ROC power on" );
-  CMD_REG( poff,     "poff                          switch ROC power off" );
-  CMD_REG( va,       "va <mV>                       set VA supply in mV" );
-  CMD_REG( vd,       "vd <mV>                       set VD supply in mV" );
-  CMD_REG( ia,       "ia <mA>                       set IA limit in mA" );
-  CMD_REG( id,       "id <mA>                       set ID limit in mA" );
-
-  CMD_REG( getva,    "getva                         set VA in V" );
-  CMD_REG( getvd,    "getvd                         set VD in V" );
-  CMD_REG( getia,    "getia                         set IA in mA" );
-  CMD_REG( getid,    "getid                         set ID in mA" );
-  CMD_REG( optia,    "optia <ia>                    set Vana to desired ROC Ia [mA]" );
 
   CMD_REG( d1,       "d1 <signal>                   assign signal to D1 output" );
   CMD_REG( d2,       "d2 <signal>                   assign signal to D2 outout" );
@@ -10433,13 +10510,13 @@ void cmd() // called once from psi46test
   CMD_REG( thrmap,   "thrmap guess                  threshold map trimmed" );
   CMD_REG( thrmapsc, "thrmapsc stop (4=cals)        threshold map" );
 
-  CMD_REG( phdac,    "phdac col row dac             PH vs DAC one pixel" );
-  CMD_REG( phcal,    "phcal                         PHmap vs Vcal" );
-  CMD_REG( calsdac,  "calsdac col row dac           cals vs DAC one pixel" );
   CMD_REG( effdac,   "effdac roc col row dac        Efficiency vs DAC one pixel" );
+  CMD_REG( phdac,    "phdac col row dac             PH vs DAC one pixel" );
+  CMD_REG( gaindac,  "gaindac                       calibrated PH vs Vcal" );
+  CMD_REG( calsdac,  "calsdac col row dac           cals vs DAC one pixel" );
   CMD_REG( dacdac,   "dacdac col row dacx dacy      DAC DAC scan" );
 
-  CMD_REG( dacscanroc,"dacscanroc dac               PH vs DAC, all pixels" );
+  CMD_REG( dacscanroc,"dacscanroc dac [nTrig]       PH vs DAC, all pixels" );
 
   CMD_REG( tune,     "tune                          tune gain and offset" );
   CMD_REG( phmap,    "phmap nTrig                   ROC PH map" );
