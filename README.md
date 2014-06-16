@@ -1,8 +1,9 @@
 psi46test README
 ====================================================================
 
-*NOTE: Do not forget to read the Changelog.txt file as well for latest
-      changes to the code.*
+code for testing psi46dig ROCs with a DTB.
+DESY development branched off from
+https://github.com/psi46/psi46test
 
 Prerequisites:
 --------------
@@ -15,11 +16,15 @@ them from
 and follow the instructions in the ReadMe file there. You only need to install
 the shared library. No need for the examples.
 
+ROOT is required as $(ROOTSYS)/bin/root-config
+
+readline is used
+
 
 Installation:
 -------------
 
-Linux/Darwin (Mac OS X):
+Linux or Darwin (Mac OS X):
 
   1. Compile the software by typing
 
@@ -134,3 +139,9 @@ Common issues
     invocation of the C++ compiler. Just remove this in the Makefile and
     it should work.
 
+
+Documentation:
+--------------
+
+man.pdf
+written in LYX
