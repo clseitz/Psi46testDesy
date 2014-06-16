@@ -1,5 +1,6 @@
-psi46test README
-====================================================================
+
+psi46testDesy
+=============
 
 code for testing psi46dig ROCs with a DTB.
 DESY development branched off from
@@ -8,13 +9,12 @@ https://github.com/psi46/psi46test
 Prerequisites:
 --------------
 
-The FTDI D2XX drivers for USB are needed. If not yet installed, download
-them from
+The FTDI D2XX USB driver is needed, available at
 
     http://www.ftdichip.com/Drivers/D2XX.htm
 
-and follow the instructions in the ReadMe file there. You only need to install
-the shared library. No need for the examples.
+and follow the instructions in the ReadMe file there.
+You only need to install the shared library libftd2xx.so
 
 ROOT is required as $(ROOTSYS)/bin/root-config
 
