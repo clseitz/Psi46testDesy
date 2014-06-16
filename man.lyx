@@ -1,0 +1,2241 @@
+#LyX 1.6.10 created this file. For more info see http://www.lyx.org/
+\lyxformat 345
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\language english
+\inputencoding auto
+\font_roman lmodern
+\font_sans lmss
+\font_typewriter courier
+\font_default_family rmdefault
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics pdftex
+\paperfontsize default
+\spacing onehalf
+\use_hyperref false
+\papersize a4paper
+\use_geometry true
+\use_amsmath 0
+\use_esint 0
+\cite_engine basic
+\use_bibtopic false
+\paperorientation portrait
+\leftmargin 2cm
+\topmargin 2cm
+\rightmargin 2cm
+\bottommargin 2cm
+\headheight 0cm
+\headsep 0cm
+\footskip 0cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation skip
+\defskip smallskip
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle empty
+\bullet 1 0 17 -1
+\bullet 2 0 0 -1
+\tracking_changes false
+\output_changes false
+\author "" 
+\author "" 
+\end_header
+
+\begin_body
+
+\begin_layout Title
+\noindent
+
+\series bold
+psi46test at DESY
+\end_layout
+
+\begin_layout Author
+\noindent
+Daniel Pitzl, DESY
+\end_layout
+
+\begin_layout Date
+\noindent
+7.6.2014
+\end_layout
+
+\begin_layout Section
+\noindent
+Introduction
+\end_layout
+
+\begin_layout Standard
+psi46test is C++ code to test CMS pixel readout chips (ROCs) from a PC via
+ USB and a pixel test board.
+ It was developed by Beat Meier at PSI since 2006 to test analog psi46 ROCs
+ with analog ATB test boards.
+ Functions for digital psi46dig ROCs were added since 2012 and support for
+ digital DTB test boards started in 2013.
+ The code was developed under Windows but as plain C++ code without a graphical
+ user interface it was always running under Linux or on Macintosh as well.
+ The PSI code is available from git (
+\family typewriter
+git clone https://github.com/psi46/psi46test.git
+\family default
+).
+\end_layout
+
+\begin_layout Standard
+\noindent
+The DESY development branched off in March 2014 when DTB FW/SW version 2.0
+ appeared.
+ The command line interface is kept.
+ Output from tests is still written in ASCII format to the log file, but
+ in addition ROOT histograms are booked, filled, stored, and displayed in
+ a static canvas.
+ The code is extended with higher level tests for optimizing DAC settings.
+ The state of the ROC (and the test board) is represented in software.
+ dacParamter and trimParameter files can be written in the same format as
+ used by psi46expert and pXar.
+ Code for the wafer prober at PSI was removed.
+ The code is always tied to a specific version of the DTB firmware and software
+ (via the RPC remote procedure call mechanism), which can be inspected at
+ 
+\family typewriter
+https://github.com/psi46/pixel-dtb-firmware)
+\family default
+.
+ This manual is supposed to document the tests available in the DESY version
+ of psi46test.
+\end_layout
+
+\begin_layout Subsection
+\noindent
+Installation
+\end_layout
+
+\begin_layout Standard
+Register at github (invent a user name and password).
+\end_layout
+
+\begin_layout Standard
+Ask Claudia.Seitz@desy.de to add your user name to the repository.
+\end_layout
+
+\begin_layout Standard
+While you wait, install the usb driver library: 
+\family typewriter
+libftd2xx.so
+\family default
+ from ftdi.com
+\end_layout
+
+\begin_layout Standard
+A ROOT installation is required (and 
+\family typewriter
+make
+\family default
+, and a C++ compiler)
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+git clone https://user@github.com/clseitz/Psi46testDesy.git
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+cd Psi46testDesy
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+make
+\end_layout
+
+\begin_layout Subsection
+Start
+\end_layout
+
+\begin_layout Standard
+Connect a DTB via a USB cable to your computer.
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+cd Psi46test
+\end_layout
+
+\begin_layout Standard
+\noindent
+
+\family typewriter
+bin/psi46test d.log
+\end_layout
+
+\begin_layout Standard
+You should see something like
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+psi46test for DTB V2.2 (4.6.2014)
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+reading psi46test.ini...
+ 
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+logging to d.log
+\end_layout
+
+\begin_layout Standard
+(if you get an USB error here that the port cannot be opened on your computer
+ try 
+\family typewriter
+.
+ initb.sh
+\family default
+ on Linux)
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+USB opened DTB_WS6MP2
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+DTB DTB_WS6MP2 opened
+\end_layout
+
+\begin_layout Standard
+(if your output stops here, the DTB firmware may be outdated (before 2.0).
+ You need a psi46test version compatible with any FW from 1.06 to 1.26 and
+ then upgrade dtb_v2.xy.flash to the current version)
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+--- DTB info-------------------------------------
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+Board id: 77
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+HW version: DTB1.2
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+FW version: 2.2
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+SW version: 2.21
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+USB id: DTB_WS6MP2
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+MAC address: 40D85511804D
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+Hostname: pixelDTB077
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+Comment:
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+-------------------------------------------------
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+PC hash 333290928
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+DTB hash 333290928
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+RPC call hashes of PC and DTB match: 333290928
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+ROOT application...
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
++-cmd commands ----------------------+
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+| help list of commands |
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+| exit exit commander |
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+| quit exit commander |
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
++------------------------------------+
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+gainFile: /home/pitzl/psi/dtb/tst215/phroc-c405-trim30.dat
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+open ROOT window...
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+MyMainFrame...
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+open Canvas...
+ 
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+> exit
+\end_layout
+
+\begin_layout Section
+\noindent
+commands
+\end_layout
+
+\begin_layout Standard
+Commands are defined in cmd.cpp.
+ To add a command, put the code in a new block 
+\family typewriter
+CMD_PROC(cmdname){}
+\family default
+ somewhere in the file and register it in the 
+\family typewriter
+cmd()
+\family default
+ section (towards the end) with a help string: 
+\family typewriter
+CMD_REG( cmdname, "cmdname <argument> explain what it does" )
+\family default
+.
+ No header files are involved.
+\end_layout
+
+\begin_layout Standard
+Commands may either be entered interactivley at the prompt, or read from
+ a file like 
+\family typewriter
+script/mycmd.roc
+\family default
+ which gets called from the prompt by giving the file name without the .roc
+ extension: 
+\family typewriter
+> mycmd
+\family default
+ (the path 
+\family typewriter
+script/
+\family default
+ is defined in 
+\family typewriter
+psi46test.ini
+\family default
+).
+\end_layout
+
+\begin_layout Standard
+Commands check for their mandatory arguments and don't execute if they are
+ missing or out of range.
+ 
+\family typewriter
+help
+\family default
+ prints a list of commands with their parameters.
+\end_layout
+
+\begin_layout Standard
+The state of the ROC (DACs, trims, thresholds) is represented in software.
+ A test (e.g.
+ a DAC scan) is supposed to put back the original state, unless a DAC is
+ changed on purpose.
+\end_layout
+
+\begin_layout Standard
+Commands and measurements are written to the log file.
+ This used to be used for offline parsing, processing, and plotting.
+ It is still useful for reconstructing the conditions under which a particular
+ test in a session was executed.
+ Measurements are now also written as 1D and 2D histograms into a ROOT file
+ 
+\family typewriter
+Test.root
+\family default
+, for direct plotting and offline processing.
+\end_layout
+
+\begin_layout Subsection
+DTB commands
+\end_layout
+
+\begin_layout Standard
+These commands don't require the presence of a ROC.
+ Use them to check the USB connection and the board.
+\end_layout
+
+\begin_layout Description
+rpcinfo prints the list of functions available in the DTB SW via RPC.
+\end_layout
+
+\begin_layout Description
+upgrade
+\begin_inset space \space{}
+\end_inset
+
+dtb_v2.21.flash load new firmware/software into the FPGA.
+ Wait until the LEDs are off.
+ Exit psi46test.
+ Power cycle the DTB (unplugging the power cable) to make sure that the
+ new executable is loaded from EPROM.
+\end_layout
+
+\begin_layout Description
+help prints the list of commands defined in cmd.cpp
+\end_layout
+
+\begin_layout Description
+info prints DTB info
+\end_layout
+
+\begin_layout Description
+version prints DTB hardware, firmware, and software version numbers
+\end_layout
+
+\begin_layout Description
+boardid prints the production serial number
+\end_layout
+
+\begin_layout Description
+welcome play the LED startup sequence
+\end_layout
+
+\begin_layout Description
+setled
+\begin_inset space \space{}
+\end_inset
+
+bits play with the four LEDs on the test board (bit pattern: 0 all off,
+ 15 all on)
+\end_layout
+
+\begin_layout Description
+pon low voltage on
+\end_layout
+
+\begin_layout Description
+getva measure the analog supply voltage on the board
+\end_layout
+
+\begin_layout Description
+getvd measure the digital supply voltage on the board
+\end_layout
+
+\begin_layout Description
+va
+\begin_inset space \space{}
+\end_inset
+
+mV set the analog supply voltage (range 0 to 3000 mV, 1700 mV is fine)
+\end_layout
+
+\begin_layout Description
+vd
+\begin_inset space \space{}
+\end_inset
+
+mV set the digital supply voltage (range 0 to 3000 mV, 2500 mV is fine)
+\end_layout
+
+\begin_layout Description
+poff low voltage off.
+ Do this before exiting from psi46test.
+\end_layout
+
+\begin_layout Description
+quit (or exit) closes the DTB connection, the log and ROOT files and ends
+ psi46test.
+\end_layout
+
+\begin_layout Standard
+If you want to keep them, 
+\family typewriter
+rename
+\family default
+ d.log and/or Test.root before you start again, otherwise the get overwritten.
+\end_layout
+
+\begin_layout Subsection
+starting up with a ROC
+\end_layout
+
+\begin_layout Standard
+Connect a ROC (or module) via SCSI cable to the DTB.
+ You may also want to connect (negative) bias voltage to the red-ringed
+ lemo connector.
+\end_layout
+
+\begin_layout Standard
+Start again: 
+\family typewriter
+bin/psi46test c405.log
+\end_layout
+
+\begin_layout Description
+s405 execute start-up commands for a given chip (
+\family typewriter
+script/s405.roc
+\family default
+)
+\end_layout
+
+\begin_layout Description
+getid measure digital current, should be around 22-28
+\begin_inset space \thinspace{}
+\end_inset
+
+mA per ROC
+\end_layout
+
+\begin_layout Description
+getia measure analog current, should be around 25
+\begin_inset space \thinspace{}
+\end_inset
+
+mA per ROC.
+ If it is around 5
+\begin_inset space \thinspace{}
+\end_inset
+
+mA the ROC is not properly programmed.
+ Inspect the settings in the start script.
+ The problem is either here, or the ROC is dead.
+\end_layout
+
+\begin_layout Description
+deser160 2D scan of clock phase and 160
+\begin_inset space \thinspace{}
+\end_inset
+
+MHz deserializer phase (for single ROCs), searching for the proper ROC header
+ 7FA (hex).
+ Sets the new values, if successful.
+\end_layout
+
+\begin_layout Standard
+The following commands elicit a response from the ROC only if it is properly
+ set up (Vana, WBC, CalDel, VthrComp are the most critical DACs).
+ See below for more algorithmic procedures.
+\end_layout
+
+\begin_layout Description
+fire
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row
+\begin_inset space \space{}
+\end_inset
+
+[nTrig] pulse one pixel.
+ Columns are 0..51, rows are 0..79
+\end_layout
+
+\begin_layout Description
+arm
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row enable column, un-mask one pixel and prepare it for calibrate pulses
+\end_layout
+
+\begin_layout Description
+arm
+\begin_inset space \space{}
+\end_inset
+
+col:col
+\begin_inset space \space{}
+\end_inset
+
+row:row enable range of columns, un-mask ranges of pixels and prepare for
+ calibrate
+\end_layout
+
+\begin_layout Description
+single single calibrate event display (one cycle of reset-calibrate-trigger-toke
+n or whatever is programmed in the pattern generator)
+\end_layout
+
+\begin_layout Description
+cole
+\begin_inset space \space{}
+\end_inset
+
+col enable one column
+\end_layout
+
+\begin_layout Description
+cole
+\begin_inset space \space{}
+\end_inset
+
+col:col enable range of columns e.g.
+ cole 0:51 for all)
+\end_layout
+
+\begin_layout Description
+pixe
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row unmask one pisel
+\end_layout
+
+\begin_layout Description
+pixe
+\begin_inset space \space{}
+\end_inset
+
+col:col
+\begin_inset space \space{}
+\end_inset
+
+row:row unmwask range of pixels (e.g.
+ pixe 0:51 0:79 for the entire ROC)
+\end_layout
+
+\begin_layout Description
+cal
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row activate column and row for calibrate
+\end_layout
+
+\begin_layout Description
+cal
+\begin_inset space \space{}
+\end_inset
+
+col:col
+\begin_inset space \space{}
+\end_inset
+
+row:row activate ranges of columns and rows for calibrate (cols and rows
+ independently
+\end_layout
+
+\begin_layout Description
+cald clear calibrate from all pixels
+\end_layout
+
+\begin_layout Description
+mask all pixels
+\end_layout
+
+\begin_layout Description
+cold
+\begin_inset space \space{}
+\end_inset
+
+col disable column
+\end_layout
+
+\begin_layout Description
+pixd
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row mask pixel
+\end_layout
+
+\begin_layout Subsection
+setting DAC parameters
+\end_layout
+
+\begin_layout Description
+optia
+\begin_inset space \space{}
+\end_inset
+
+target set Vana to get the desired target analog current [mA], .e.g.
+ optia 25
+\end_layout
+
+\begin_layout Description
+show current DAC settings (presumably, from book-keeping in psi46test; reading
+ back DACs from the ROC is not possible)
+\end_layout
+
+\begin_layout Description
+dac
+\begin_inset space \space{}
+\end_inset
+
+number
+\begin_inset space \space{}
+\end_inset
+
+value set a DAC value (number is the DAC address).
+ Some DACs have shortcuts:
+\end_layout
+
+\begin_layout Description
+vana
+\begin_inset space \space{}
+\end_inset
+
+value set Vana [0:255] (check analog current: 1 mA / 6 DAC units)
+\end_layout
+
+\begin_layout Description
+vthr
+\begin_inset space \space{}
+\end_inset
+
+value set global threshold VtrhComp [0:255]
+\end_layout
+
+\begin_layout Description
+vcal
+\begin_inset space \space{}
+\end_inset
+
+value set test pulse amplitude [0:255]
+\end_layout
+
+\begin_layout Description
+ctl set control register (0 = small Vcal, 4 = large Vcal, 1 = ROC off)
+\end_layout
+
+\begin_layout Description
+caldel
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row measure pixel efficiecny vs 
+\family typewriter
+CalDel
+\family default
+, set 
+\family typewriter
+CalDel
+\end_layout
+
+\begin_layout Description
+caldelroc scan CalDel for the entire ROC (perfect pixels respond to all
+ triggers, alive pixels have at least 50% response), sets CalDel in the
+ plateay region
+\end_layout
+
+\begin_layout Description
+thrmap
+\begin_inset space \space{}
+\end_inset
+
+guess measure pixel threshold map for current settings (faster if guess
+ is close to truth)
+\end_layout
+
+\begin_layout Description
+vthrcomp
+\begin_inset space \space{}
+\end_inset
+
+target
+\begin_inset space \thinspace{}
+\end_inset
+
+[guess] set VthrComp such that the minimum pixel threshold is at target
+ Vcal units
+\end_layout
+
+\begin_layout Description
+trim
+\begin_inset space \space{}
+\end_inset
+
+target set Vtrim and trim bits such that all pixel thresholds are as close
+ as possible to target Vcal units
+\end_layout
+
+\begin_layout Description
+effmap
+\begin_inset space \space{}
+\end_inset
+
+nTrig measure efficiency map (PixelAlive) with n triggers per pixel
+\end_layout
+
+\begin_layout Description
+trimbits adjust trim bits to recover maximum efficiency
+\end_layout
+
+\begin_layout Description
+wtrim
+\begin_inset space \space{}
+\end_inset
+
+chip write current trim bits to 
+\family typewriter
+trimParameters_chip.dat
+\end_layout
+
+\begin_layout Description
+phmap
+\begin_inset space \space{}
+\end_inset
+
+ntrig measure pixel pulse height map
+\end_layout
+
+\begin_layout Description
+tune set gain and offset such that the pulse heights of all pixels are in
+ 80% of the ADC range, for large and small Vcal, with 10% margins against
+ overflows and underflows
+\end_layout
+
+\begin_layout Description
+wdac
+\begin_inset space \space{}
+\end_inset
+
+chip write current DAC settings to 
+\family typewriter
+dacParameters_chip.dat
+\end_layout
+
+\begin_layout Subsection
+DAC scans
+\end_layout
+
+\begin_layout Standard
+For diagnostic purposes: scan a dac (or two) for one pixel or the entires
+ ROC, and measure efficiecny, pulse height, or threshold.
+ The DAC is not changed.
+ 
+\end_layout
+
+\begin_layout Description
+effdac
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row
+\begin_inset space \space{}
+\end_inset
+
+dac count trigger responses (efficiency) for one pixel vs a DAC
+\end_layout
+
+\begin_layout Description
+phdac
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row
+\begin_inset space \space{}
+\end_inset
+
+dac pulse height (ADC) vs DAC for one pixel
+\end_layout
+
+\begin_layout Description
+calsdac
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row
+\begin_inset space \space{}
+\end_inset
+
+dac sensor calibrate pulse height (ADC) vs DAC at CtrlReg 4 (high range
+ Vcal) for one pixel
+\end_layout
+
+\begin_layout Description
+thrdac
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row
+\begin_inset space \space{}
+\end_inset
+
+dac threshold (in small Vcal units) vs DAC for one pixel
+\end_layout
+
+\begin_layout Description
+dacdac
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row
+\begin_inset space \space{}
+\end_inset
+
+dacx
+\begin_inset space \space{}
+\end_inset
+
+dacy 2D DAC-DAC scan for one pixel, pulse height and efficiency
+\end_layout
+
+\begin_layout Description
+dacscanroc
+\begin_inset space \space{}
+\end_inset
+
+dac
+\begin_inset space \space{}
+\end_inset
+
+[nTrig] maps of pulse height and efficiency vs dac for all pixels (dac 25
+ at ctl 0 gives S-curves, dac 25 at ctl 4 gives gain calibration, dac 26
+ gives CalDel)
+\end_layout
+
+\begin_layout Description
+gaindac calibrated pulse height vs Vcal for all pixels, checks the gain
+ calibration
+\end_layout
+
+\begin_layout Subsection
+maps
+\end_layout
+
+\begin_layout Description
+effmap
+\begin_inset space \space{}
+\end_inset
+
+nTrig pixel efficiency map (PixelAlive)
+\end_layout
+
+\begin_layout Description
+thrmap
+\begin_inset space \space{}
+\end_inset
+
+guess measure pixel threshold map for current settings (faster if guess
+ is close to truth)
+\end_layout
+
+\begin_layout Description
+phmap
+\begin_inset space \space{}
+\end_inset
+
+nTrig pulse height map (vary vcal and ctl to explore full range)
+\end_layout
+
+\begin_layout Subsection
+sensor calibrate and bump bond test
+\end_layout
+
+\begin_layout Standard
+The ROC test pulse may be directed towards a pad on the surface of each
+ pixel, inducing a (small) charge into the sensor across the air gap capacitance
+, which can be detected if the bump bond connection is good.
+\end_layout
+
+\begin_layout Standard
+The tests internally select 
+\family typewriter
+ctl 4
+\family default
+ to get the large test pulse range (and set it back to previous).
+\end_layout
+
+\begin_layout Description
+cals
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row active one pixel for sensor calibrate (requires 
+\family typewriter
+cole col 
+\family default
+and
+\family typewriter
+ pixe col row
+\family default
+ to see the response with 
+\family typewriter
+single
+\family default
+)
+\end_layout
+
+\begin_layout Description
+calsdac
+\begin_inset space \space{}
+\end_inset
+
+col
+\begin_inset space \space{}
+\end_inset
+
+row
+\begin_inset space \space{}
+\end_inset
+
+dac sensor calibrate pulse height (ADC) vs DAC at CtrlReg 4 (high range
+ Vcal) for one pixel
+\end_layout
+
+\begin_layout Description
+calsmap
+\begin_inset space \space{}
+\end_inset
+
+nTrig sensor calibrate pulse height map
+\end_layout
+
+\begin_layout Description
+bbtest
+\begin_inset space \space{}
+\end_inset
+
+nTrig sensor calibrate pulse height map with bump bond statistics
+\end_layout
+
+\begin_layout Description
+dacscanroc
+\begin_inset space \space{}
+\end_inset
+
+dac
+\begin_inset space \space{}
+\end_inset
+
+-nTrig sensor calibrate (selected by negative nTrig) pulse height and efficiency
+ vs dac for all pixels (dac 12 at ctl 4 gives bump bond test)
+\end_layout
+
+\begin_layout Section
+algorithms
+\end_layout
+
+\begin_layout Standard
+Details about algorithms that set DAC parameters.
+\end_layout
+
+\begin_layout Subsection
+analog current
+\end_layout
+
+\begin_layout Standard
+DAC 
+\family typewriter
+Vana
+\family default
+ controls the analog current that supplies pre-ampliefer and shaper of each
+ pixel.
+ The current is measured on the test bosrd (
+\family typewriter
+getia
+\family default
+).
+ There is an offset current of about 5
+\begin_inset space \thinspace{}
+\end_inset
+
+mA per ROC for 
+\family typewriter
+Vana
+\family default
+ = 0.
+ At full range (
+\family typewriter
+Vana
+\family default
+ 255) the current is about 45
+\begin_inset space \thinspace{}
+\end_inset
+
+mA per ROC, with an approximately linear dependence and a slope of 1
+\begin_inset space \thinspace{}
+\end_inset
+
+mA / 6 DAC units.
+ The design operating analog current is 24
+\begin_inset space \thinspace{}
+\end_inset
+
+mA / ROC.
+ Command 
+\family typewriter
+optia target
+\family default
+ takes the desired current [mA] as an argument and tries to adjust 
+\family typewriter
+Vana
+\family default
+ accordingly.
+ It usually succeeds in a few iterations.
+\end_layout
+
+\begin_layout Subsection
+timing
+\end_layout
+
+\begin_layout Standard
+Coarse (unit: BC = clock cycles = 25
+\begin_inset space \thinspace{}
+\end_inset
+
+ns): 
+\family typewriter
+WBC = tct - 7
+\family default
+ for psi46digV2.1, WBC = tct - 6 for earlier digital ROCs, WBC = tct - 5
+ for analog ROCs, where tct ist the time between calibrate and trigger in
+ the pattern generator sequence (e.g.
+ WBC 99 for tct 106).
+\end_layout
+
+\begin_layout Standard
+Fine: CalDel shifts the timing of the test pulse, unit: 1
+\begin_inset space \thinspace{}
+\end_inset
+
+DAC = 0.4 ns, dynamic range 0..255 = 100
+\begin_inset space \thinspace{}
+\end_inset
+
+ns = 4 BC.
+\end_layout
+
+\begin_layout Subsection
+threshold trimming
+\end_layout
+
+\begin_layout Standard
+Symbolic equation: pixelThreshold = globalThreshold - 
+\family typewriter
+Vtrim (15 - trim bits)
+\family default
+, where the pixel threshold is determined from a Vcal scan with several
+ triggers per point, searching for the point with 50% response.
+ In low Vcal range (CtrlReg 0), a Vcal threshold of 30 DAC units corresponds
+ to about 1500 electrons signal.
+ 
+\family typewriter
+VthrComp
+\family default
+ and 
+\family typewriter
+Vtrim
+\family default
+ are global DACs, affecting the entire ROC, while the four 
+\family typewriter
+trim bits
+\family default
+ can be set for each pixel individually.
+ As the equation shows, the trimming can only lower the threshold from the
+ value determined by 
+\family typewriter
+VthrComp
+\family default
+.
+ The 
+\family typewriter
+trim bits
+\family default
+ act inverted: 15 means now effect, while 0 gives the maximum threshold
+ reduction as allowed by 
+\family typewriter
+Vtrim
+\family default
+.
+ Due to transistor variations from pixel to pixel the untrimmed threshold
+ distribution (Vtrim 0, trim bits 15) is rather broad, with an RMS of typically
+ 6 Vcal DAC units and a non-Gaussian distribution that reflects geographical
+ variations across the ROC.
+ The goal of the trimming procedure is to sharpen the threshold distribution
+ to about 1 Vcal DAC unit (50 e) and a mean value a low as possible, but
+ staying clear by at least 6
+\begin_inset space \thinspace{}
+\end_inset
+
+
+\begin_inset Formula $\sigma$
+\end_inset
+
+ from the noise level.
+ The dynamic range of the threshold DACs is rather large (except for digV2
+ ROCs at nominal analog current), so that thresholds from 1
+\begin_inset space \thinspace{}
+\end_inset
+
+ke to 10
+\begin_inset space \thinspace{}
+\end_inset
+
+ke can be reached, in 50
+\begin_inset space \thinspace{}
+\end_inset
+
+e steps.
+ The trimming procedure thus starts with selecting a threshold target (e.g.
+ 30 Vcal DAC units), and adjusting the DACs and bits to reach that.
+ A second constraint can be derived from the threshold equation: a smaller
+ value of Vtrim leads to a closer spacing of the trim bit steps and a sharper
+ threshold distribution.
+\end_layout
+
+\begin_layout Standard
+The trimming procedure starts by measuring the untrimmed threshold distribution
+ and identifying one pixel with the highest and one with the lowest threshold
+ (dead pixels are flagged and ignored).
+\end_layout
+
+\begin_layout Subsubsection
+Global threshold
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+VthrComp
+\family default
+ acts inversely: a smaller DAC setting gives a harder globalThreshold (higher
+ in Vcal DAC units).
+ VthrComp is determined from the lowest pixel in the untrimmed distribution,
+ setting its threshold to the target value (and pulling all other pixels
+ along): command 
+\family typewriter
+vthrcomp
+\family default
+ target.
+\end_layout
+
+\begin_layout Standard
+Changing the threshold may influence the timing of the comparator, so CalDel
+ should be checked and adjusted (command 
+\family typewriter
+caldelroc
+\family default
+).
+\end_layout
+
+\begin_layout Subsubsection
+Vtrim
+\end_layout
+
+\begin_layout Standard
+The pixel with the highest threshold in the untrimmed distribution is used
+ to set Vtrim, since it needs the largest correction.
+ Its trim bits are set to 0 for maximum effect and Vtrim is increased until
+ the target threshold is reached (command 
+\family typewriter
+trim target
+\family default
+)
+\end_layout
+
+\begin_layout Subsubsection
+trim bits
+\end_layout
+
+\begin_layout Standard
+The trim bits are set in five iterations in the same trim command.
+ First, all trim bits are set to 7 (half way) and a threshold map is taken.
+ Many pixels may already be in the noise and don't respond; this is recognized
+ and their trim bits are increased again in subsequent steps.
+ For the others, the measured threshold is compared to the target, and the
+ trim bits are adjusted in steps of 4, 2, 1, and 1 units, with the appropriate
+ sign.
+ A final threshold map should be taken for documentation (command 
+\family typewriter
+thrmap guess
+\family default
+, where 
+\family typewriter
+target
+\family default
+ is a good guess).
+\end_layout
+
+\begin_layout Subsubsection
+efficiency check
+\end_layout
+
+\begin_layout Standard
+The trimming procedure requires only 50% response for a valid threshold
+ measurement.
+ Some pixels apparently end up too close to the noise and requires some
+ further trim bit adjustment.
+ An efficiency map with e.g.
+ 100 triggers per pixel is taken and all pixels below 100% are inspected.
+ Their trim bits are increased in steps of one until 100% response or end
+ of range at 15 is reached (command 
+\family typewriter
+trimbits
+\family default
+).
+\end_layout
+
+\begin_layout Standard
+The trim bits can be written to an ASCII file (
+\family typewriter
+trimParameters_chip.dat
+\family default
+) with the comand 
+\family typewriter
+wtrim chip
+\family default
+.
+\end_layout
+
+\begin_layout Subsection
+pulse height tuning
+\end_layout
+
+\begin_layout Standard
+Adjust gain and offset such that all pixel pulse heights fit into the ADC
+ range, for large and small Vcal.
+\end_layout
+
+\begin_layout Section
+offline processing
+\end_layout
+
+\begin_layout Standard
+The ROOT and log files from some tests are used for further processing and
+ analysis.
+\end_layout
+
+\begin_layout Subsection
+gain calibration
+\end_layout
+
+\begin_layout Standard
+Pulse height gain and offset varies from pixel to pixel.
+ For best position resolution (using charge information) the variation should
+ be calibrated out (can we quantify this? test beam analysis with the raw
+ pulse height!).
+ The calibrated pulse height distributions allow monitoring of the threshold
+ and of the sensor charge collection efficiency in beam data.
+\end_layout
+
+\begin_layout Standard
+The gain calibration starts from scans of pulse height vs test pulse amplitude,
+ in low and high range:
+\end_layout
+
+\begin_layout Description
+ctl
+\begin_inset space \space{}
+\end_inset
+
+0 small Vcal
+\end_layout
+
+\begin_layout Description
+dacscanroc
+\begin_inset space \space{}
+\end_inset
+
+25
+\begin_inset space \space{}
+\end_inset
+
+nTrig measure pulse height vs Vcal for each pixel, filling a 2D histogram
+ 
+\family typewriter
+PH_DAC25_CR0_map
+\end_layout
+
+\begin_layout Description
+ctl
+\begin_inset space \space{}
+\end_inset
+
+4 large Vcal
+\end_layout
+
+\begin_layout Description
+dacscanroc
+\begin_inset space \space{}
+\end_inset
+
+25
+\begin_inset space \space{}
+\end_inset
+
+nTrig filling 
+\family typewriter
+TH2D PH_DAC25_CR4_map
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+mv Test.root phroc-c405-Ia25-trim30.root
+\end_layout
+
+\begin_layout Standard
+The gain calibration varies with several dacs (Vdig, Vana, Vsf, Vrg, Vtrim,
+ VthrComp, PHOffset, PHscale) and with temperature.
+\end_layout
+
+\begin_layout Standard
+It was found that the gain curve (PH vs Vcal) of digital ROCs is well described
+ by a Weibull distribution function:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula \[
+f=p_{4}-p_{3}\exp(-t^{p_{2}}),\: t=p_{0}+x/p_{1}\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where x is the test pulse amplitude (Vcal DAC) and f the measured pulse
+ height [ADC].
+ 
+\begin_inset Formula $p_{4}$
+\end_inset
+
+is the asymptotic pulse height (in the saturation region), 
+\begin_inset Formula $p_{3}$
+\end_inset
+
+is the dynamic range from zero to saturation and the rest are shape parameters
+ which can be given an interpretation by looking at the derivatives:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula \[
+f'=p_{3}p_{2}t^{p_{2}-1}\exp(-t^{p_{2}})/p_{1},\: f''=-p_{3}p_{2}\exp(-t^{p_{2}})\left((p_{2}-1)t^{p_{2}-2}-p_{2}t^{p_{2}-1}\right)/p_{1}^{2}\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $f$
+\end_inset
+
+ has an inflection point where 
+\begin_inset Formula $f'$
+\end_inset
+
+ has a maximum and where 
+\begin_inset Formula $f''$
+\end_inset
+
+has a zero, namely at 
+\begin_inset Formula $t_{inf}=\left((p_{2}-1)/p_{2}\right)^{1/p_{2}}$
+\end_inset
+
+.
+ The maximum gain is then 
+\begin_inset Formula $f'(t_{inf})$
+\end_inset
+
+.
+ It turns out that 
+\begin_inset Formula $p_{0}$
+\end_inset
+
+is always very close to one (like 0.9998).
+ It is thus tempting to reduce the number of parameters by setting 
+\begin_inset Formula $p_{0}$
+\end_inset
+
+to one.
+ Furthermore, 
+\begin_inset Formula $p_{1}$
+\end_inset
+
+turns out the rather large (
+\begin_inset Formula $10^{5}$
+\end_inset
+
+in Vcal DAC units) , inviting one more approximation:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula \[
+t^{p_{2}}\approx\left(1+x/p_{1}\right)^{p_{2}}=\exp\left(p_{2}\ln(1+x/p_{1})\right)\approx\exp\left(p_{2}x/p_{1}\right)\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+leading to a double exponential
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula \[
+f\approx p_{4}-p_{3}\exp\left(-\exp(p_{2}x/p_{1})\right)\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which is known as the Gompertz function.
+ It describes the transition towards saturation quite well but has slope
+ zero at 
+\begin_inset Formula $x=0$
+\end_inset
+
+ while the gain curve rises almost linearly from threshold.
+ We use the Weibull fit (the 
+\begin_inset Formula $\tanh$
+\end_inset
+
+ fit used for analog ROCs does not give a good discription of the turn-over
+ towards saturation; it is too sharp).
+\end_layout
+
+\begin_layout Standard
+The fit is done simultaneously to the low Vcal (
+\begin_inset Formula $x_{0}$
+\end_inset
+
+) and high Vcal(
+\begin_inset Formula $x_{4}$
+\end_inset
+
+) range measurements using one more parameter for rescaling Vcal: 
+\begin_inset Formula $x_{0}=x_{4}/p_{5}$
+\end_inset
+
+, where 
+\begin_inset Formula $p_{5}$
+\end_inset
+
+is around 7.
+\end_layout
+
+\begin_layout Standard
+The fit is numerically problematic as not only do the parameter values range
+ over several orders of magnitude (which could be cured by rescaling) but
+ also their precisions.
+ This is reflected in a huge condition number (
+\begin_inset Formula $10^{16}$
+\end_inset
+
+) for the Hessian matrix (which upon convergence is the inverse of the covarianc
+e matrix of the fit parameters).
+ Convergence depends crucially on the start values for the parameters.
+ However, we want to perform 
+\begin_inset Formula $10^{8}$
+\end_inset
+
+fits automatically but successfully.
+ Migrad (from Minuit) may converge for 95% to 99% of the pixels which is
+ not good enough.
+ A modern quadratic approximation optimization algorithm (BObyQA) or gradient
+ based algorithms (the derivatives of 
+\begin_inset Formula $f$
+\end_inset
+
+ with respect the parameters 
+\begin_inset Formula $p_{i}$
+\end_inset
+
+ are analytic) like L-BFGS do not fare better.
+ The best performance was found with the good old Nelder-Mead simplex algorithm,
+ which reaches 100% convergence and finds the same 
+\begin_inset Formula $\chi^{2}$
+\end_inset
+
+minimum as the other algorithms in the cases where they all converge.
+\end_layout
+
+\begin_layout Standard
+In data analysis, and also for gain monitoring in psi46test, the inverse
+ function is needed to translate a mesured pulse height 
+\begin_inset Formula $a$
+\end_inset
+
+ from ADC counts into Vcal DAC units:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula \[
+f^{-1}=p_{1}\left(\left(-\ln\left((p_{4}-a)/p_{3}\right)\right)^{1/p_{2}}-p_{0}\right)\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which is nicely analytic but reveals one problem: the argument of the logarithm
+ must be positive, thus the measured pulse height 
+\begin_inset Formula $a$
+\end_inset
+
+must never fluctuate above the asymptotic value 
+\begin_inset Formula $p_{4}$
+\end_inset
+
+.
+ A protection is put in place, leading to an artificial peak at large pulse
+ heights (but reflecting the loss of pulse height sensitivity in the saturation
+ region).
+\end_layout
+
+\begin_layout Subsection
+S-curves
+\end_layout
+
+\begin_layout Standard
+S-curve is descriptive pixel slang for threshold curves as obtained from
+ counting the number of pixel responses to a given number of triggers 
+\begin_inset Formula $N$
+\end_inset
+
+ as a function of a dac.
+ Each response count 
+\begin_inset Formula $n_{i}$
+\end_inset
+
+ is drawn from a binomial distribution with unknown success probability.
+ The fit involves a model for the success probability as a function of the
+ dac.
+ When the width of the threshold is governed by noise, a Gaussian error
+ distribution ranging from 0 to 100% is well justified.
+ In the presence of non-Gaussian tails one may try a Student's 
+\begin_inset Formula $t$
+\end_inset
+
+ distribution.
+ A general threshold can often be parametrized by a Fermi function (which
+ is equivalent to a 
+\begin_inset Formula $\tanh$
+\end_inset
+
+ function).
+ In all cases, the quoted threshold is defined as the dac value where 50%
+ efficiency is reached.
+ In this way, the threshold can also be determined without fitting, just
+ by scanning the data curve, as is done in the FPGA.
+ The width of the S-curve can be determined from the 10% to 90% range, which
+ is 
+\begin_inset Formula $2.56\,\sigma$
+\end_inset
+
+ for the Gaussian error distribution.
+\end_layout
+
+\begin_layout Subsection
+bump bond test
+\begin_inset Newpage clearpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+plots
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-perfect-va-Ia.pdf
+	scale 50
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+perfectly efficient pixels vs analog current.
+ 22
+\begin_inset space \thinspace{}
+\end_inset
+
+mA is required to reach the plateau.
+ At large current the effective threshold is too high
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement h
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-caldel-wbc-97-98-99-100.pdf
+	scale 66
+	BoundingBox 0bp 0bp 567bp 480bp
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Responses vs 
+\family typewriter
+CalDel
+\family default
+ for one pixel.
+ tct 106.
+ 
+\family typewriter
+WBC
+\family default
+ 100 (red, 90 triggers), 
+\family typewriter
+WBC
+\family default
+ 99 (blue, 100 triggers, working point), 
+\family typewriter
+WBC
+\family default
+ 98 (green, 90 triggers), 
+\family typewriter
+WBC
+\family default
+ 97 (black, 80 triggers).
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement h
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-caldelroc.pdf
+	scale 50
+	BoundingBox 0bp 0bp 567bp 425bp
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+
+\family typewriter
+CalDel
+\family default
+ scan for an entire ROC counting the number of fully responding pixels at
+ each point at large 
+\family typewriter
+Vcal
+\family default
+.
+ The working point is set on the plateau towards the left edge, to allow
+ for timewalk at smallest pulse heights.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-S-curve.pdf
+	scale 50
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Single pixel S-curve: counting responses to 100 triggers as a function of
+ the test pulse amplitude (in low range).
+ The threshold is defined as the Vcal value where 50% efficiency is reached.
+ The width of the curve is taken as a measure of the noise.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-thrdist-untrimmed.pdf
+	lyxscale 75
+	scale 40
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-thrmap-untrimmed.pdf
+	lyxscale 60
+	scale 40
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+threshold distribution and map, untrimmed digV2.1 chip
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-thr-vs-vthrcomp.pdf
+	scale 50
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+pixel threshold vs global threshold
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-thr-vs-vtrim.pdf
+	scale 50
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Pixel threshold vs 
+\family typewriter
+Vtrim
+\family default
+ for different 
+\family typewriter
+trim bits
+\family default
+: top (black): 15, 2nd (blue): 11, mid (green): 7, 4th (magenta): 3, bottom
+ (red): 0 (at large 
+\family typewriter
+Vtrim
+\family default
+ and and trim bits 0 the threshold approaches the noise level and the measuremen
+t becomes unreliable).
+ The trim bit spacing is closer at smaller 
+\family typewriter
+Vtrim
+\family default
+, potentially leading to a sharper threshold distribution.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset Graphics
+	filename c405-thr-vs-ia.pdf
+	scale 50
+
+\end_inset
+
+
+\begin_inset space \hfill{}
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Pixel threshold vs 
+\family typewriter
+Vana
+\family default
+.
+ Threshold 255 means overflow (current too low or threshold too high).
+ Changing 
+\family typewriter
+Vana
+\family default
+ changes the working point of preamplifier and shaper and the baseline at
+ the input to the comparator, thus changing the pixel threshold with fixed
+ comparator settings (
+\family typewriter
+VthrComp
+\family default
+, 
+\family typewriter
+Vtrim
+\family default
+).
+ The order of setting the DACs matters: don't change 
+\family typewriter
+Vana
+\family default
+ after trimming (or re-trim, or at least tak a threshold map).
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
