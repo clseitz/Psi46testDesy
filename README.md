@@ -90,6 +90,10 @@ Linux or Darwin (Mac OS X):
      may stop to work. So be careful. If you have a better solution report
      this or even better update this README.
 
+     More usb info (on Linux):
+     lsusb -v | less
+     and search for FTD
+
 
   6. Run
 
@@ -131,13 +135,6 @@ Common issues
 	http://woss.name/2012/01/24/how-to-install-a-working-set-of-compilers-on-mac-os-x-10-7-lion/
 	
     for instructions.
-
-  * If you are on Max OS 10.6:
-    If you managed to make it work, let us know. We did not.
-
-  * Some older compilers complain about -Wno-logical-op-parentheses in the
-    invocation of the C++ compiler. Just remove this in the Makefile and
-    it should work.
 
 
 Documentation:
