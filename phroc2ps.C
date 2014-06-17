@@ -600,7 +600,8 @@ void phroc2ps( )
       mydata.flag = 0;
       cout << "starting chisq " << FCN( npar, par, 0, &mydata ) << endl;
 
-      nlopt_result ret = nlopt_optimize( myopt, par, (double*)&FCN );
+      double minFCN;
+      nlopt_result ret = nlopt_optimize( myopt, par, &minFCN );
 
       // man nlopt
       // less /usr/local/include/nlopt.h

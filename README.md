@@ -149,7 +149,7 @@ http://ab-initio.mit.edu/wiki/index.php/NLopt
 Download:
 http://ab-initio.mit.edu/nlopt/nlopt-2.4.2.tar.gz  
 cd nlopt-2.4.2  
-./configure  
+./configure --enable-shared  
 make  
 sudo make install
 
@@ -158,4 +158,4 @@ Documentation:
 --------------
 
 man.pdf  
-written in LYX: man.lyx
+written in LYX (man.lyx)
