@@ -8,7 +8,7 @@
 #include <unistd.h>
 using namespace std;
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 const char* CUSB::GetErrorMsg(int error)
 {
   switch (error)
@@ -36,7 +36,7 @@ const char* CUSB::GetErrorMsg(int error)
   return "unknown error";
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool CUSB::EnumFirst(unsigned int &nDevices)
 {
   ftStatus = FT_ListDevices( &enumCount, NULL, FT_LIST_NUMBER_ONLY ); // DP
@@ -52,7 +52,7 @@ bool CUSB::EnumFirst(unsigned int &nDevices)
   return true;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool CUSB::EnumNext(char name[])
 {
   if( enumPos >= enumCount) return false;
@@ -66,7 +66,7 @@ bool CUSB::EnumNext(char name[])
   return true;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool CUSB::Enum( char name[], unsigned int pos )
 {
   enumPos=pos;
@@ -80,7 +80,7 @@ bool CUSB::Enum( char name[], unsigned int pos )
   return true;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool CUSB::Open( char serialNumber[] )
 {
   if( isUSB_open) {
@@ -192,7 +192,7 @@ bool CUSB::Open( char serialNumber[] )
   return true;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void CUSB::Close()
 {
   if( !isUSB_open ) return;
@@ -200,7 +200,7 @@ void CUSB::Close()
   isUSB_open = 0;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void CUSB::Write(const void *buffer, unsigned int bytesToWrite)
 { PROFILING;
 
@@ -213,7 +213,7 @@ void CUSB::Write(const void *buffer, unsigned int bytesToWrite)
   }
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void CUSB::Flush()
 { PROFILING;
   DWORD bytesWritten;
@@ -233,7 +233,7 @@ void CUSB::Flush()
   }
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 int CUSB::GetQueue()
 {
   if( !isUSB_open ) return -1;
@@ -247,7 +247,7 @@ int CUSB::GetQueue()
   return bytesAvailable;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Waits in 10ms steps until queue is filled with pSize bytes;
 // pSize should be calculated dependent of the data type to be read:
 // e.g. if you want to read 100 shorts using Read_SHORTS() then pSize = 100*sizeof(short).
@@ -283,7 +283,7 @@ bool CUSB::WaitForFilledQueue( int32_t pSize, int32_t pMaxWait )
   return true;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool CUSB::FillBuffer( DWORD minBytesToRead )
 { PROFILING;
 
@@ -304,6 +304,7 @@ bool CUSB::FillBuffer( DWORD minBytesToRead )
   }
 
   bytesToRead = (bytesAvailable > minBytesToRead)? bytesAvailable : minBytesToRead;
+
   if( bytesToRead > USBREADBUFFERSIZE ) bytesToRead = USBREADBUFFERSIZE;
 
   //WaitForFilledQueue( bytesToRead ); // does not help with modtd READ_ERROR
@@ -320,7 +321,7 @@ bool CUSB::FillBuffer( DWORD minBytesToRead )
   return true;
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void CUSB::Read( void *buffer, unsigned int bytesToRead )
 { PROFILING;
 
@@ -379,12 +380,12 @@ void CUSB::Read( void *buffer, unsigned int bytesToRead )
 
 }
 
-//----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void CUSB::Clear()
 { PROFILING;
-  if( !isUSB_open) return;
+  if( !isUSB_open ) return;
 
-  ftStatus = FT_Purge(ftHandle, FT_PURGE_RX|FT_PURGE_TX);
+  ftStatus = FT_Purge( ftHandle, FT_PURGE_RX|FT_PURGE_TX );
   m_posR = m_sizeR = 0;
   m_posW = 0;
 }

@@ -1,4 +1,3 @@
-// rpc_io.h
 
 #pragma once
 
@@ -8,7 +7,7 @@
 class CRpcIo
 {
  protected:
-  void Dump(const char *msg, const void *buffer, unsigned int size);
+  void Dump( const char *msg, const void *buffer, unsigned int size );
  public:
   virtual ~CRpcIo() {}
   virtual void Write(const void *buffer, unsigned int size) = 0;

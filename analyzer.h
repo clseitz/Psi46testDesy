@@ -6,7 +6,7 @@
 #include <vector>
 // #include <stdint.h>
 
-
+//------------------------------------------------------------------------------
 struct PixelReadoutData
 {
   unsigned int hdr;
@@ -24,8 +24,7 @@ int DecodePixel( const std::vector<uint16_t> &x, int &pos, PixelReadoutData &pix
 
 vector<PixelReadoutData> GetEvent( const std::vector<uint16_t> &x, int &pos, int &hdr ); // DP
 
-// ==========================================================================
-
+//------------------------------------------------------------------------------
 class CReadback : public CAnalyzer
 {
   bool valid;
@@ -39,7 +38,7 @@ class CReadback : public CAnalyzer
   unsigned int SetCallback(void (*callback)(unsigned int)) { alert = callback; return 0; }
 };
 
-
+//------------------------------------------------------------------------------
 class CPulseHeight : public CAnalyzer
 {
   CRocEvent* Read();

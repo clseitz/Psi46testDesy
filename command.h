@@ -1,5 +1,7 @@
 
-// Klasse CInterpreter
+// class CCmdLine
+// class CCommand
+// class CInterpreter
 
 #if !defined(AFX_COMMAND_H__CE717DC8_3D70_42BB_AA0A_B9F4C73250A5__INCLUDED_)
 #define AFX_COMMAND_H__CE717DC8_3D70_42BB_AA0A_B9F4C73250A5__INCLUDED_

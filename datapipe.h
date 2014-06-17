@@ -4,9 +4,7 @@
 
 #include <stdexcept>
 
-
-// === data pipe error ======================================================
-
+//------------------------------------------------------------------------------
 class DataPipeException : public std::runtime_error
 {
  public:
@@ -20,10 +18,8 @@ class DP_not_connected : public DataPipeException
  DP_not_connected() : DataPipeException("Not connected") {};
 };
 
-
-
-// === data source ==========================================================
-
+//------------------------------------------------------------------------------
+// source
 // The inheritor must define ReadLast and Read
 template <class T>
 class CSource
@@ -49,9 +45,8 @@ class CNullSource : public CSource<T>
   template <class TO> friend class CSink;
 };
 
-
-// === data sink ============================================================
-
+//------------------------------------------------------------------------------
+// sink
 template <class TI, class TO> class CDataPipe;
 
 template <class T>
@@ -72,14 +67,10 @@ class CSink
 
 template <class T> CNullSource<T> CSink<T>::null;
 
-
-// === data in -> out (pipe) ================================================
-
+//------------------------------------------------------------------------------
+// pipe
 template <class TI, class TO=TI>
   class CDataPipe : public CSink<TI>, public CSource<TO> {};
-
-
-// === operators to connect pipes ===========================================
 
 // source -> sink; source -> datapipe
 template <class TI, class TO>

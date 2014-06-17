@@ -1,8 +1,7 @@
-// config.h
 
 #pragma once
 
-// === psi46test version ====================================================
+// psi46test version (update to match DTB SW version):
 
 #define TITLE        "psi46test for DTB"
 #define VERSION      "V2.2"

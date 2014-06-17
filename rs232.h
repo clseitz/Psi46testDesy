@@ -1,4 +1,3 @@
-// rs232.h
 
 #ifndef RS232_H
 #define RS232_H

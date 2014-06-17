@@ -48,19 +48,18 @@ class CUSB : public CRpcIo
     }
   ~CUSB() { /* Close(); */ }
   int GetLastError() { return ftStatus; }
-  static const char* GetErrorMsg(int error);
-  bool EnumFirst(unsigned int &nDevices);
-  bool EnumNext(char name[]);
-  bool Enum(char name[], unsigned int pos);
-  bool Open(char serialNumber[]);
+  static const char* GetErrorMsg( int error );
+  bool EnumFirst( unsigned int &nDevices );
+  bool EnumNext( char name[] );
+  bool Enum( char name[], unsigned int pos );
+  bool Open( char serialNumber[] );
   void Close();
   bool Connected() { return isUSB_open; };
 
-
-  void Write(const void *buffer, unsigned int size);
+  void Write( const void *buffer, unsigned int size );
   void Flush();
   void Clear();
-  bool WaitForFilledQueue(int pSize,int pMaxWait=10000); // DP, HP
+  bool WaitForFilledQueue( int pSize, int pMaxWait = 10000 ); // DP, HP
   void Read( void *buffer, unsigned int size );
 };
 

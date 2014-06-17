@@ -1,4 +1,3 @@
-// datastream.h
 
 #pragma once
 
@@ -13,9 +12,7 @@
 
 using namespace std;
 
-
-// === Error Messages =======================================================
-
+//------------------------------------------------------------------------------
 class DS_buffer_overflow : public DataPipeException
 {
  public:
@@ -28,9 +25,7 @@ class DS_empty : public DataPipeException
  DS_empty() : DataPipeException("Buffer empty") {};
 };
 
-
-// === Binary Data Record Format ============================================
-
+//------------------------------------------------------------------------------
 class CDataRecord
 {
   /*
@@ -74,10 +69,8 @@ struct CRocEvent
   vector<CRocPixel> pixel;
 };
 
-
-// === Data Sources =========================================================
-
-// --- PixelDTB
+//------------------------------------------------------------------------------
+// DTB as source:
 
 #define DTB_SOURCE_BLOCK_SIZE 4096
 
@@ -109,8 +102,8 @@ class CDtbSource : public CSource<uint16_t>
   void Stop() { stopAtEmptyData = true; }
 };
 
-
-// --- File
+//------------------------------------------------------------------------------
+// file as source:
 
 #define FILE_SOURCE_BLOCK_SIZE 16384
 
@@ -133,9 +126,7 @@ class CBinaryFileSource : public CSource<uint16_t>
   void Close() { if (f) { fclose(f); f = 0; } }
 };
 
-
-// === CDataRecordScanner (CDataPipe<uint16_t>, CDataRecord*>) ==============
-
+//------------------------------------------------------------------------------
 class CDataRecordScanner : public CDataPipe<uint16_t, CDataRecord*>
 {
   CDataRecord record;
@@ -145,9 +136,7 @@ class CDataRecordScanner : public CDataPipe<uint16_t, CDataRecord*>
   CDataRecordScanner() {}
 };
 
-
-// === CDecoder (CDataRecord*, CRocEvent*) ==================================
-
+//------------------------------------------------------------------------------
 class CRocDecoder : public CDataPipe<CDataRecord*, CRocEvent*>
 {
   CRocEvent roc_event;
@@ -155,9 +144,7 @@ class CRocDecoder : public CDataPipe<CDataRecord*, CRocEvent*>
   CRocEvent* ReadLast() { return &roc_event; }
 };
 
-
-// === CAnalyzer (CRocEvent*, CRocEvent*) ===================================
-
+//------------------------------------------------------------------------------
 class CAnalyzer : public CDataPipe<CRocEvent*, CRocEvent*>
 {
   CRocEvent* Read() { return Get(); };

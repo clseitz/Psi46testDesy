@@ -121,65 +121,67 @@ void rpc_Receive( CRpcIo &rpc_io, string &x )
 
 // === tools ================================================================
 
-void rpc_TranslateCallName(const string &in, string &out)
+void rpc_TranslateCallName( const string &in, string &out )
 {
   out.clear();
 
   unsigned int size = in.rfind('$');
   unsigned int pos = size;
-  try
-    {
-      if (pos == string::npos) throw int(1);
-      pos++;
-      int i = 0;
-      while (pos < in.size())
+
+  try {
+
+    if( pos == string::npos ) throw int(1);
+
+    pos++;
+
+    int i = 0;
+
+    while( pos < in.size() ) {
+
+      int comp = -1;
+      if( in[pos] >= '0' && in[pos] <= '5') {
+	comp = in[pos] - '0';
+	pos++; if( pos >= in.size()) throw int(2);
+      }
+
+      const char *type;
+      switch (in[pos])
 	{
-	  int comp = -1;
-	  if (in[pos] >= '0' && in[pos] <= '5')
-	    {
-	      comp = in[pos] - '0';
-	      pos++; if (pos >= in.size()) throw int(2);
-	    }
-
-	  const char *type;
-	  switch (in[pos])
-	    {
-	    case 'v': type = "void";     break;
-	    case 'b': type = "bool";     break;
-	    case 'c': type = "int8_t";   break;
-	    case 'C': type = "uint8_t";  break;
-	    case 's': type = "int16_t";  break;
-	    case 'S': type = "uint16_t"; break;
-	    case 'i': type = "int32_t";  break;
-	    case 'I': type = "uint32_t"; break;
-	    case 'l': type = "int64_t";  break;
-	    case 'L': type = "uint64_t"; break;
-	    default: type = "?";
-	    }
-
-	  if (i > 1) out += ", ";
-
-	  switch (comp)
-	    {
-	    case  0: out += type; out += "&"; break;
-	    case  1: out += "vector<"; out += type; out += ">&"; break;
-	    case  2: out += "vectorR<"; out += type; out += ">&"; break;
-	    case  3: out += "string&"; break;
-	    case  4: out += "stringR&"; break;
-	    case  5: out += "HWvectorR&"; break;
-	    default: out += type;
-	    }
-
-	  if (i == 0)
-	    {
-	      out += ' ';
-	      out += in.substr(0, size);
-	      out += '(';
-	    }
-
-	  pos++; i++;
+	case 'v': type = "void";     break;
+	case 'b': type = "bool";     break;
+	case 'c': type = "int8_t";   break;
+	case 'C': type = "uint8_t";  break;
+	case 's': type = "int16_t";  break;
+	case 'S': type = "uint16_t"; break;
+	case 'i': type = "int32_t";  break;
+	case 'I': type = "uint32_t"; break;
+	case 'l': type = "int64_t";  break;
+	case 'L': type = "uint64_t"; break;
+	default: type = "?";
 	}
-      out += ");";
+
+      if( i > 1 ) out += ", ";
+
+      switch (comp)
+	{
+	case  0: out += type; out += "&"; break;
+	case  1: out += "vector<"; out += type; out += ">&"; break;
+	case  2: out += "vectorR<"; out += type; out += ">&"; break;
+	case  3: out += "string&"; break;
+	case  4: out += "stringR&"; break;
+	case  5: out += "HWvectorR&"; break;
+	default: out += type;
+	}
+
+      if( i == 0 ) {
+	out += ' ';
+	out += in.substr(0, size);
+	out += '(';
+      }
+
+      pos++; i++;
     }
+    out += ");";
+  }
   catch (int) { out = in; }
 }
