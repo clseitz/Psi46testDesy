@@ -157,5 +157,5 @@ sudo make install
 Documentation:
 --------------
 
-man.pdf
+man.pdf  
 written in LYX: man.lyx
