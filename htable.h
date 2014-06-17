@@ -20,15 +20,15 @@ class CHashTable
   unsigned int nEntries;
   unsigned int table_size;
   CHashTableEntry **table;
-  unsigned int Hash(const char *key);
-  bool FindEntry(const char *key, unsigned int &i, CHashTableEntry* &p);
+  unsigned int Hash( const char *key );
+  bool FindEntry( const char *key, unsigned int &i, CHashTableEntry* &p );
  public:
-  CHashTable(unsigned int tablesize = 64);
+  CHashTable( unsigned int tablesize = 64 );
   ~CHashTable();
   unsigned int GetSize() { return nEntries; }
-  T* Find(const char *key);
-  bool Add(const char *key, const T data);
-  bool Delete(const char *key);
+  T* Find( const char *key );
+  bool Add( const char *key, const T data );
+  bool Delete( const char *key );
 
   T* GetFirst() {
     for( it = 0; it < table_size; it++ )
@@ -69,9 +69,8 @@ CHashTable<T>::~CHashTable()
   }
 }
 
-
 template <class T>
-unsigned int CHashTable<T>::Hash(const char *key)
+unsigned int CHashTable<T>::Hash( const char *key )
 {
   unsigned int hash = 5381;
   unsigned int i = 0;
@@ -82,62 +81,58 @@ unsigned int CHashTable<T>::Hash(const char *key)
   return hash % table_size;
 }
 
-
 template <class T>
-bool CHashTable<T>::FindEntry(const char *key, unsigned int &i, CHashTableEntry* &p)
+bool CHashTable<T>::FindEntry( const char *key, unsigned int &i, CHashTableEntry* &p )
 {
   i = Hash(key);
   CHashTableEntry *q = table[i];
   while( q ) {
-    if( strcmp(key, q->s) == 0) { p = q; return true; }
+    if( strcmp( key, q->s ) == 0 ) { p = q; return true; }
     q = q->next;
   }
   return false;
 }
 
-
 template <class T>
-T* CHashTable<T>::Find(const char *key)
+T* CHashTable<T>::Find( const char *key )
 {
   unsigned int i;
   CHashTableEntry* p;
-  if( FindEntry(key, i, p) ) return &(p->value);
+  if( FindEntry( key, i, p ) ) return &(p->value);
   return 0;
 }
 
-
 template <class T>
-bool  CHashTable<T>::Add(const char *key, const T data)
+bool  CHashTable<T>::Add( const char *key, const T data )
 {
   unsigned int i;
   CHashTableEntry* p;
-  if( FindEntry(key, i, p)) return false;
+  if( FindEntry( key, i, p ) ) return false;
 
   unsigned int size = strlen(key);
   p = new CHashTableEntry;
   p->s = new char[size+1];
-  strcpy(p->s, key);
+  strcpy( p->s, key );
   p->value = data;
-	
+
   p->prev = 0;
   p->next = table[i];
-  if( p->next) p->next->prev = p;
+  if( p->next ) p->next->prev = p;
   table[i] = p;
 
   nEntries++;
   return true;
 }
 
-
 template <class T>
-bool CHashTable<T>::Delete(const char *key)
+bool CHashTable<T>::Delete( const char *key )
 {
   unsigned int i;
   CHashTableEntry* p;
-  if( !FindEntry(key, i, p) ) return false;
+  if( !FindEntry( key, i, p ) ) return false;
 
-  if( p->prev) p->prev->next = p->next; else table[i] = p->next;
-  if( p->next) p->next->prev = p->prev;
+  if( p->prev ) p->prev->next = p->next; else table[i] = p->next;
+  if( p->next ) p->next->prev = p->prev;
 
   table[i] = p;
   delete p;
