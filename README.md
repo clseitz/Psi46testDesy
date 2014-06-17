@@ -1,4 +1,7 @@
 
+<!--- markdown file, gets converted into html,
+      see http://en.wikipedia.org/wiki/Markdown) -->
+
 psi46testDesy
 =============
 
@@ -137,8 +140,22 @@ Common issues
     for instructions.
 
 
+nlopt
+-----
+
+One macro (phroc2ps.C) requires nlopt for fitting
+http://ab-initio.mit.edu/wiki/index.php/NLopt
+
+Download:
+http://ab-initio.mit.edu/nlopt/nlopt-2.4.2.tar.gz
+cd nlopt-2.4.2
+./configure
+make
+sudo make install
+
+
 Documentation:
 --------------
 
 man.pdf
-written in LYX
+written in LYX: man.lyx
