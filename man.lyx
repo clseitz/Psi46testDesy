@@ -65,7 +65,7 @@ Daniel Pitzl, DESY
 
 \begin_layout Date
 \noindent
-13.6.2014
+18.6.2014
 \end_layout
 
 \begin_layout Section
@@ -1148,7 +1148,64 @@ dac
 \end_inset
 
 -nTrig sensor calibrate (selected by negative nTrig) pulse height and efficiency
- vs dac for all pixels (dac 12 at ctl 4 gives bump bond test)
+ vs dac for all pixels (
+\family typewriter
+dac
+\family default
+ 12 at 
+\family typewriter
+ctl
+\family default
+ 4 gives bump bond test)
+\end_layout
+
+\begin_layout Subsection
+data taking
+\end_layout
+
+\begin_layout Standard
+The pattern generator on the DTB can be operated in a loop, repeating its
+ programmed cycle (typically reset-cal-trigger-token = rctk) at an adjustable
+ rate.
+ The rate is determined by the clock frequency (typically 40
+\begin_inset space \thinspace{}
+\end_inset
+
+MHz) and the sum of the delays in the pattern generator sequence (at least
+ WBC) plus a programmable delay: R = f / N, e.g.
+ 
+\end_layout
+
+\begin_layout Description
+pgloop
+\begin_inset space \space{}
+\end_inset
+
+1000 gives a rate of 40
+\begin_inset space \thinspace{}
+\end_inset
+
+kHz.
+\end_layout
+
+\begin_layout Standard
+A DAQ process is started on the DTB such that the FPGA writes the deserialized
+ raw data into memory.
+ Up to 50 M words (100
+\begin_inset space \thinspace{}
+\end_inset
+
+MB) can be stored.
+ The pattern generator loop and the DAQ are stopped every few ms and the
+ memory is readout via USB.
+ This introdcues some dead time but allows for almost concurrent decoding
+ and display of the data.
+\end_layout
+
+\begin_layout Standard
+The result are random trigger hit maps and pulse height distributions, which
+ can be used with sources (X-ray, Sr, Ru), with fixed test pulse patterns
+ (arm), or just with noise (at lowest thresholds, enable all pixels).
 \end_layout
 
 \begin_layout Section
@@ -1773,6 +1830,68 @@ S-curve is descriptive pixel slang for threshold curves as obtained from
 
 \begin_layout Subsection
 bump bond test
+\end_layout
+
+\begin_layout Standard
+The ROC has a switch (
+\family typewriter
+cals
+\family default
+) on each pixel which allows to send the test pulse to a pad on the top
+ metal layer.
+ When a sensor is present it forms a (small) air gap capacitance and some
+ charge gets induced.
+ When the bump bond is functional the pixel circuit amplifies the signal
+ and if the threshold is sufficiently low it can be detected and read out.
+ Two tests are available:
+\end_layout
+
+\begin_layout Description
+bbtest
+\begin_inset space \space{}
+\end_inset
+
+nTrig fast map of all pixels' responses to 
+\family typewriter
+cals
+\family default
+ pulses, done with the largest pulse (
+\family typewriter
+CtrlReg
+\family default
+ 4, 
+\family typewriter
+Vcal
+\family default
+ 255) but with fixed threshold settings.
+\end_layout
+
+\begin_layout Description
+dacscanroc
+\begin_inset space \space{}
+\end_inset
+
+12
+\begin_inset space \space{}
+\end_inset
+
+-nTrig scan global threshold 
+\family typewriter
+VthrComp
+\family default
+ while pulsing through the sensor (selected with negative nTrig).
+ Should be done with large pulses (
+\family typewriter
+CtrlReg
+\family default
+ 4, 
+\family typewriter
+Vcal
+\family default
+ 255).
+\end_layout
+
+\begin_layout Standard
 \begin_inset Newpage clearpage
 \end_inset
 
@@ -2224,7 +2343,7 @@ Vtrim
 \family typewriter
 Vana
 \family default
- after trimming (or re-trim, or at least tak a threshold map).
+ after trimming (or re-trim, or at least take a threshold map).
 \end_layout
 
 \end_inset
@@ -2234,10 +2353,6 @@ Vana
 
 \end_inset
 
-
-\end_layout
-
-\begin_layout Standard
 
 \end_layout
 
