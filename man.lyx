@@ -1,31 +1,57 @@
-#LyX 1.6.10 created this file. For more info see http://www.lyx.org/
-\lyxformat 345
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
 \begin_document
 \begin_header
 \textclass article
 \use_default_options true
+\maintain_unincluded_children false
 \language english
+\language_package default
 \inputencoding auto
+\fontencoding global
 \font_roman lmodern
 \font_sans lmss
 \font_typewriter courier
+\font_math auto
 \font_default_family rmdefault
+\use_non_tex_fonts false
 \font_sc false
 \font_osf false
 \font_sf_scale 100
 \font_tt_scale 100
-
 \graphics pdftex
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
 \paperfontsize default
 \spacing onehalf
 \use_hyperref false
 \papersize a4paper
 \use_geometry true
-\use_amsmath 0
-\use_esint 0
+\use_package amsmath 0
+\use_package amssymb 0
+\use_package cancel 0
+\use_package esint 0
+\use_package mathdots 0
+\use_package mathtools 0
+\use_package mhchem 1
+\use_package stackrel 0
+\use_package stmaryrd 0
+\use_package undertilde 0
 \cite_engine basic
+\cite_engine_type default
+\biblio_style plain
 \use_bibtopic false
+\use_indices false
 \paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
 \leftmargin 2cm
 \topmargin 2cm
 \rightmargin 2cm
@@ -45,8 +71,9 @@
 \bullet 2 0 0 -1
 \tracking_changes false
 \output_changes false
-\author "" 
-\author "" 
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
 \end_header
 
 \begin_body
@@ -443,7 +470,7 @@ The state of the ROC (DACs, trims, thresholds) is represented in software.
 
 \begin_layout Standard
 Commands and measurements are written to the log file.
- This used to be used for offline parsing, processing, and plotting.
+ This was implemented for offline parsing, processing, and plotting.
  It is still useful for reconstructing the conditions under which a particular
  test in a session was executed.
  Measurements are now also written as 1D and 2D histograms into a ROOT file
@@ -551,7 +578,7 @@ If you want to keep them,
 \family typewriter
 rename
 \family default
- d.log and/or Test.root before you start again, otherwise the get overwritten.
+ d.log and/or Test.root before you start again, otherwise they get overwritten.
 \end_layout
 
 \begin_layout Subsection
@@ -560,8 +587,8 @@ starting up with a ROC
 
 \begin_layout Standard
 Connect a ROC (or module) via SCSI cable to the DTB.
- You may also want to connect (negative) bias voltage to the red-ringed
- lemo connector.
+ You may also want to connect (negative of about -150 V) bias voltage to
+ the red-ringed lemo connector.
 \end_layout
 
 \begin_layout Standard
@@ -690,7 +717,7 @@ col
 \begin_inset space \space{}
 \end_inset
 
-row unmask one pisel
+row unmask one pixel
 \end_layout
 
 \begin_layout Description
@@ -702,7 +729,7 @@ col:col
 \begin_inset space \space{}
 \end_inset
 
-row:row unmwask range of pixels (e.g.
+row:row unmask range of pixels (e.g.
  pixe 0:51 0:79 for the entire ROC)
 \end_layout
 
@@ -756,7 +783,687 @@ col
 \begin_inset space \space{}
 \end_inset
 
-row mask pixel
+row disable pixel
+\end_layout
+
+\begin_layout Subsection
+DAC parameters
+\end_layout
+
+\begin_layout Standard
+Table 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab:DACparam"
+
+\end_inset
+
+ shows the DAC parameters for psi46digV2.1.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float table
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\noindent
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="11" columns="6">
+<features rotate="0" tabularvalignment="middle">
+<column alignment="left" valignment="top">
+<column alignment="left" valignment="top">
+<column alignment="left" valignment="top">
+<column alignment="left" valignment="top">
+<column alignment="left" valignment="top">
+<column alignment="left" valignment="top">
+<row>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+DAC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+name
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+comment
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+DAC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+name
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+comment
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Vdig
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+17
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VoffsetRO
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Vana
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+19
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Vcomp_ADC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Vsf
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+20
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VIref_ADC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Vcomp
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+22
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VIColOr
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+7
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VwllPr
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+25
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Vcal
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+9
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VwllSh
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+26
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+CalDel
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+10
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VhldDel
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+253
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+CtrlReg
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+11
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Vtrim
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+254
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+WBC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+12
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VthrComp
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+255
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+RBreg
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+13
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VIBias_Bus
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+DAC paramters for psi46digV2.1
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:DACparam"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -827,7 +1534,7 @@ col
 \begin_inset space \space{}
 \end_inset
 
-row measure pixel efficiecny vs 
+row measure pixel efficiency vs 
 \family typewriter
 CalDel
 \family default
@@ -839,7 +1546,7 @@ CalDel
 \begin_layout Description
 caldelroc scan CalDel for the entire ROC (perfect pixels respond to all
  triggers, alive pixels have at least 50% response), sets CalDel in the
- plateay region
+ plateau region
 \end_layout
 
 \begin_layout Description
@@ -849,6 +1556,10 @@ thrmap
 
 guess measure pixel threshold map for current settings (faster if guess
  is close to truth)
+\end_layout
+
+\begin_layout Description
+vthrcompi 
 \end_layout
 
 \begin_layout Description
@@ -924,8 +1635,8 @@ DAC scans
 \end_layout
 
 \begin_layout Standard
-For diagnostic purposes: scan a dac (or two) for one pixel or the entires
- ROC, and measure efficiecny, pulse height, or threshold.
+For diagnostic purposes: scan a dac (or two) for one pixel or the entire
+ ROC, and measure efficiency, pulse height, or threshold.
  The DAC is not changed.
  
 \end_layout
@@ -1227,7 +1938,7 @@ Vana
 \family default
  controls the analog current that supplies pre-ampliefer and shaper of each
  pixel.
- The current is measured on the test bosrd (
+ The current is measured on the test board (
 \family typewriter
 getia
 \family default
@@ -1338,8 +2049,8 @@ VthrComp
 \family typewriter
 trim bits
 \family default
- act inverted: 15 means now effect, while 0 gives the maximum threshold
- reduction as allowed by 
+ act inverted: 15 means no effect, while 0 gives the maximum threshold reduction
+ as allowed by 
 \family typewriter
 Vtrim
 \family default
@@ -1460,8 +2171,8 @@ efficiency check
 \begin_layout Standard
 The trimming procedure requires only 50% response for a valid threshold
  measurement.
- Some pixels apparently end up too close to the noise and requires some
- further trim bit adjustment.
+ Some pixels apparently end up too close to the noise and require some further
+ trim bit adjustment.
  An efficiency map with e.g.
  100 triggers per pixel is taken and all pixels below 100% are inspected.
  Their trim bits are increased in steps of one until 100% response or end
@@ -1537,8 +2248,8 @@ dacscanroc
 \begin_inset space \space{}
 \end_inset
 
-nTrig measure pulse height vs Vcal for each pixel, filling a 2D histogram
- 
+nTrig measure pulse height vs Vcal for each pixel, nTrig = 10 takes about
+ 90 s, filling a 2D histogram 
 \family typewriter
 PH_DAC25_CR0_map
 \end_layout
@@ -1582,8 +2293,10 @@ It was found that the gain curve (PH vs Vcal) of digital ROCs is well described
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula \[
-f=p_{4}-p_{3}\exp(-t^{p_{2}}),\: t=p_{0}+x/p_{1}\]
+\begin_inset Formula 
+\[
+f=p_{4}-p_{3}\exp(-t^{p_{2}}),\: t=p_{0}+x/p_{1}
+\]
 
 \end_inset
 
@@ -1606,8 +2319,10 @@ is the dynamic range from zero to saturation and the rest are shape parameters
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula \[
-f'=p_{3}p_{2}t^{p_{2}-1}\exp(-t^{p_{2}})/p_{1},\: f''=-p_{3}p_{2}\exp(-t^{p_{2}})\left((p_{2}-1)t^{p_{2}-2}-p_{2}t^{p_{2}-1}\right)/p_{1}^{2}\]
+\begin_inset Formula 
+\[
+f'=p_{3}p_{2}t^{p_{2}-1}\exp(-t^{p_{2}})/p_{1},\: f''=-p_{3}p_{2}\exp(-t^{p_{2}})\left((p_{2}-1)t^{p_{2}-2}-p_{2}t^{p_{2}-1}\right)/p_{1}^{2}
+\]
 
 \end_inset
 
@@ -1654,12 +2369,14 @@ turns out the rather large (
 \begin_inset Formula $10^{5}$
 \end_inset
 
-in Vcal DAC units) , inviting one more approximation:
+in Vcal DAC units), inviting one more approximation:
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula \[
-t^{p_{2}}\approx\left(1+x/p_{1}\right)^{p_{2}}=\exp\left(p_{2}\ln(1+x/p_{1})\right)\approx\exp\left(p_{2}x/p_{1}\right)\]
+\begin_inset Formula 
+\[
+t^{p_{2}}\approx\left(1+x/p_{1}\right)^{p_{2}}=\exp\left(p_{2}\ln(1+x/p_{1})\right)\approx\exp\left(p_{2}x/p_{1}\right)
+\]
 
 \end_inset
 
@@ -1671,8 +2388,10 @@ leading to a double exponential
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula \[
-f\approx p_{4}-p_{3}\exp\left(-\exp(p_{2}x/p_{1})\right)\]
+\begin_inset Formula 
+\[
+f\approx p_{4}-p_{3}\exp\left(-\exp(p_{2}x/p_{1})\right)
+\]
 
 \end_inset
 
@@ -1712,7 +2431,7 @@ The fit is done simultaneously to the low Vcal (
 \begin_inset Formula $p_{5}$
 \end_inset
 
-is around 7.
+ is around 7.
 \end_layout
 
 \begin_layout Standard
@@ -1753,7 +2472,7 @@ minimum as the other algorithms in the cases where they all converge.
 
 \begin_layout Standard
 In data analysis, and also for gain monitoring in psi46test, the inverse
- function is needed to translate a mesured pulse height 
+ function is needed to translate a measured pulse height 
 \begin_inset Formula $a$
 \end_inset
 
@@ -1761,8 +2480,10 @@ In data analysis, and also for gain monitoring in psi46test, the inverse
 \end_layout
 
 \begin_layout Standard
-\begin_inset Formula \[
-f^{-1}=p_{1}\left(\left(-\ln\left((p_{4}-a)/p_{3}\right)\right)^{1/p_{2}}-p_{0}\right)\]
+\begin_inset Formula 
+\[
+f^{-1}=p_{1}\left(\left(-\ln\left((p_{4}-a)/p_{3}\right)\right)^{1/p_{2}}-p_{0}\right)
+\]
 
 \end_inset
 
@@ -1775,7 +2496,7 @@ which is nicely analytic but reveals one problem: the argument of the logarithm
 \begin_inset Formula $a$
 \end_inset
 
-must never fluctuate above the asymptotic value 
+ must never fluctuate above the asymptotic value 
 \begin_inset Formula $p_{4}$
 \end_inset
 
@@ -1928,7 +2649,7 @@ status collapsed
 \end_inset
 
 
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 perfectly efficient pixels vs analog current.
@@ -1985,7 +2706,7 @@ status collapsed
 \end_layout
 
 \begin_layout Plain Layout
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 Responses vs 
@@ -2051,7 +2772,7 @@ status collapsed
 \end_inset
 
 
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 
@@ -2104,7 +2825,7 @@ status collapsed
 \end_inset
 
 
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 Single pixel S-curve: counting responses to 100 triggers as a function of
@@ -2166,7 +2887,7 @@ status collapsed
 \end_inset
 
 
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 threshold distribution and map, untrimmed digV2.1 chip
@@ -2208,7 +2929,7 @@ status collapsed
 \end_inset
 
 
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 pixel threshold vs global threshold
@@ -2250,7 +2971,7 @@ status collapsed
 \end_inset
 
 
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 Pixel threshold vs 
@@ -2315,7 +3036,7 @@ status collapsed
 \end_inset
 
 
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 Pixel threshold vs 
