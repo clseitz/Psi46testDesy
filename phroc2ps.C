@@ -9,7 +9,10 @@
 // from ~/psi/dtb/tst215/cmd.cpp dacscanroc 25
 // TH2D
 //
+// For Linux:
 // gSystem->Load("/usr/local/lib/libnlopt.so")
+// For Mac:
+// gSystem->Load("/usr/local/lib/libnlopt.dylib")
 // .files (shows libs)
 // .L phroc2ps.C++
 // .x phroc2ps.C+
