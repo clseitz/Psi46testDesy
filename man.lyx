@@ -2214,7 +2214,14 @@ The ROOT and log files from some tests are used for further processing and
 \end_layout
 
 \begin_layout Subsection
-gain calibration
+gain calibration and S-curves
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:gaincalib"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -2547,6 +2554,56 @@ S-curve is descriptive pixel slang for threshold curves as obtained from
 \end_inset
 
  for the Gaussian error distribution.
+ If the gain calibration from Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:gaincalib"
+
+\end_inset
+
+ was executed beforehand one can use the outputfile that was already produced
+ (for small pulses ctl 0), otherwise do:
+\end_layout
+
+\begin_layout Description
+ctl
+\begin_inset space \space{}
+\end_inset
+
+0 Test should be done with small Vcal
+\end_layout
+
+\begin_layout Description
+dacscanroc
+\begin_inset space \space{}
+\end_inset
+
+25
+\begin_inset space \space{}
+\end_inset
+
+nTrig fills TH2D histograms for puls height (
+\family typewriter
+PH_DAC25_CR0_map
+\family default
+) and number of reponses (
+\family typewriter
+N_DAC25_CR0_map
+\family default
+), S-curves are determined from the number of responses
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+mv Test.root scurves-c405-trim30.root
+\end_layout
+
+\begin_layout Standard
+A script exists to analyze this root file, extract the number of responses
+ histogram for each pixel, and perform a fit to the distribution.
+ Plots are produced and a root tree is written out that can be used for
+ further analysis.
 \end_layout
 
 \begin_layout Subsection
