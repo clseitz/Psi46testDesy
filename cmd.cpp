@@ -352,8 +352,8 @@ bool UpdateDTB(const char *filename)
     tb.mDelay(200);
     printf( "FLASH write start (LED 1..4 on)\n"
 	    "DO NOT INTERUPT DTB POWER !\n"
-	    "Wait till LEDs goes off.\n"
-	    "Restart the DTB.\n" );
+	    "Wait till LEDs goes off\n"
+	    "  power cycle the DTB\n" );
     tb.UpgradeExec(recordCount);
     tb.Flush();
     return true;
