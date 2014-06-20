@@ -57,6 +57,7 @@ class CUSB : public CRpcIo
   bool Connected() { return isUSB_open; };
 
   void Write( const void *buffer, unsigned int size );
+  void SetTimeout( int ms ); // DP
   void Flush();
   void Clear();
   bool WaitForFilledQueue( int pSize, int pMaxWait = 10000 ); // DP, HP

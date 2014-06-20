@@ -25,7 +25,7 @@
 #include <TProfile.h>
 #include <TProfile2D.h>
 
-#include "psi46test.h"
+#include "psi46test.h" // includes pixel_dtb.h
 #include "analyzer.h" // includes datastream.h
 //#include "plot.h"
 //#include "histo.h"
@@ -33,6 +33,8 @@
 #include "command.h"
 //DP#include "defectlist.h"
 #include "rpc.h"
+
+#include "iseg.h" // HV
 
 using namespace std;
 
@@ -96,6 +98,8 @@ TH2D * h21;
 TH2D * h22;
 TH2D * h23;
 
+Iseg iseg;
+
 //------------------------------------------------------------------------------
 class TBstate
 {
@@ -145,6 +149,13 @@ CMD_PROC(showtb) // test board state
   cout << "PixelAddressInverted " << tb.GetPixelAddressInverted() << endl;
   cout << "PixelAddressInverted " << tb.invertAddress << endl;
 
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(showhv) // test board state
+{
+  iseg.status();
   return true;
 }
 
@@ -849,16 +860,29 @@ CMD_PROC(getid2) // measure digital supply current
 //------------------------------------------------------------------------------
 CMD_PROC(hvon)
 {
-  tb.HVon();
+  tb.HVon(); // close HV relais on DTB
   DO_FLUSH;
+  Log.printf( "[HVON]" );
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(vb)
+{
+  int value;
+  PAR_INT( value, 0, 300 );
+  iseg.setVoltage( value );
+  Log.printf( "[SETVB] -%i\n", value );
   return true;
 }
 
 //------------------------------------------------------------------------------
 CMD_PROC(hvoff)
 {
-  tb.HVoff();
+  iseg.setVoltage(0);
+  tb.HVoff(); // open HV relais on DTB
   DO_FLUSH;
+  Log.printf( "[HVOFF]" );
   return true;
 }
 
@@ -1006,7 +1030,7 @@ CMD_PROC(trigdel)
 
 //------------------------------------------------------------------------------
 // inverse decorrelated Weibull PH -> large Vcal DAC
-double PHtoVcal( int32_t ph, uint16_t col, uint16_t row )
+double PHtoVcal( double ph, uint16_t col, uint16_t row )
 {
   if( ! haveGain ) return ph;
 
@@ -1040,7 +1064,7 @@ double PHtoVcal( int32_t ph, uint16_t col, uint16_t row )
 	 << ", a3 " << a3
 	 << endl;
 
-  return vc;
+  return vc * p5[col][row]; // small Vcal
 }
 
 //------------------------------------------------------------------------------
@@ -1845,7 +1869,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
   vector<uint16_t> data;
 
   unsigned int nev = 0;
-  unsigned int pev = 0; // previous nev
+  //unsigned int pev = 0; // previous nev
   unsigned int ndq = 0;
   unsigned int got = 0;
   unsigned int rst = 0;
@@ -1857,7 +1881,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
   Decoder dec;
 
   uint32_t NN[52][80] = {{0}};
-  uint32_t PN[52][80] = {{0}}; // previous NN
+  //uint32_t PN[52][80] = {{0}}; // previous NN
   uint32_t PH[256] = {0};
 
   double duration = 0;
@@ -1878,7 +1902,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
   if( h13 ) delete h13;
   h13 = new
     TH1D( "pixel_charge",
-	  "pixel charge;pixel charge [Vcal DAC];pixels",
+	  "pixel charge;pixel charge [small Vcal DAC];pixels",
 	  256, -0.5, 255.5 );
 
   if( h21 ) delete h21;
@@ -1886,6 +1910,13 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
 		 "Hit map;col;row;hits",
 		 52, -0.5, 51.5,
 		 80, -0.5, 79.5 );
+
+  if( h22 ) delete h22;
+  h22 = new TProfile2D( "PHMap",
+			"PH map;col;row;<PH> [small Vcal DAC]",
+			52, -0.5, 51.5,
+			80, -0.5, 79.5,
+			0, 500 );
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open(Blocksize);
@@ -1895,6 +1926,8 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
   tb.Daq_Start();
   tb.uDelay(100);
   tb.Pg_Loop( period );
+
+  tb.SetTimeout( 2000 ); // [ms] USB
   tb.Flush();
 
   while( !keypressed() ) {
@@ -1984,6 +2017,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
 	  h12->Fill( ph );
 	  h13->Fill( vc );
 	  h21->Fill( ix, iy );
+	  h22->Fill( ix, iy, vc );
 	  if( ix < 52 && iy < 80 ) {
 	    NN[ix][iy]++; // hit map
 	    if( ph > 0 && ph < 256 ) PH[ph]++;
@@ -2013,7 +2047,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
     if( ldb ) cout << endl;
 
     // check for ineff in armed pixels:
-
+    /*
     int dev = nev - pev;
     for( int row = 79; row >= 0; --row )
       for( int col = 0; col < 52; col++ ) {
@@ -2025,7 +2059,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
 	PN[col][row] = NN[col][row];
       }
     pev = nev;
-
+    */
   } // while takedata
 
   tb.Pg_Stop(); // stop triggers, necessary for clean re-start
@@ -2061,12 +2095,13 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
   h12->Write();
   h13->Write();
   h21->Write();
+  h22->Write();
   gStyle->SetOptStat(10); // entries
   gStyle->SetStatY(0.95);
   h21->GetYaxis()->SetTitleOffset(1.3);
   h21->Draw("colz");
   c1->Update();
-  cout << "histos 11, 12, 13, 21" << endl;
+  cout << "histos 11, 12, 13, 21, 22" << endl;
   //c1->SetLeftMargin(defaultLeftMargin);
   //c1->SetRightMargin(defaultRightMargin);
 
@@ -4419,7 +4454,7 @@ CMD_PROC(caldelmap) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
   tb.SetDAC( CtrlReg, vctl );
 
 #ifndef DAQOPENCLOSE
-  tb.Daq_Open( Blocksize ); // PixelThreshold ends with dclose
+  tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
 #endif
 
   tb.Flush();
@@ -5203,6 +5238,7 @@ CMD_PROC(modsc) // S-curve for modules, all pix
   } // roc
 
   // De-Allocate memory to prevent memory leak
+
   for( int i = 0; i < 16; i++ ) {
     for( int j = 0; j < 52; j++ ) {
       for( int k = 0; k < 80; k++ )
@@ -5644,21 +5680,21 @@ CMD_PROC(phdac) // phdac col row dac (PH vs dac)
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "ph_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "PH vs %s col %02i row %02i;%s [DAC];<PH> [ADC]",
+	  Form( "PH vs %s col %i row %i;%s [DAC];<PH> [ADC]",
 		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
   if( h12 ) delete h12;
   h12 = new
     TH1D( Form( "vcal_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "Vcal vs %s col %02i row %02i;%s [DAC];calibrated PH [large Vcal DAC]",
+	  Form( "Vcal vs %s col %i row %i;%s [DAC];calibrated PH [small Vcal DAC]",
 		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
-  if( h14 ) delete h14;
-  h14 = new
+  if( h13 ) delete h13;
+  h13 = new
     TH1D( Form( "rms_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "RMS vs %s col %02i row %02i;%s [DAC];<PH> [ADC]",
+	  Form( "RMS vs %s col %i row %i;%s [DAC];PH RMS [ADC]",
 		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
@@ -5693,15 +5729,16 @@ CMD_PROC(phdac) // phdac col row dac (PH vs dac)
   for( int32_t i = 0; i < nstp; i++ ) {
 
     double ph = PHavg.at(i);
-    cout << setw(4) << ((ph > -0.1 ) ? int(ph+0.5) : -1)
-	 << "(" << setw(3) << nReadouts.at(i) << ")";
+    //cout << setw(4) << ((ph > -0.1 ) ? int(ph+0.5) : -1) << "(" << setw(3) << nReadouts.at(i) << ")";
     Log.printf( " %i", (ph > -0.1 ) ? int(ph+0.5) : -1 );
     if( ph > -0.5 && ph < phmin ) phmin = ph;
-    h11->Fill( i, ph );
-    h14->Fill( i, PHrms.at(i) );
-    double vc = PHtoVcal( ph, col, row );
-    h12->Fill( i, vc );
-
+    if( nReadouts.at(i) > 0 ) {
+      h11->Fill( i, ph );
+      h13->Fill( i, PHrms.at(i) );
+      double vc = PHtoVcal( ph, col, row );
+      h12->Fill( i, vc );
+      //cout << setw(3) << i << "  " << ph << "  " << vc << endl;
+    }
   } // dacs
   cout << endl;
   Log.printf( "\n" );
@@ -5710,11 +5747,11 @@ CMD_PROC(phdac) // phdac col row dac (PH vs dac)
 
   h11->Write();
   h12->Write();
-  h14->Write();
+  h13->Write();
   h11->SetStats(0);
   h11->Draw();
   c1->Update();
-  cout << "histos 11, 12, 14" << endl;
+  cout << "histos 11, 12, 13" << endl;
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -5766,14 +5803,14 @@ CMD_PROC(calsdac) // calsdac col row dac (cals PH vs dac)
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "cals_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "CALS vs  %s col %02i row %02i;%s [DAC];<CALS> [ADC]",
+	  Form( "CALS vs  %s col %i row %i;%s [DAC];<CALS> [ADC]",
 		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
   if( h12 ) delete h12;
   h12 = new
     TH1D( Form( "resp_cals_dac%02i_%02i_%02i", dac, col, row ),
-	  Form( "CALS responses vs  %s col %02i row %02i;%s [DAC];responses",
+	  Form( "CALS responses vs  %s col %i row %i;%s [DAC];responses",
 		dacnam[dac].c_str(), col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
@@ -5851,7 +5888,7 @@ CMD_PROC(effdac) // effdac col row dac (efficiency vs dac)
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "eff_dac%02i_roc%02i_col%02i_row%02i", dac, roc, col, row ),
-	  Form( "Eff vs %s ROC %02i col %02i row %02i;%s [DAC];responses",
+	  Form( "Eff vs %s ROC %i col %i row %i;%s [DAC];responses",
 		dacnam[dac].c_str(), roc, col, row, dacnam[dac].c_str() ),
 	  nstp, -0.5, nstp-0.5 );
 
@@ -5927,7 +5964,7 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
   if( h11 ) delete h11;
   h11 = new
     TH1D( Form( "thr_dac%02i_%02i_%02i_bits%02i", dac, col, row, trim ),
-	  Form( "thr vs %s col %2i row %2i bits %i;%s [DAC];threshold [small Vcal DAC]",
+	  Form( "thr vs %s col %i row %i bits %i;%s [DAC];threshold [small Vcal DAC]",
 		dacnam[dac].c_str(), col, row, trim, dacnam[dac].c_str() ),
 	  nstp, dacstrt-0.5, dacstop+0.5 );
 
@@ -5979,7 +6016,7 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
   tb.SetDAC( CtrlReg, vctl );
 
 #ifndef DAQOPENCLOSE
-  tb.Daq_Open( Blocksize ); // PixelThreshold ends with dclose
+  tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
 #endif
 
   tb.Flush();
@@ -6601,7 +6638,7 @@ void RocThrMap( int roc, int start, int step,
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
 
 #ifndef DAQOPENCLOSE
-  tb.Daq_Open( Blocksize ); // PixelThreshold ends with dclose
+  tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
 #endif
 
   tb.Flush();
@@ -7047,7 +7084,7 @@ CMD_PROC(thrmapsc) // raw data S-curve: 60 s / ROC
   gStyle->SetStatY(0.60);
   h11->Draw();
   c1->Update();
-  cout << "histos 11,12,13" << endl;
+  cout << "histos 11, 12, 13" << endl;
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -7289,7 +7326,7 @@ CMD_PROC(vthrcomp)
   } // rocs
 
 #ifndef DAQOPENCLOSE
-  tb.Daq_Open( Blocksize ); // PixelThreshold ends with dclose
+  tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
   tb.Flush();
 #endif
 
@@ -7422,7 +7459,7 @@ CMD_PROC(trim)
       TH1D( Form( "thr_vs_Vtrim_col%i_row%i", colmax, rowmax ),
 	    Form( "Threshold vs Vtrim pix %i %i;Vtrim [DAC];threshold [small Vcal DAC]",
 		  colmax, rowmax ),
-	    100, 0, 200 ); // 255 = overflow
+	    128, 0, 256 );
 
     tb.Daq_Stop();
     tb.Daq_Close();
@@ -7611,7 +7648,7 @@ CMD_PROC(trim)
   } // rocs
 
 #ifndef DAQOPENCLOSE
-  tb.Daq_Open( Blocksize ); // PixelThreshold ends with dclose
+  tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
   tb.Flush();
 #endif
 
@@ -7992,7 +8029,7 @@ CMD_PROC(tune) // set VIref_ADC and Voffset
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(phmap)
+CMD_PROC(phmap) // check gain tuning and calibration
 {
   int nTrig;
   PAR_INT( nTrig, 1, 65000 );
@@ -8070,7 +8107,7 @@ CMD_PROC(phmap)
   if( h12 ) delete h12;
   h12 = new
     TH1D( Form( "vcal_dist_Vcal%i_CR%i", vcal, vctl ),
-	  Form( "PH Vcal distribution at Vcal %i, CtrlReg %i;calibrated PH [large Vcal DAC];pixels",
+	  Form( "PH Vcal distribution at Vcal %i, CtrlReg %i;calibrated PH [small Vcal DAC];pixels",
 		vcal, vctl ),
 	  256, 0, 256 );
 
@@ -8089,7 +8126,14 @@ CMD_PROC(phmap)
 		  80, -0.5, 79.5 );
 
   if( h22 ) delete h22;
-  h22 = new TH2D( Form( "RMSmap_Vcal%i_CR%i", vcal, vctl ),
+  h22 = new TH2D( Form( "VcalMap_Vcal%i_CR%i", vcal, vctl ),
+		  Form( "PH Vcal map at Vcal %i, CtrlReg %i;col;row;calibrated <PH> [small Vcal DAC]",
+			vcal, vctl ),
+		  52, -0.5, 51.5,
+		  80, -0.5, 79.5 );
+
+  if( h23 ) delete h23;
+  h23 = new TH2D( Form( "RMSmap_Vcal%i_CR%i", vcal, vctl ),
 		  Form( "RMS map at Vcal %i, CtrlReg %i;col;row;PH RMS [ADC]",
 			vcal, vctl ),
 		  52, -0.5, 51.5,
@@ -8130,7 +8174,8 @@ CMD_PROC(phmap)
 	h12->Fill( vc );
 	h13->Fill( rms );
 	h21->Fill( col, row, ph );
-	h22->Fill( col, row, rms );
+	h22->Fill( col, row, vc );
+	h23->Fill( col, row, rms );
       }
 
       j++;
@@ -8147,6 +8192,7 @@ CMD_PROC(phmap)
   h13->Write();
   h21->Write();
   h22->Write();
+  h23->Write();
   cout << "histos 11, 12, 13, 21, 22" << endl;
 
   gStyle->SetOptStat(111111);
@@ -8989,13 +9035,13 @@ CMD_PROC(gaindac) // calibrated PH vs Vcal: check gain
   if( h11 ) delete h11;
   h11 = new
     TH1D( "vc_dac",
-	  "mean Vcal PH vs Vcal;Vcal [DAC];calibrated PH [large Vcal DAC]",
+	  "mean Vcal PH vs Vcal;Vcal [DAC];calibrated PH [small Vcal DAC]",
 	  256, -0.5, 255.5 );
 
   if( h14 ) delete h14;
   h14 = new
     TH1D( "rms_dac",
-	  "PH Vcal RMS vs Vcal;Vcal [DAC];calibrated PH RMS [large Vcal DAC]",
+	  "PH Vcal RMS vs Vcal;Vcal [DAC];calibrated PH RMS [small Vcal DAC]",
 	  256, -0.5, 255.5 );
 
   TH1D hph[4160];
@@ -9175,6 +9221,8 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   cout << "pulsing 4160 pixels with " << mTrig << " triggers for "
        << nstp << " DAC steps may take " << int( 4160 * mTrig * nstp *6e-6 ) + 1
        << " s..." << endl;
+
+  //tb.SetTimeout( 4 * mTrig * nstp * 6 * 2 ); // [ms]
 
   // header = 1 word
   // pixel = +2 words
@@ -10594,6 +10642,9 @@ void cmd() // called once from psi46test
 
   CMD_REG( hvon,     "hvon                          switch HV on" );
   CMD_REG( hvoff,    "hvoff                         switch HV off" );
+  CMD_REG( vb,       "vb <V>                        set -Vbias in V" );
+  CMD_REG( showhv,   "show hv                       status of iseg HV supply" );
+
   CMD_REG( reson,    "reson                         activate reset" );
   CMD_REG( resoff,   "resoff                        deactivate reset" );
   CMD_REG( status,   "status                        shows testboard status" );
@@ -10892,6 +10943,8 @@ void cmd() // called once from psi46test
 
   cout << "open ROOT window..." << endl;
   MyMainFrame * myMF = new MyMainFrame( gClient->GetRoot(), 800, 600 );
+
+  myMF->SetWMPosition( 99, 0 );
 
   cout << "open Canvas..." << endl;
   c1 = myMF->GetCanvas();

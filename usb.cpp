@@ -5,7 +5,8 @@
 #include "rpc_error.h"
 #include "usb.h"
 #include <iostream> // cout
-#include <unistd.h>
+//#include <unistd.h>
+
 using namespace std;
 
 //------------------------------------------------------------------------------
@@ -184,8 +185,9 @@ bool CUSB::Open( char serialNumber[] )
   }
 
   //FT_SetTimeouts( ftHandle, 1000, 1000 ); // for X-rays
+  //FT_SetTimeouts( ftHandle, 5000, 5000 ); // for X-rays, effmap
   //FT_SetTimeouts( ftHandle, 100000, 100000 ); // [ms] for maps
-  FT_SetTimeouts( ftHandle, 200000, 200000 ); // [ms] for dacscanroc
+  FT_SetTimeouts( ftHandle, 200000, 200000 ); // [ms] for dacscanroc (gaincal)
 
   isUSB_open = true;
 
@@ -196,8 +198,16 @@ bool CUSB::Open( char serialNumber[] )
 void CUSB::Close()
 {
   if( !isUSB_open ) return;
-  FT_Close(ftHandle);
+  FT_Close( ftHandle );
   isUSB_open = 0;
+}
+
+//------------------------------------------------------------------------------
+void CUSB::SetTimeout( int ms )
+{
+  if( !isUSB_open ) return;
+  if( ms < 1000 ) ms = 1000;
+  FT_SetTimeouts( ftHandle, ms, ms );
 }
 
 //------------------------------------------------------------------------------
@@ -325,7 +335,7 @@ bool CUSB::FillBuffer( DWORD minBytesToRead )
 void CUSB::Read( void *buffer, unsigned int bytesToRead )
 { PROFILING;
 
-  if( !isUSB_open ) throw CRpcError(CRpcError::READ_ERROR);
+  if( !isUSB_open ) throw CRpcError( CRpcError::READ_ERROR );
 
   DWORD i;
 
@@ -338,7 +348,7 @@ void CUSB::Read( void *buffer, unsigned int bytesToRead )
     if( m_posR < m_sizeR ) // have read
       ((unsigned char*)buffer)[i] = m_bufferR[m_posR++]; // just copy
 
-    else if( done )
+    else if( done ) // skip some missing bytes
       break; // DP
 
     else { // need to read
@@ -371,7 +381,7 @@ void CUSB::Read( void *buffer, unsigned int bytesToRead )
 		  << " at byte " << i << " of " << bytesToRead
 		  << endl;
 	//DP throw CRpcError(CRpcError::READ_ERROR);
-	done = 1;
+	done = 1; // these bytes will never come...
       }
 
     } // read

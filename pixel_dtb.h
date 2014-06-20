@@ -1,14 +1,7 @@
-/*---------------------------------------------------------------------
- *
- *  filename:    pixel_dtb.h
- *
- *  description: PSI46 testboard API for DTB
- *	author:      Beat Meier
- *	date:        15.7.2013
- *	rev:          2. 5.2014 for FW 2.14 by Daniel Pitzl
- *                   (compare to pxar/core/rpc/rpc_calls.h)
- *---------------------------------------------------------------------
- */
+
+// psi46test API (RPC) for DTB
+// Beat Meier, PSI, 15.7.2013
+// Daniel Pitzl, DESY, 2.5.2014 for FW 2.14 by 
 
 #pragma once
 
@@ -67,7 +60,7 @@
 #define	RBreg      255 // DP: read back reg
 
 
-#define print_missing() fprintf(stderr, "WARNING: Missing implementation of '%s' defined in %s:%d \n" , __PRETTY_FUNCTION__, __FILE__, __LINE__);
+#define print_missing() fprintf( stderr, "WARNING: Missing implementation of '%s' defined in %s:%d \n" , __PRETTY_FUNCTION__, __FILE__, __LINE__ );
 
 
 class CTestboard
@@ -83,16 +76,19 @@ class CTestboard
  public:
   CRpcIo& GetIo() { return *rpc_io; }
 
-  CTestboard() { RPC_INIT rpc_io = &usb;
+  CTestboard() {
+    RPC_INIT rpc_io = &usb;
     // Set defaults for deser160 variables:
-    delayAdjust = 4;
+    //delayAdjust = 4;
     //deserAdjust = 4;
     invertAddress = 0;
+    cout << "instantiated a CTestboard" << endl;
   }
+
   ~CTestboard() { RPC_EXIT }
 
   //FIXME not nice but better than global variables:
-  int delayAdjust;
+  //int delayAdjust;
   //int deserAdjust;
   bool invertAddress;
 
@@ -157,7 +153,7 @@ class CTestboard
   void ClosePipe() { pipe.Close(); }
 #endif
 
-  //DP void SetTimeout(unsigned int timeout) { usb.SetTimeout(timeout); }
+  void SetTimeout( int ms ) { usb.SetTimeout( ms ); }
 
   bool IsConnected() { return usb.Connected(); }
   const char * ConnectionError()
@@ -233,11 +229,11 @@ class CTestboard
 #define SIG_MODE_LO      1
 #define SIG_MODE_HI      2
 
-  RPC_EXPORT void Sig_SetMode(uint8_t signal, uint8_t mode);
-  RPC_EXPORT void Sig_SetPRBS(uint8_t signal, uint8_t speed);
-  RPC_EXPORT void Sig_SetDelay(uint8_t signal, uint16_t delay, int8_t duty = 0);
-  RPC_EXPORT void Sig_SetLevel(uint8_t signal, uint8_t level);
-  RPC_EXPORT void Sig_SetOffset(uint8_t offset);
+  RPC_EXPORT void Sig_SetMode( uint8_t signal, uint8_t mode);
+  RPC_EXPORT void Sig_SetPRBS( uint8_t signal, uint8_t speed);
+  RPC_EXPORT void Sig_SetDelay( uint8_t signal, uint16_t delay, int8_t duty = 0);
+  RPC_EXPORT void Sig_SetLevel( uint8_t signal, uint8_t level);
+  RPC_EXPORT void Sig_SetOffset( uint8_t offset);
   RPC_EXPORT void Sig_SetLVDS();
   RPC_EXPORT void Sig_SetLCDS();
 
@@ -336,16 +332,18 @@ class CTestboard
 #define PG_REST  0x1000
 #define PG_SYNC  0x2000
 
-  RPC_EXPORT void Pg_SetCmd(uint16_t addr, uint16_t cmd);
-  RPC_EXPORT void Pg_SetCmdAll(vector<uint16_t> &cmd);
+  RPC_EXPORT void Pg_SetCmd( uint16_t addr, uint16_t cmd);
+  RPC_EXPORT void Pg_SetCmdAll( vector<uint16_t> &cmd);
+  RPC_EXPORT void Pg_SetSum( uint16_t delays);
   RPC_EXPORT void Pg_Stop();
   RPC_EXPORT void Pg_Single();
   RPC_EXPORT void Pg_Trigger();
-  RPC_EXPORT void Pg_Loop(uint16_t period);
+  RPC_EXPORT void Pg_Triggers( uint32_t triggers, uint16_t period);
+  RPC_EXPORT void Pg_Loop( uint16_t period);
 
   // --- data aquisition --------------------------------------------------
 
-  RPC_EXPORT uint32_t Daq_Open(uint32_t buffersize = 10000000, uint8_t channel = 0);
+  RPC_EXPORT uint32_t Daq_Open( uint32_t buffersize = 10000000, uint8_t channel = 0);
   RPC_EXPORT void Daq_Close( uint8_t channel = 0); // tbm A and B
   RPC_EXPORT void Daq_Start( uint8_t channel = 0); // tbm A and B
   RPC_EXPORT void Daq_Stop( uint8_t channel = 0);
