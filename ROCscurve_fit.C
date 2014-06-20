@@ -6,7 +6,7 @@
 // root -l scurves-c405-trim30.root
 //
 //
-// .x ROCscurve_fit.C
+// .x ROCscurve_fit.C+
 //  modified Claudia Seitz Mai 2014
 
 #include "TDirectory.h"
@@ -186,16 +186,20 @@ void ROCscurve_fit( char* hs="N_DAC25_CR0_Vcal222_map", int kmode = 2 ) {
   double ethr = 0;
   double esig = 0;
   double enu = 0;
-  cout<<_file0->GetName()<<endl;
+  
+  
+
+  TFile* _file0;
+  cout<<gDirectory->GetName()<<endl;
   TH2 *h2 = (TH2*)gDirectory->Get(hs);
   TCanvas c1( "c1", "c1", 800, 600);
   //  TFile *f = new TFile("basic.root","RECREATE");
   TNtuple *ntuple = new TNtuple("fitTree","data from fits","col:row:thr:ethr:sig:esig:status:chisq");
-  for ( int xi = 1; xi <= h2->GetNbinsX(); xi++){
+  for ( int xi = 1; xi <=h2->GetNbinsX(); xi++){
     //get row and column
-    int row = xi % 80 - 1;
+    int row = (xi-1) % 80;
     int col = (xi - row) / 80;
-
+    cout << "row " << row << " col" << col <<endl; 
     string pname =  "scurve_roc0_row" + to_string(row) + "_col" + to_string(col);
     string ptitle =  "S-curve for ROC 0 row " + to_string(row) + " col " + to_string(col);
     TH1 *h = h2->ProjectionY(pname.c_str(),xi,xi);
@@ -530,6 +534,6 @@ void ROCscurve_fit( char* hs="N_DAC25_CR0_Vcal222_map", int kmode = 2 ) {
   gPad->Print( "minscurve.ps]" ); 
   system( "ps2pdf minscurve.ps" );
   //system( "rm -f minscurve.ps" );
-  string filename(_file0->GetName());
+  string filename(gDirectory->GetName());
   ntuple->SaveAs(("fit_results_"+filename).c_str());
 }
