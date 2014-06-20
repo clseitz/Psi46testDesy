@@ -34,8 +34,6 @@ class Watchpoint
   friend class AutoCounter;
 };
 
-
-
 class AutoCounter
 {
   Watchpoint *m_wp;

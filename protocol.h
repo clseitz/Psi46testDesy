@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <string>
 
-
 class CProtocol
 {
   FILE *f;

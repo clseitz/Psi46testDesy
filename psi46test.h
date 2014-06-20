@@ -22,14 +22,14 @@
 // global variables:
 extern int nEntry; // counts the entries in the log file
 
-extern CTestboard tb;
+extern CTestboard tb; // in pixel_dtb.h
 extern CSettings settings;  // global settings
 //DP extern CProber prober; // prober
 extern CProtocol Log;  // log file
 
 //DP extern CChip g_chipdata;
 
-extern int delayAdjust;
+//DP extern int delayAdjust;
 //DP extern int deserAdjust;
 
 void cmd();
