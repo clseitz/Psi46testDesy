@@ -1,0 +1,65 @@
+
+ROC inventory
+
+ num  sensor
+--------------------------------------------------------------------------------
+analog ROCs, 2010 from PSI:
+  10  dot1, beam test
+  11  dot1, beam test
+  12  dot1 52x53 150x150 ?
+  13  dot1
+  14  dot1 52x53 150x150 ?
+
+--------------------------------------------------------------------------------
+analog xdb ROCs, 2012:
+ 101 xdb1  dot1, dead
+ 102 xdb2  gap30-slit, beam test, dead
+ 103 xdb3  ?, at Uni
+
+--------------------------------------------------------------------------------
+digV1 ROCs, 2012 (inverted row address)
+ 201
+ 202  dot1, beam test, irradiated at CERN PS, 0.9E14p/cm2, beam test
+ 203  dot1, beam test, irradiated at CERN PS, 3.8E14p/cm2, beam test
+ 204  none, irradiated at KIT
+ 205  gap30, in test beam
+ 206  gap30-slit, was in test beam, now dead, carrier re-used
+ 207  none
+ 208  none
+ 214  none, irradiated at KIT
+ 215  none
+ 239  gap30, was in test beam
+ 247  gap30-75657, was in test beam
+
+--------------------------------------------------------------------------------
+digV2 2013 (double column freezing)
+ 300  none
+ 301  none
+ 302  none
+ 303  none
+ 304  none, irradiated at KIT
+ 305  ?, in beam test, at Los Alamos
+ 306  gap30-slit, in beam test, Uni, dead
+ 307  ?, in beam test, at Los Alamos
+ 308  gap30-75657, Uni, DC beam test
+ 309  gap30
+ 310  none, irradiated at KIT
+ 311  none, irradiated at KIT
+ 312  none, irradiated at KIT
+ 313  none
+
+--------------------------------------------------------------------------------
+analog ROCs, DESY bump bonded Sep 2013:
+ 110  gap30, beam test
+ 111  gap30-75657, beam test
+ 112  gap30-slit, beam test
+ 113  dot1, beam test
+
+--------------------------------------------------------------------------------
+digV2.1 2014
+ 400  gap30-57675
+ 401  gap30-slit
+ 402  gap30-57675
+ 403  gap30-slit
+ 404  gap30
+ 405  gap30
