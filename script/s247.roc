@@ -43,6 +43,8 @@ mdelay 500
 
 --- set divg chip 247 DACs runs 6352 9.2.2013 trim 30
 
+chip 247
+
 rowinvert
 
 dac   1   15  Vdig  beam test 2013

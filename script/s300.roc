@@ -49,6 +49,8 @@ mdelay 500
 
 --- set divgV2 chip 300 DACs-----------------------------
 
+chip 300
+
 dac   1    8  Vdig  needed for large events
 dac   2  130  Vana  for 27 mA
 dac   3  130  Vsf   linearity

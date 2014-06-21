@@ -52,6 +52,8 @@ mdelay 500
 
 --- set divgV2.1 chip 404 DACs-----------------------------
 
+chip 404
+
 dac   1   10  Vdig  needed for large events
 dac   2   86  Vana  optia 25
 dac   3   33  Vsf   linearity

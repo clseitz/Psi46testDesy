@@ -43,6 +43,8 @@ mdelay 500
 
 --- set divgV2 chip 309 DACs-----------------------------
 
+chip 309
+
 dac   1    8  Vdig  needed for large events
 dac   2  160  Vana  ia 27 mA
 dac   3  130  Vsf   linearity

@@ -43,6 +43,8 @@ mdelay 500
 
 --- set divg chip 205 DACs-----------------------------
 
+chip 205
+
 rowinvert
 
 dac   1   15  Vdig  beam test 2013 run 6656 or 10891

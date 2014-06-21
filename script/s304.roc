@@ -47,7 +47,9 @@ pon
 
 mdelay 500
 
---- set divgV2 chip 300 DACs-----------------------------
+--- set divgV2 chip 304 DACs-----------------------------
+
+chip 304
 
 dac   1    8  Vdig  needed for large events
 dac   2  130  Vana  for 27 mA

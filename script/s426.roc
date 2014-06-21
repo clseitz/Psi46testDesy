@@ -51,7 +51,9 @@ hvon
 
 mdelay 500
 
---- set divgV2.1 chip 400 DACs-----------------------------
+--- set divgV2.1 chip 426 = ETH 206 DACs-----------------------------
+
+chip 426
 
 dac   1   10  Vdig  needed for large events
 dac   2   67  Vana  optia 25

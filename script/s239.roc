@@ -44,6 +44,8 @@ mdelay 500
 --- set divg chip 239 DACs run 5424 24.12.2012 
 --- digi/chip239/dacParameters-Ia25-trim2424
 
+chip 239
+
 rowinvert
 
 dac   1   12  Vdig

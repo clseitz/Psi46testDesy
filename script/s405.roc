@@ -52,6 +52,8 @@ mdelay 500
 
 --- set divgV2.1 chip 405 DACs run 12544 Ia 25 trim 30
 
+chip 405
+
 dac   1    9  Vdig  
 dac   2   79  Vana  
 dac   3   33  Vsf   
