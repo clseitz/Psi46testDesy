@@ -7841,6 +7841,9 @@ CMD_PROC(tune) // set VIref_ADC and Voffset
     int sum = 0;
     int su2 = 0;
     int phmax = 0;
+
+    // to do: replace by GetRocData( nTrig, nReadouts, PHavg, PHrms );
+
     for( int col = 0; col < 52; ++col ) {
       for( int row = 0; row < 80; ++row ) {
 
@@ -9449,7 +9452,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
 //------------------------------------------------------------------------------
 CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan: 
-// N  vs Vcal = Tornado, timewalk
+// N  vs CalDel and VthrComp or Vcal = Tornado, timewalk
 {
   int col, row;
   PAR_INT( col, 0, 51 );
@@ -10806,11 +10809,12 @@ void cmd() // called once from psi46test
 
   for( size_t iroc = 0; iroc < 16; ++iroc )
     for( size_t idac = 0; idac < 256; ++idac )
-      dacval[iroc][idac] = -1; // DP
+      dacval[iroc][idac] = -1;
 
   dacnam[  1] = "Vdig      ";
   dacnam[  2] = "Vana      ";
-  dacnam[  3] = "Vsf       "; // or Vsh
+  dacnam[  3] = "Vsf       ";
+  dacnam[  3] = "Vsh       "; // digV2.1
   dacnam[  4] = "Vcomp     ";
 
   dacnam[  5] = "Vleak_comp"; // only analog
@@ -10834,7 +10838,7 @@ void cmd() // called once from psi46test
 
   dacnam[ 19] = "Vcomp_ADC "; // dig
   dacnam[ 20] = "VIref_ADC "; // dig
-  dacnam[ 20] = "PHscale   "; // digV2.1
+  dacnam[ 20] = "PHScale   "; // digV2.1
   dacnam[ 21] = "VIbias_roc"; // analog
   dacnam[ 22] = "VIColOr   ";
 
@@ -10978,5 +10982,6 @@ void cmd() // called once from psi46test
       */
     }
   }
+
 
 }
