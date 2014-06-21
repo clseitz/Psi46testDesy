@@ -1,12 +1,9 @@
-/* -----------------------------------------------------------------------------
- *
- *  test board and ROC commands
- *
- *  Beat Meier, PSI, 31.8.2007 for Chip/Wafer tester
- *  Daniel Pitzl, DESY, 18.3.2014
- *
- * -----------------------------------------------------------------------------
- */
+
+//  test board and ROC commands
+
+//  Beat Meier, PSI, 31.8.2007 for Chip/Wafer tester
+
+//  Daniel Pitzl, DESY, 18.3.2014
 
 #include <cstdlib> // abs
 #include <math.h>
@@ -66,14 +63,14 @@ const uint32_t Blocksize = 4*1024*1024; //
 int dacval[16][256]; // DP
 string dacnam[256];
 
+int Chip = 400;
+
 int roclist[16] = {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 int modthr[16][52][80];
 int modtrm[16][52][80];
 
-// gain file:
-
-string gainFileName = "phroc-c405-trim30.dat";
+// gain:
 
 bool haveGain = 0;
 
@@ -153,7 +150,7 @@ CMD_PROC(showtb) // test board state
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(showhv) // test board state
+CMD_PROC(showhv) // iseg HV status
 {
   iseg.status();
   return true;
@@ -461,6 +458,56 @@ CMD_PROC(mdelay)
   int ms;
   PAR_INT( ms, 1, 10000 );
   tb.mDelay(ms);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(d1)
+{
+  int sig;
+  PAR_INT( sig, 0, 31 );
+  tb.SignalProbeD1(sig);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(d2)
+{
+  int sig;
+  PAR_INT( sig, 0, 31 );
+  tb.SignalProbeD2(sig);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(a1)
+{
+  int sig;
+  PAR_INT( sig, 0, 7 );
+  tb.SignalProbeA1(sig);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(a2)
+{
+  int sig;
+  PAR_INT( sig, 0, 7 );
+  tb.SignalProbeA2(sig);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(probeadc)
+{
+  int sig;
+  PAR_INT( sig, 0, 7 );
+  tb.SignalProbeADC(sig);
+  DO_FLUSH;
   return true;
 }
 
@@ -923,52 +970,110 @@ CMD_PROC(rowinvert)
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(d1)
+CMD_PROC(chip)
 {
-  int sig;
-  PAR_INT( sig, 0, 31 );
-  tb.SignalProbeD1(sig);
-  DO_FLUSH;
-  return true;
-}
+  int chip;
+  PAR_INT( chip, 0, 9999 );
 
-//------------------------------------------------------------------------------
-CMD_PROC(d2)
-{
-  int sig;
-  PAR_INT( sig, 0, 31 );
-  tb.SignalProbeD2(sig);
-  DO_FLUSH;
-  return true;
-}
+  Chip = chip;
 
-//------------------------------------------------------------------------------
-CMD_PROC(a1)
-{
-  int sig;
-  PAR_INT( sig, 0, 7 );
-  tb.SignalProbeA1(sig);
-  DO_FLUSH;
-  return true;
-}
+  cout << "Chip " << Chip << endl;
 
-//------------------------------------------------------------------------------
-CMD_PROC(a2)
-{
-  int sig;
-  PAR_INT( sig, 0, 7 );
-  tb.SignalProbeA2(sig);
-  DO_FLUSH;
-  return true;
-}
+  if( Chip >= 200 && Chip < 299 ){
+    tb.SetPixelAddressInverted(1);
+    tb.invertAddress = 1;
+    cout << "SetPixelAddressInverted" << endl;
+  }
 
-//------------------------------------------------------------------------------
-CMD_PROC(probeadc)
-{
-  int sig;
-  PAR_INT( sig, 0, 7 );
-  tb.SignalProbeADC(sig);
-  DO_FLUSH;
+  dacnam[  1] = "Vdig      ";
+  dacnam[  2] = "Vana      ";
+  if( Chip < 400 )
+    dacnam[  3] = "Vsf       ";
+  else
+    dacnam[  3] = "Vsh       "; // digV2.1
+  dacnam[  4] = "Vcomp     ";
+
+  dacnam[  5] = "Vleak_comp"; // only analog
+  dacnam[  6] = "VrgPr     "; // removed on dig
+  dacnam[  7] = "VwllPr    ";
+  dacnam[  8] = "VrgSh     "; // removed on dig
+  dacnam[  9] = "VwllSh    ";
+
+  dacnam[ 10] = "VhldDel   ";
+  dacnam[ 11] = "Vtrim     ";
+  dacnam[ 12] = "VthrComp  ";
+
+  dacnam[ 13] = "VIBias_Bus";
+  dacnam[ 14] = "Vbias_sf  ";
+
+  dacnam[ 15] = "VoffsetOp ";
+  dacnam[ 16] = "VIbiasOp  "; // analog
+  if( Chip < 400 )
+    dacnam[ 17] = "VoffsetRO "; //
+  else
+    dacnam[ 17] = "PHOffset  "; // digV2.1
+  dacnam[ 18] = "VIon      ";
+
+  dacnam[ 19] = "Vcomp_ADC "; // dig
+  if( Chip < 400 )
+    dacnam[ 20] = "VIref_ADC "; // dig
+  else
+    dacnam[ 20] = "PHScale   "; // digV2.1
+  dacnam[ 21] = "VIbias_roc"; // analog
+  dacnam[ 22] = "VIColOr   ";
+
+  dacnam[ 25] = "VCal      ";
+  dacnam[ 26] = "CalDel    ";
+
+  dacnam[ 31] = "VD        ";
+  dacnam[ 32] = "VA        ";
+
+  dacnam[253] = "CtrlReg   ";
+  dacnam[254] = "WBC       ";
+  dacnam[255] = "RBReg";
+
+  string gainFileName;
+
+  if( Chip == 300 )
+    gainFileName = "/home/pitzl/psi/dtb/chip300/phcal-Ia25-trim30.dat";
+  if( Chip == 400 )
+    gainFileName = "/home/pitzl/psi/dtb/tst221/c400-phroc-Ia25-trim30.dat";
+  //string gainFileName = "/home/pitzl/psi/dtb/tst221/c400-phroc-Ia25-trim40.dat";
+  if( Chip == 401 )
+    gainFileName = "/home/pitzl/psi/dtb/tst219/phroc-c401-Ia25-trim30.dat";
+  if( Chip == 405 )
+    gainFileName = "/home/pitzl/psi/dtb/tst215/phroc-c405-trim30.dat";
+  if( Chip == 431 )
+    gainFileName = "/home/pitzl/psi/dtb/tst221/c431-phroc-Ia25-trim30.dat";
+
+  if( gainFileName.length() > 0 ) {
+
+    ifstream gainFile( gainFileName.c_str() );
+
+    if( gainFile ) {
+
+      haveGain = 1;
+      cout << "gainFile: " << gainFileName << endl;
+
+      char ih[99];
+      int icol;
+      int irow;
+
+      while( gainFile >> ih ) {
+	gainFile >> icol;
+	gainFile >> irow;
+	gainFile >> p0[icol][irow];
+	gainFile >> p1[icol][irow];
+	gainFile >> p2[icol][irow];
+	gainFile >> p3[icol][irow];
+	gainFile >> p4[icol][irow];
+	gainFile >> p5[icol][irow];
+      }
+
+    } // gainFile open
+
+  } // gainFileName
+
   return true;
 }
 
@@ -3602,8 +3707,6 @@ CMD_PROC(vthrcompi) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 
   cout << "set VthrComp to " << val << endl;
 
-  // plot
-
   return true;
 }
 
@@ -4370,11 +4473,6 @@ CMD_PROC(caldel) // scan and set CalDel using one pixel
 
   Log.flush();
 
-  // PLplot:
-
-  if( par.isInteractive() ) {
-  }
-
   return true;
 }
 
@@ -4400,6 +4498,11 @@ CMD_PROC(caldelmap) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
   int thrLevel = nTrig/2;
   bool xtalk = 0;
   bool cals = 0;
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
+  tb.Daq_Close();
+#endif
 
   if( h21 ) delete h21;
   h21 = new TH2D( "CalDelMap",
@@ -5971,9 +6074,12 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
   tb.roc_Col_Enable( col, true );
   tb.roc_Pix_Trim( col, row, trim );
 
+#ifdef DAQOPENCLOSE
   tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
   tb.Daq_Close();
   tb.uDelay(1000);
+#endif
+
   tb.Flush();
 
   int tmin = 255;
@@ -6601,6 +6707,12 @@ void RocThrMap( int roc, int start, int step,
   const int thrLevel = nTrig/2;
 
   tb.roc_I2cAddr(roc); // just to be sure
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
+  tb.Daq_Close();
+  tb.uDelay(1000);
+#endif
 
   for( int col = 0; col < 52; col++ ) {
 
@@ -7275,9 +7387,12 @@ CMD_PROC(vthrcomp)
     int tbits = modtrm[roc][colmin][rowmin];
     tb.roc_Pix_Trim( colmin, rowmin, tbits );
 
-    tb.Daq_Stop();
+#ifdef DAQOPENCLOSE
+    tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
     tb.Daq_Close();
     tb.uDelay(1000);
+#endif
+
     tb.Flush();
 
     guess = vmin;
@@ -7461,9 +7576,11 @@ CMD_PROC(trim)
 		  colmax, rowmax ),
 	    128, 0, 256 );
 
-    tb.Daq_Stop();
+#ifdef DAQOPENCLOSE
+    tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
     tb.Daq_Close();
     tb.uDelay(1000);
+#endif
     tb.Flush();
 
     vtrm = 1;
@@ -7798,229 +7915,140 @@ CMD_PROC(trimbits)
 //------------------------------------------------------------------------------
 CMD_PROC(tune) // set VIref_ADC and Voffset
 {
-  int16_t nTrig = 9;
+  int roc = 0;
+  int col, row;
+  PAR_INT( col, 0, 51 );
+  PAR_INT( row, 0, 79 );
 
   timeval tv;
   gettimeofday( &tv, NULL );
   long s0 = tv.tv_sec; // seconds since 1.1.1970
   long u0 = tv.tv_usec; // microseconds
 
-  //const int offsdac = VoffsetOp; // digV2
-  const int offsdac = VoffsetRO; // digV2.1
-  const int gaindac = VIref_ADC;
-  int voff = dacval[0][offsdac];
-  int gain = dacval[0][gaindac];
-
-  cout << "offset dac " << offsdac << " = " << voff << endl;
-  cout << "gain   dac " << gaindac << " = " << gain << endl;
-
-  const int vctl = dacval[0][CtrlReg];
-  tb.SetDAC( CtrlReg, 4 );
-
-  const int vcal = dacval[0][Vcal];
-  tb.SetDAC( Vcal, 255 );
-
+  tb.SetDAC( CtrlReg, 4 ); // large Vcal
   tb.Flush();
 
-  int colmax = -1;
-  int rowmax = -1;
+  // scan Vcal for one pixel
 
-  // 1. move upper limit into range
+  int dac = Vcal;
+  int16_t nTrig = 9;
 
-  int iter = 0;
+  vector<int16_t> nReadouts; // size 0
+  vector<double> PHavg;
+  vector<double> PHrms;
+  nReadouts.reserve(256); // size 0, capacity 256
+  PHavg.reserve(256);
+  PHrms.reserve(256);
 
-  bool nochmal = 1;
-  do{
-    iter++;
-    cout << "1." << iter << " (no overflows)" << endl;
+  DacScanPix( roc, col, row, dac, nTrig, nReadouts, PHavg, PHrms );
 
-    int ndead = 0;
-    int nresp = 0;
-    int nzero = 0;
-    int nover = 0;
-    int sum = 0;
-    int su2 = 0;
-    int phmax = 0;
+  if( nReadouts.size() < 256 ) {
+    cout << "only " << nReadouts.size() << " Vcal points"
+	 << ". choose different pixel, check CalDel, check Ia, or give up"
+	 << endl;
+    return 0;
+  }
 
-    // to do: replace by GetRocData( nTrig, nReadouts, PHavg, PHrms );
+  if( nReadouts.at(nReadouts.size()-1) < nTrig ) {
+    cout << "only " << nReadouts.at(nReadouts.size()-1) << " responses at "
+	 << nReadouts.size()-1
+	 << ". choose different pixel, check CalDel, check Ia, or give up"
+	 << endl;
+    return 0;
+  }
 
-    for( int col = 0; col < 52; ++col ) {
-      for( int row = 0; row < 80; ++row ) {
+  // scan from end, search for smallest responding Vcal:
 
-	int trim = modtrm[0][col][row];
-	int ph = tb.PH( col, row, trim, nTrig );
+  int minVcal = 255;
 
-	if( ph < 0 )
-	  ndead++;
-	else {
-	  sum += ph;
-	  su2 += ph*ph;
-	  nresp++;
-	  if( ph == 0 )
-	    nzero++;
-	  else if( ph == 255 )
-	    nover++;
-	  if( ph > phmax ) {
-	    phmax = ph;
-	    colmax = col;
-	    rowmax = row;
-	  }
-	}
-      } // row
-    } // col
-    cout << "dead " << ndead << endl;
-    cout << "resp " << nresp << endl;
-    if( nresp > 0 ) {
-      cout << "zero " << nzero << endl;
-      cout << "over " << nover << endl;
-      cout << "maxi " << phmax << " at " << colmax << " " << rowmax << endl;
-      double mid = (double)sum / (double) nresp;
-      double rms = sqrt( (double)su2 / (double)nresp - mid*mid );
-      cout << "mean ph " << mid
-	   << ", rms " << rms
-	   << endl;
-    }
-    if( phmax > 245 ) {
-      gain += 3;
-      tb.SetDAC( gaindac, gain );
-      dacval[0][gaindac] = gain;
-      tb.Flush();
-      cout << "gain   dac " << gaindac << " = " << gain << endl;
-    }
-    else
-      nochmal = 0;
-  } // do
-  while( nochmal ); 
+  for( int idac = nReadouts.size()-1; idac >= 0; --idac )
+    if( nReadouts.at(idac) == nTrig )
+      minVcal = idac;
+  cout << "min responding Vcal " << minVcal << endl;
+  minVcal += 1; // safety
 
-  // 2. move lower limit into range:
+  // offset and gain DACs:
 
-  int low = 15; // large Vcal: 350e/dac
-  tb.SetDAC( Vcal, low );
+  int offsdac = VoffsetOp; // digV2, positive slope
+  if( Chip >= 400 )
+    offsdac = VoffsetRO; // digV2.1, positive slope
 
-  int colmin = -1;
-  int rowmin = -1;
+  const int gaindac = VIref_ADC;
 
-  iter = 0;
-  nochmal = 1;
-  do{
-    iter++;
-    cout << "2." << iter << " (no underflows)" << endl;
+  cout << "start offset dac " << offsdac << " at " << dacval[roc][offsdac] << endl;
+  cout << "start gain   dac " << gaindac << " at " << dacval[roc][gaindac] << endl;
 
-    int ndead = 0;
-    int nresp = 0;
-    int nzero = 0;
-    int nover = 0;
-    int sum = 0;
-    int su2 = 0;
-    int phmin = 255;
-    for( int col = 0; col < 52; ++col ) {
-      for( int row = 0; row < 80; ++row ) {
+  // set gain to minimal (at DAC 255), to avoid overflow or underflow:
 
-	int trim = modtrm[0][col][row];
-	int ph = tb.PH( col, row, trim, nTrig );
+  tb.SetDAC( gaindac, 255 );
+  tb.Flush();
 
-	if( ph < 0 )
-	  ndead++;
-	else {
-	  sum += ph;
-	  su2 += ph*ph;
-	  nresp++;
-	  if( ph == 0 )
-	    nzero++;
-	  else if( ph == 255 )
-	    nover++;
-	  if( ph < phmin ) {
-	    phmin = ph;
-	    colmin = col;
-	    rowmin = row;
-	  }
-	}
-      } // row
-    } // col
-    cout << "dead " << ndead << endl;
-    cout << "resp " << nresp << endl;
-    if( nresp > 0 ) {
-      cout << "zero " << nzero << endl;
-      cout << "over " << nover << endl;
-      cout << "mini " << phmin << " at " << colmin << " " << rowmin << endl;
-      double mid = (double)sum / (double) nresp;
-      double rms = sqrt( (double)su2 / (double)nresp - mid*mid );
-      cout << "mean ph " << mid
-	   << ", rms " << rms
-	   << endl;
+  // Scan PH vs offset at Vcal 255:
 
-      if( phmin < 30 ) {
-	voff += 30 - phmin;
-	tb.SetDAC( offsdac, voff );
-	dacval[0][offsdac] = voff;
-	tb.Flush();
-	cout << "offset dac " << offsdac << " = " << voff << endl;
-      }
-      else
-	nochmal = 0;
-    } // have response
-    else {
-      low += 3; // threshold problem? more Vcal
-      tb.SetDAC( Vcal, low );
-      tb.Flush();
-    }
-  } // do
-  while( nochmal ); 
+  tb.SetDAC( Vcal, 255 ); // max Vcal
+  vector<double> PHmax;
+  PHmax.reserve(256);
+  DacScanPix( roc, col, row, offsdac, nTrig, nReadouts, PHmax, PHrms );
 
-  Log.section( "PHTUNE", false );
-  Log.printf( " min pixel %i %i\n", colmin, rowmin );
-  Log.printf( " max pixel %i %i\n", colmax, rowmax );
+  // Scan PH vs offset at minVcal:
 
-  // 3. final tune, single pixels
+  tb.SetDAC( Vcal, minVcal );
+  vector<double> PHmin;
+  PHmin.reserve(256);
+  DacScanPix( roc, col, row, offsdac, nTrig, nReadouts, PHmin, PHrms );
 
-  iter = 0;
-  nochmal = 1;
-  do {
-    iter++;
-    cout << "3." << iter << endl;
+  // use offset to center PH at 132:
 
-    tb.SetDAC( Vcal, 255 );
-    tb.Flush();
-    int trim = modtrm[0][colmax][rowmax];
-    int phmax = tb.PH( colmax, rowmax, trim, nTrig );
-
-    tb.SetDAC( Vcal, low );
-    tb.Flush();
-    trim = modtrm[0][colmin][rowmin];
-    int phmin = tb.PH( colmin, rowmin, trim, nTrig );
-
-    int range = phmax - phmin;
-
-    cout << "ph range " << phmin << " - " << phmax << " = " << range << endl;
-
-    if(      range > 205 )
-      gain++;
-    else if( range < 195 )
-      gain--;
-    else if( phmax > 240 )
-      voff += (240-phmax)/2;
-    else if( phmin <  30 )
-      voff +=  (30-phmin)/2;
-    else
-      nochmal = 0;
-    if( nochmal ) {
-      tb.SetDAC( gaindac, gain );
-      dacval[0][gaindac] = gain;
-      tb.SetDAC( offsdac, voff );
-      dacval[0][offsdac] = voff;
-      tb.Flush();
-      cout << "offset dac " << offsdac << " = " << voff << endl;
-      cout << "gain   dac " << gaindac << " = " << gain << endl;
+  int voff = 0;
+  double phmid = 0;
+  for( size_t idac = 0; idac < PHmin.size(); ++idac ) {
+    double phmean = 0.5 * ( PHmin.at(idac) + PHmax.at(idac) );
+    if( fabs( phmean - 132 ) < fabs(phmid - 132) ) {
+      voff = idac;
+      phmid = phmean;
     }
   }
-  while( nochmal && iter < 99 );
+
+  cout << "mid PH " << phmid << " at offset " << voff << endl;
+
+  tb.SetDAC( offsdac, voff );
+  tb.Flush();
+  dacval[roc][offsdac] = voff;
+
+  // scan PH vs gain at Vcal 255
+
+  tb.SetDAC( Vcal, 255 );
+  vector<double> PHtop;
+  PHtop.reserve(256);
+
+  DacScanPix( roc, col, row, gaindac, nTrig, nReadouts, PHtop, PHrms );
+
+  tb.SetDAC( Vcal, minVcal );
+  vector<double> PHbot;
+  PHbot.reserve(256);
+
+  DacScanPix( roc, col, row, gaindac, nTrig, nReadouts, PHbot, PHrms );
+
+  int gain = PHtop.size()-1;
+  for( ; gain >= 1; --gain ) {
+    if( PHtop.at(gain) > 233 ) break;
+    if( PHbot.at(gain) <  22 ) break;
+  }
+  cout << "top PH " << PHtop.at(gain) << " at gain " << gain << " for Vcal 255" << endl; 
+  cout << "bot PH " << PHbot.at(gain) << " at gain " << gain << " for Vcal " << minVcal << endl; 
+
+  tb.SetDAC( gaindac, gain );
+  tb.Flush();
+  dacval[roc][gaindac] = gain;
+
+  // check for all pixels
 
   Log.printf( "[SETDAC] %i  %i\n", gaindac, gain );
   Log.printf( "[SETDAC] %i  %i\n", offsdac, voff );
   Log.flush();
 
-  tb.SetDAC( Vcal, vcal ); // restore
-  tb.SetDAC( CtrlReg, vctl );
+  tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
+  tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
   tb.Flush();
 
   gettimeofday( &tv, NULL );
@@ -8200,10 +8228,10 @@ CMD_PROC(phmap) // check gain tuning and calibration
 
   gStyle->SetOptStat(111111);
   gStyle->SetStatY(0.60);
+  h11->Draw();
   h12->SetLineColor(2);
   h12->SetMarkerColor(2);
-  h12->Draw();
-  h11->Draw("same");
+  h12->Draw("same");
   c1->Update();
 
   cout << endl;
@@ -8750,8 +8778,6 @@ CMD_PROC(caldelroc) // scan and set CalDel using all pixel: 17 s
   int nstp = j;
   cout << j << " points" << endl;
 
-  // PLplot:
-
   h11->Write();
   h12->Write();
   if( par.isInteractive() ) {
@@ -9007,7 +9033,6 @@ CMD_PROC(vanaroc) // scan and set Vana using all pixel: 17 s
 
 //------------------------------------------------------------------------------
 CMD_PROC(gaindac) // calibrated PH vs Vcal: check gain
-
 {
   Log.section( "GAINDAC", false );
   Log.printf( " CtrlReg %i\n", dacval[0][CtrlReg] );
@@ -9487,16 +9512,11 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
   tb.Daq_Start();
   tb.uDelay(100);
 
-  // all on:
+  // pixel on:
 
-  for( int col = 0; col < 52; col++ ) {
-    tb.roc_Col_Enable( col, 1 );
-    for( int row = 0; row < 80; row++ ) {
-      int trim = modtrm[0][col][row];
-      tb.roc_Pix_Trim( col, row, trim );
-    }
-  }
-  tb.uDelay(1000);
+  tb.roc_Col_Enable( col, 1 );
+  int trim = modtrm[0][col][row];
+  tb.roc_Pix_Trim( col, row, trim );
   tb.Flush();
 
   uint16_t nTrig = 10; // size = 4160 * 256 * nTrig * 3 words = 32 MW for 10 trig
@@ -9561,13 +9581,10 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
        << " = " << dt / nTrig / nstp1 / nstp2 * 1e6 << " us / pix"
        << endl;
 
-  // all off:
-
   tb.SetDAC( dac1, dacval[0][dac1] ); // restore
   tb.SetDAC( dac2, dacval[0][dac2] ); // restore
 
-  for( int col = 0; col < 52; col += 2 ) // DC
-    tb.roc_Col_Enable( col, 0 );
+  tb.roc_Col_Enable( col, 0 );
   tb.roc_Chip_Mask();
   tb.roc_ClrCal();
   tb.Flush();
@@ -9739,13 +9756,13 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
   cout << "Proposed values for dac1=" << dac1 << " : "  << dac1Mean << endl;
   int dac2Best = i0 + (i9-i0)/4;
   cout << "Proposed values for dac2=" << dac2 << " are: " << endl;
-  cout << " 1) 25% from Plateu " << dac2Best << endl;
+  cout << " 1) 25% from Plateau " << dac2Best << endl;
   cout << " 2) Mean "  << dac2Mean << endl;
-  cout << "For dac2: " << dac2 << " Plateu begin-end " << i0 << "-" << i9 << endl;
+  cout << "For dac2: " << dac2 << " Plateau begin-end " << i0 << "-" << i9 << endl;
 
   Log.printf( "dac1 %i %i\n", dac1, int(dac1Mean) );
   Log.printf( "dac2 %i %i\n", dac2, int(dac2Best) );
-  Log.printf( "dac2 %i Plateu Begin%i End%i\n", dac2, i0, i9 );
+  Log.printf( "dac2 %i Plateau begin %i end %i\n", dac2, i0, i9 );
   
   h_one->Write();
   delete h_one;
@@ -9754,762 +9771,6 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
   long s9 = tv.tv_sec; // seconds since 1.1.1970
   long u9 = tv.tv_usec; // microseconds
   cout << "test duration " << s9-s0 + (u9-u0)*1e-6 << " s" << endl;
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
-class CDemoAnalyzer : public CAnalyzer
-{
-  CRocEvent* Read();
-};
-
-//------------------------------------------------------------------------------
-CRocEvent* CDemoAnalyzer::Read()
-{
-  CRocEvent* ev = Get();
-
-  Log.printf( "Header: %03X\n", int(ev->header));
-  for( unsigned int i=0; i<ev->pixel.size(); i++)
-    Log.printf( "[%3i %3i %3i]\n", ev->pixel[i].x, ev->pixel[i].y, ev->pixel[i].ph);
-  Log.printf( "\n" );
-  return ev;
-};
-
-//------------------------------------------------------------------------------
-class CDemoAnalyzer2 : public CAnalyzer
-{
-  CRocEvent* Read();
-};
-
-//------------------------------------------------------------------------------
-CRocEvent* CDemoAnalyzer2::Read()
-{
-  CRocEvent* ev = Get();
-
-  Log.printf( "%03X ", int(ev->header));
-  for( unsigned int i=0; i<ev->pixel.size(); i++)
-    Log.printf( " %3i", ev->pixel[i].ph);
-  Log.printf( "\n" );
-  return ev;
-};
-
-//------------------------------------------------------------------------------
-class CLevelHisto : public CAnalyzer
-{
-  unsigned int pos;
-  unsigned int h[256];
-  CRocEvent* Read();
-public:
-  CLevelHisto(unsigned int ro_pos);
-  void Clear();
-  void Report(FILE *f, int min, int max);
-};
-
-//------------------------------------------------------------------------------
-CLevelHisto::CLevelHisto(unsigned int rp_pos)
-{
-  pos = rp_pos;
-  Clear();
-}
-
-//------------------------------------------------------------------------------
-void CLevelHisto::Clear()
-{
-  for( int i=0; i<256; i++)
-    h[i] = 0;
-}
-
-//------------------------------------------------------------------------------
-void CLevelHisto::Report(FILE *f, int min, int max)
-{
-  for( int i=min; i<=max; i++)
-    fprintf(f, "%3i, %5u\n", i, h[i]);
-}
-
-//------------------------------------------------------------------------------
-CRocEvent* CLevelHisto::Read()
-{
-  CRocEvent* ev = Get();
-  if( ev->pixel.size() > pos ) {
-    unsigned int x = ev->pixel[pos].ph;
-    if( x < 256) h[x]++;
-  }
-  return ev;
-};
-
-//------------------------------------------------------------------------------
-class CPrint : public CAnalyzer
-{
-  CRocEvent* Read();
-};
-
-//------------------------------------------------------------------------------
-CRocEvent* CPrint::Read()
-{
-  CRocEvent* ev = Get();
-  for( unsigned int i = 0; i < ev->pixel.size(); i++) {
-    printf( " %3u", ev->pixel[i].ph);
-  }
-  printf( "\n" );
-  return ev;
-};
-
-//------------------------------------------------------------------------------
-CMD_PROC(analyze)
-{
-  int vc;
-  PAR_INT( vc, 0, 255 );
-
-  CDtbSource src( tb, false );
-  CDataRecordScanner rec;
-  CRocDecoder dec;
-  CLevelHisto l(0);
-  CSink<CRocEvent*> pump;
-
-  src >> rec >> dec >> l >> pump;
-
-  //	tb.roc_SetDAC(WBC,  15);
-  tb.roc_SetDAC( Vcal, vc );
-  tb.roc_SetDAC(CtrlReg,0x04); // high range
-
-  tb.Pg_SetCmd(0, PG_RESR + 25);
-  tb.Pg_SetCmd(1, PG_CAL  + 20);
-  tb.Pg_SetCmd(2, PG_TRG  + 16);
-  tb.Pg_SetCmd(3, PG_TOK);
-  tb.uDelay(100);
-  tb.Flush();
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open(Blocksize);
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
-
-  tb.Daq_Start();
-  tb.uDelay(10);
-  for( int i = 0; i < 3; i++ )
-    tb.roc_Pix_Trim( i, 5, 15 );
-
-  tb.uDelay(100);
-  tb.Pg_Loop(10000);
-
-  try {
-    int i = 0;
-    while( i++ < 10000 && !keypressed() ) pump.Get();
-    tb.Pg_Stop();
-  }
-  catch( DS_empty & ) { printf( "finished\n" ); }
-  catch( DataPipeException &e ) { printf( "%s\n", e.what()); }
-
-  //tb.Daq_Stop();
-
-  /*	try { pump.GetAll(); }
-	catch (DS_empty &) { printf( "finished\n" ); }
-	catch (DataPipeException &e) { printf( "%s\n", e.what()); }
-  */
-#ifdef DAQOPENCLOSE
-  tb.Daq_Close();
-#endif
-
-  const int min =  40;
-  const int max = 255;
-  for( int i=min; i<=max; i++) Log.printf( " %5i", i);
-  Log.printf( "\n" );
-  l.Report(Log.File(), min, max);
-
-  Log.flush();
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(adcsingle)
-{
-  CDtbSource src(tb, false);
-  CDataRecordScanner rec;
-  CRocDecoder dec;
-  CPrint print;
-  //	CDemoAnalyzer print;
-  CSink<CRocEvent*> pump;
-
-  src >> rec >> dec >> print >> pump;
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open(Blocksize);
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
-  tb.Daq_Start();
-  tb.uDelay(10);
-
-  tb.Pg_SetCmd(0, PG_RESR + 25);
-  tb.Pg_SetCmd(1, PG_CAL  + 20);
-  tb.Pg_SetCmd(2, ((PG_SYNC) | (PG_TRG))  + 16);
-  tb.Pg_SetCmd(3, PG_TOK);
-  tb.uDelay(100);
-  tb.Flush();
-
-  tb.Pg_Single();
-  tb.uDelay(100);
-
-  try { pump.GetAll(); }
-  catch( DS_empty & ) {}
-  catch( DataPipeException &e ) { /* printf( "%s\n", e.what()); */ }
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Stop();
-  tb.Daq_Close();
-  Log.flush();
-#endif
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(adcpeak)
-{
-  CDtbSource src(tb, false);
-  CDataRecordScanner rec;
-  CRocDecoder dec;
-  CLevelHisto l(0);
-  CSink<CRocEvent*> pump;
-
-  src >> rec >> dec >> l >> pump;
-
-  //	tb.roc_SetDAC(WBC,  15);
-  tb.roc_SetDAC(CtrlReg,0x04); // high range
-
-  tb.Pg_SetCmd(0, PG_RESR + 25);
-  tb.Pg_SetCmd(1, PG_CAL  + 20);
-  tb.Pg_SetCmd(2, ((PG_SYNC) | (PG_TRG))  + 16);
-  tb.Pg_SetCmd(3, PG_TOK);
-  tb.uDelay(100);
-  tb.Flush();
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open(Blocksize);
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
-
-  tb.Daq_Start();
-  tb.uDelay(10);
-  tb.roc_Pix_Trim( 5, 5, 15 );
-  tb.roc_Pix_Cal( 5, 5);
-  //tb.roc_SetDAC();
-  tb.uDelay(100);
-
-  tb.Pg_Loop(2000);
-  try {
-    putchar('#');
-    for( int i = 0; i < 50; i++ ) {
-      for( int k = 0; k < 1000; k++) pump.Get();
-      putchar('.');
-      if( keypressed() ) break;
-    }
-  }
-  catch( DS_empty & ) { printf( "finished\n" ); }
-  catch( DataPipeException &e ) { printf( "%s\n", e.what()); }
-
-  tb.Pg_Stop();
-  printf( " \n" );
-#ifdef DAQOPENCLOSE
-  tb.Daq_Stop();
-  tb.Daq_Close();
-#endif
-  tb.Flush();
-
-  Log.section( "ADCPEAK" );
-  l.Report( Log.File(), 0, 255 );
-  FILE *f = fopen( "adchisto\\adchisto.txt", "wt" );
-  if( f ) {
-    l.Report( f, 0, 255 );
-    fclose(f);
-  }
-  else
-    printf( "Error writing adchisto.txt\n" );
-
-  Log.flush();
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(adchisto)
-{
-  CDtbSource src(tb, false);
-  CDataRecordScanner rec;
-  CRocDecoder dec;
-  CLevelHisto l(0);
-  CSink<CRocEvent*> pump;
-
-  src >> rec >> dec >> l >> pump;
-
-  //	tb.roc_SetDAC(WBC,  15);
-  tb.roc_SetDAC(CtrlReg,0x04); // high range
-
-  tb.Pg_SetCmd(0, PG_RESR + 25);
-  tb.Pg_SetCmd(1, PG_CAL  + 20);
-  tb.Pg_SetCmd(2, PG_TRG  + 16);
-  tb.Pg_SetCmd(3, PG_TOK);
-  tb.uDelay(100);
-  tb.Flush();
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open(Blocksize);
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
-
-  tb.Daq_Start();
-  tb.uDelay(10);
-  tb.roc_Pix_Trim( 5, 5, 15 );
-  tb.roc_Pix_Cal( 5, 5 );
-
-  tb.uDelay(100);
-
-  tb.roc_SetDAC( Vcal, 0 );
-  tb.Pg_Loop(2000);
-  try {
-    for( int t = 20; t < 120; t++ ) {
-      tb.roc_SetDAC( Vcal, t );
-      for( int s = 100; s < 130; s++ ) {
-	tb.roc_SetDAC( VoffsetRO, s );
-	tb.uDelay(100);
-	for( int i = 0; i < 500; i++ ) pump.Get();
-      }
-      putchar('.');
-      if( keypressed()) break;
-    }
-  }
-  catch (DS_empty &) { printf( "finished\n" ); }
-  catch (DataPipeException &e) { printf( "%s\n", e.what()); }
-  printf( "\n" );
-  tb.Pg_Stop();
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Stop();
-  tb.Daq_Close();
-#endif
-  tb.Flush();
-
-  Log.section( "ADCHISTO" );
-  l.Report(Log.File(), 0, 255);
-  FILE *f = fopen( "adchisto\\adchisto.txt", "wt" );
-  if( f ) {
-    l.Report(f, 0, 255);
-    fclose(f);
-  }
-  else
-    printf( "Error writing adchisto.txt\n" );
-
-  Log.flush();
-  return true;
-}
-
-//------------------------------------------------------------------------------
-class CAdcLevelHisto : public CAnalyzer
-{
-  unsigned int n;
-  unsigned int m;
-  CRocEvent* Read();
-public:
-  unsigned int h[256];
-  CAdcLevelHisto() { Clear(); }
-  void Clear();
-  double Mean() { return n ? double(m)/n : 0.0; }
-  void Report( FILE *f, int min, int max );
-};
-
-//------------------------------------------------------------------------------
-void CAdcLevelHisto::Clear()
-{
-  n = m = 0;
-  for( int i=0; i<256; i++ )
-    h[i] = 0;
-}
-
-//------------------------------------------------------------------------------
-CRocEvent* CAdcLevelHisto::Read()
-{
-  CRocEvent* ev = Get();
-  if( ev->pixel.size() > 0 ) {
-    unsigned int x = ev->pixel[0].ph;
-    if( x < 256 ) {
-      h[x]++;
-      m += x;
-      n++;
-    }
-  }
-  return ev;
-};
-
-//------------------------------------------------------------------------------
-void CAdcLevelHisto::Report( FILE *f, int min, int max )
-{
-  if( min < 0 ) min = 0;
-  if( max >= 256 ) max = 255;
-  fprintf( f, " %5.1f", Mean() );
-  for( int i = min; i <= max; i++ ) fprintf( f, " %3u", h[i] );
-  fprintf( f, "\n" );
-}
-
-//------------------------------------------------------------------------------
-#ifdef PLOT
-CMD_PROC(adctransfer)
-{
-  int mode;
-  PAR_INT(mode, 0, 1);
-
-  FILE *f = fopen( "adchisto\\adctransfer.txt", "wt" );
-  if( !f ) {
-    printf( "Error open adctransfer.txt\n" );
-    return true;
-  }
-  //CDotPlot plot;
-
-  CDtbSource src(tb, false);
-  CDataRecordScanner rec;
-  CRocDecoder dec;
-  CAdcLevelHisto l;
-  CSink<CRocEvent*> pump;
-  src >> rec >> dec >> l >> pump;
-
-  tb.Pg_SetCmd(0, PG_RESR + 25);
-  tb.Pg_SetCmd(1, PG_CAL  + 20);
-  tb.Pg_SetCmd(2, PG_TRG  + 16);
-  tb.Pg_SetCmd(3, PG_TOK);
-  tb.uDelay(100);
-  tb.Flush();
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open(Blocksize);
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
-
-  tb.Daq_Start();
-  tb.uDelay(10);
-  //tb.roc_Pix_Trim(5, 5, 15);
-  //tb.roc_Pix_Cal( 5, 5);
-
-  tb.uDelay(100);
-  const int cntPerStep = 100;
-  try {
-#define DAC_PARAM
-#ifdef DAC_PARAM
-    for( int offs = 0; offs <= 256; offs += 32 ) {
-      tb.roc_SetDAC( VoffsetRO, (offs == 256) ? 255 : offs );
-#endif
-      for( int t = 40; t < 200; t += 1 ) {
-	l.Clear();
-	tb.roc_SetDAC( Vcal, t );
-	tb.uDelay(100);
-	int s;
-	for( s = 0; s < cntPerStep; s++ ) {
-	  tb.Pg_Single();
-	  tb.uDelay(100);
-	}
-	for( s = 0; s < cntPerStep; s++ ) pump.Get();
-
-	if( mode == 1 )
-	  for( s = 0; s < 256; s++ )
-	    plot.Add( t, s, l.h[s] );
-	else
-	  plot.AddMean( t, l.Mean() );
-
-	fprintf( f, "%3i ", t );
-	l.Report( f, 0, 255 );
-	putchar( '.' );
-	if( keypressed() ) break;
-      }
-#ifdef DAC_PARAM
-    }
-#endif
-  }
-  catch (DS_empty &) { printf( "finished\n" ); }
-  catch (DataPipeException &e) { printf( "%s\n", e.what()); }
-  printf( "\n" );
-
-  tb.Pg_Stop();
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Stop();
-  tb.Daq_Close();
-#endif
-  tb.Flush();
-
-  fclose(f);
-  plot.Show();
-
-  return true;
-}
-#endif
-
-//------------------------------------------------------------------------------
-void adctest_single()
-{
-  /*
-    int x, y = 10;
-    tb.Daq_Start();
-    for( x=0; x<ROC_NUMCOLS; x++)
-    {
-    tb.roc_Pix_Trim(x, y, 0);
-    tb.Pg_Single();
-    tb.uDelay(100);
-    tb.roc_Pix_Mask(x, y);
-    }
-    tb.Daq_Stop();
-
-    CReadout data;
-    data.Init();
-
-    int p[ROC_NUMCOLS];
-    for( x=0; x<ROC_NUMCOLS; x++)
-    {
-    data.Read();
-    p[x] = (data.pixel.size() != 0)? (data.pixel.front()).ph : -1;
-    }
-
-    Log.section( "ADCTEST" );
-    for( x=0; x<ROC_NUMCOLS; x++) Log.printf( " %3i", p[x]);
-    Log.printf( "\n" );
-  */
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(adctest)
-{
-  tb.roc_SetDAC( WBC, 100 );
-  tb.roc_SetDAC( Vcal, 20 );
-  tb.roc_SetDAC( CtrlReg, 0x04 ); // high range
-
-  tb.Pg_SetCmd( 0, PG_RESR +  25 );
-  tb.Pg_SetCmd( 1, PG_CAL  + 100 );
-  tb.Pg_SetCmd( 2, PG_TRG  +  16 );
-  tb.Pg_SetCmd( 3, PG_TOK );
-  tb.uDelay(100);
-  tb.Flush();
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open(Blocksize);
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
-
-  // single pixel readout
-  try {
-    adctest_single();
-  }
-  catch( int e ) {
-    printf( "ERROR %i\n", e);
-  }
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Close();
-#endif
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(ethsend)
-{
-  char msg[45];
-  PAR_STRINGEOL( msg, 45 );
-  string message = msg;
-  tb.Ethernet_Send(message);
-  DO_FLUSH;
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(ethrx)
-{
-  unsigned int n = tb.Ethernet_RecvPackets();
-  printf( "%u packets received\n", n);
-  return true;
-}
-
-//------------------------------------------------------------------------------
-void PrintScale(int min, int max)
-{
-  int x;
-  Log.puts( "     |" );
-  for( x=min; x<=max; x++) Log.printf( "%i", (x/100)%10);
-  Log.puts( "\n     |" );
-  for( x=min; x<=max; x++) Log.printf( "%i", (x/10)%10);
-  Log.puts( "\n     |" );
-  for( x=min; x<=max; x++) Log.printf( "%i", x%10);
-  Log.puts( "\n-----+" );
-  for( x=min; x<=max; x++) Log.puts( "-" );
-  Log.puts( "\n" );
-}
-
-//------------------------------------------------------------------------------
-void Scan1D( int vx, int xmin, int xmax )
-{
-  int x, k;
-  vector<uint16_t> data;
-
-  // --- take data
-  tb.Daq_Start();
-  for( x = xmin; x <= xmax; x++ ) {
-    tb.roc_SetDAC( vx, x );
-    tb.uDelay(100);
-
-    for( k = 0; k < 10; k++ ) {
-      tb.Pg_Single();
-      tb.uDelay(5);
-    }
-  }
-  //tb.Daq_Stop();
-  tb.Daq_Read( data, 10000 );
-
-  // --- analyze data
-  int pos = 0, count;
-  int spos = 0;
-  char s[260];
-  PixelReadoutData pix;
-  int err = 0;
-
-  for( x = xmin; x <= xmax; x++ ) {
-
-    count = 0;
-
-    for( k = 0; k < 10; k++ ) {
-
-      err = DecodePixel( data, pos, pix );
-
-      if( err )
-	cout << "error " << err << " at trig " << k
-	     << ", dac " << x
-	     << ", pos " << pos
-	     << endl;
-      if( err ) break;
-      if( pix.n > 0 ) count++;
-    }
-    if( err ) break;
-    if( count == 0) s[spos++] = '.';
-    else if( count >= 10 ) s[spos++] = '*';
-    else s[spos++] = count + '0';
-  }
-
-  s[spos] = 0;
-  Log.printf( "%s\n", s);
-  Log.flush();
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(shmoo)
-{
-  int vx, xmin, xmax, vy, ymin, ymax;
-  PAR_INT(vx, 0, 0xff );
-  PAR_RANGE( xmin, xmax, 0, 255 );
-  PAR_INT( vy, 0, 0xff );
-  PAR_RANGE( ymin, ymax, 0, 255 );
-
-  int count = xmax-xmin+1;
-  if( count < 1 || count > 256) return true;
-
-  Log.section( "SHMOO", false );
-  Log.printf( "regX(%i)=%i:%i;  regY(%i)=%i:%i\n",
-	     vx, xmin, xmax, vy, ymin, ymax );
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open(Blocksize);
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
-
-  PrintScale( xmin, xmax );
-  for( int y = ymin; y <= ymax; y++ ) {
-    tb.roc_SetDAC( vy, y );
-    tb.uDelay(100);
-    Log.printf( "%5i|", y );
-    Scan1D( vx, xmin, xmax );
-  }
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Close();
-#endif
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(phscan)
-{
-  int col, row;
-  PAR_INT(col, 0, 51);
-  PAR_INT(row, 0, 79);
-
-  const int vcalmin = 0;
-  const int vcalmax = 140;
-
-  // load settings
-  //	tb.roc_SetDAC(CtrlReg,0x00); // 0x04
-
-  tb.Pg_Stop();
-  tb.Pg_SetCmd( 0, PG_RESR + 15 );
-  tb.Pg_SetCmd( 1, PG_CAL  + 20 );
-  tb.Pg_SetCmd( 2, PG_TRG  + 16 );
-  tb.Pg_SetCmd( 3, PG_TOK);
-
-  tb.roc_SetDAC( WBC, 15 );
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open(Blocksize);
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
-  tb.Daq_Start();
-
-  // scan vcal
-  tb.roc_Col_Enable( col, true  );
-  tb.roc_Pix_Trim( col, row, 15 );
-  tb.roc_Pix_Cal( col, row, false );
-
-  for( int cal = vcalmin; cal < vcalmax; cal++ ) {
-    tb.roc_SetDAC( Vcal, cal );
-    tb.uDelay(100);
-
-    for( int k = 0; k < 5; k++ ) {
-      tb.Pg_Single();
-      tb.uDelay(50);
-    }
-  }
-
-  tb.roc_Pix_Mask(col, row);
-  tb.roc_Col_Enable(col, false);
-  tb.roc_ClrCal();
-
-  //tb.Daq_Stop();
-  vector<uint16_t> data;
-  tb.Daq_Read(data, 4000);
-#ifdef DAQOPENCLOSE
-  tb.Daq_Close();
-#endif
-
-  // decode:
-
-  PixelReadoutData pix;
-
-  int pos = 0;
-  int dpos = 0;
-  vector<double> y(vcalmax-vcalmin, 0.0);
-  int err = 0;
-
-  for( int cal = vcalmin; cal < vcalmax; cal++) {
-    int cnt = 0;
-    double yi = 0.0;
-    for( int k = 0; k < 5; k++ ) {
-      err = DecodePixel( data, pos, pix );
-      if( err )
-	cout << "error " << err << " at trig " << k
-	     << ", dac " << cal
-	     << ", pos " << pos
-	     << endl;
-      if( err ) break;
-      if( pix.n > 0) { yi += pix.p; cnt++; }
-    }
-    if( err ) break;
-    y[dpos++] = (cnt > 0) ? yi/cnt : 0.0;
-  }
-
-  //PlotData( "ADC scan", "Vcal", "ADC value", double(vcalmin), double(vcalmax), y);
 
   return true;
 }
@@ -10614,7 +9875,9 @@ CMD_PROC(h)
 //------------------------------------------------------------------------------
 void cmd() // called once from psi46test
 {
-  // --- connection, startup commands ----------------------------------
+  CMD_REG( showtb,   "showtb                        print DTB state" );
+  CMD_REG( status,   "status                        shows testboard status" );
+  CMD_REG( showhv,   "show hv                       status of iseg HV supply" );
   CMD_REG( scan,     "scan                          enumerate USB devices" );
   CMD_REG( open,     "open <name>                   open connection to testboard" );
   CMD_REG( close,    "close                         close connection to testboard" );
@@ -10629,6 +9892,37 @@ void cmd() // called once from psi46test
   CMD_REG( init,     "init                          inits the testboard" );
   CMD_REG( flush,    "flush                         flushes usb buffer" );
   CMD_REG( clear,    "clear                         clears usb data buffer" );
+
+  CMD_REG( udelay,   "udelay <us>                   waits <us> microseconds" );
+  CMD_REG( mdelay,   "mdelay <ms>                   waits <ms> milliseconds" );
+
+  CMD_REG( d1,       "d1 <signal>                   assign signal to D1 output" );
+  CMD_REG( d2,       "d2 <signal>                   assign signal to D2 outout" );
+  CMD_REG( a1,       "a1 <signal>                   assign analog signal to A1 output" );
+  CMD_REG( a2,       "a2 <signal>                   assign analog signal to A2 outout" );
+  CMD_REG( probeadc, "probeadc <signal>             assign analog signal to ADC" );
+
+  CMD_REG( clksrc,   "clksrc <source>               Select clock source" );
+  CMD_REG( clkok,    "clkok                         Check if ext clock is present" );
+  CMD_REG( fsel,     "fsel <freqdiv>                clock frequency select" );
+  CMD_REG( stretch,  "stretch <src> <delay> <width> stretch clock" );
+
+  CMD_REG( clk,      "clk <delay>                   clk delay" );
+  CMD_REG( ctr,      "ctr <delay>                   ctr delay" );
+  CMD_REG( sda,      "sda <delay>                   sda delay" );
+  CMD_REG( tin,      "tin <delay>                   tin delay" );
+  CMD_REG( clklvl,   "clklvl <level>                clk signal level" );
+  CMD_REG( ctrlvl,   "ctrlvl <level>                ctr signel level" );
+  CMD_REG( sdalvl,   "sdalvl <level>                sda signel level" );
+  CMD_REG( tinlvl,   "tinlvl <level>                tin signel level" );
+  CMD_REG( clkmode,  "clkmode <mode>                clk mode" );
+  CMD_REG( ctrmode,  "ctrmode <mode>                ctr mode" );
+  CMD_REG( sdamode,  "sdamode <mode>                sda mode" );
+  CMD_REG( tinmode,  "tinmode <mode>                tin mode" );
+
+  CMD_REG( sigoffset,"sigoffset <offset>            output signal offset" );
+  CMD_REG( lvds,     "lvds                          LVDS inputs" );
+  CMD_REG( lcds,     "lcds                          LCDS inputs" );
 
   CMD_REG( pon,      "pon                           switch ROC power on" );
   CMD_REG( poff,     "poff                          switch ROC power off" );
@@ -10646,45 +9940,12 @@ void cmd() // called once from psi46test
   CMD_REG( hvon,     "hvon                          switch HV on" );
   CMD_REG( hvoff,    "hvoff                         switch HV off" );
   CMD_REG( vb,       "vb <V>                        set -Vbias in V" );
-  CMD_REG( showhv,   "show hv                       status of iseg HV supply" );
 
   CMD_REG( reson,    "reson                         activate reset" );
   CMD_REG( resoff,   "resoff                        deactivate reset" );
-  CMD_REG( status,   "status                        shows testboard status" );
   CMD_REG( rocaddr,  "rocaddr                       set ROC address" );
   CMD_REG( rowinvert,"rowinvert                     invert row address psi46dig" );
-
-  CMD_REG( udelay,   "udelay <us>                   waits <us> microseconds" );
-  CMD_REG( mdelay,   "mdelay <ms>                   waits <ms> milliseconds" );
-
-  CMD_REG( clk,      "clk <delay>                   clk delay" );
-  CMD_REG( ctr,      "ctr <delay>                   ctr delay" );
-  CMD_REG( sda,      "sda <delay>                   sda delay" );
-  CMD_REG( tin,      "tin <delay>                   tin delay" );
-  CMD_REG( clklvl,   "clklvl <level>                clk signal level" );
-  CMD_REG( ctrlvl,   "ctrlvl <level>                ctr signel level" );
-  CMD_REG( sdalvl,   "sdalvl <level>                sda signel level" );
-  CMD_REG( tinlvl,   "tinlvl <level>                tin signel level" );
-  CMD_REG( clkmode,  "clkmode <mode>                clk mode" );
-  CMD_REG( ctrmode,  "ctrmode <mode>                ctr mode" );
-  CMD_REG( sdamode,  "sdamode <mode>                sda mode" );
-  CMD_REG( tinmode,  "tinmode <mode>                tin mode" );
-  CMD_REG( showtb,   "showtb                        print DTB state" );
-
-  CMD_REG( sigoffset,"sigoffset <offset>            output signal offset" );
-  CMD_REG( lvds,     "lvds                          LVDS inputs" );
-  CMD_REG( lcds,     "lcds                          LCDS inputs" );
-
-  CMD_REG( clksrc,   "clksrc <source>               Select clock source" );
-  CMD_REG( clkok,    "clkok                         Check if ext clock is present" );
-  CMD_REG( fsel,     "fsel <freqdiv>                clock frequency select" );
-  CMD_REG( stretch,  "stretch <src> <delay> <width> stretch clock" );
-
-  CMD_REG( d1,       "d1 <signal>                   assign signal to D1 output" );
-  CMD_REG( d2,       "d2 <signal>                   assign signal to D2 outout" );
-  CMD_REG( a1,       "a1 <signal>                   assign analog signal to A1 output" );
-  CMD_REG( a2,       "a2 <signal>                   assign analog signal to A2 outout" );
-  CMD_REG( probeadc, "probeadc <signal>             assign analog signal to ADC" );
+  CMD_REG( chip,     "chip num                      set chip number" );
 
   CMD_REG( pgset,    "pgset <addr> <bits> <delay>   set pattern generator entry" );
   CMD_REG( pgstop,   "pgstop                        stops pattern generator" );
@@ -10717,20 +9978,6 @@ void cmd() // called once from psi46test
   CMD_REG( modsel,   "modsel <hub>                  set hub address for module" );
   CMD_REG( tbmset,   "tbmset <reg> <value>          set TBM register" );
 
-  CMD_REG( adcsingle,"adcsingle                     ADC problem test 3" );
-  CMD_REG( adchisto, "adchisto                      ADC problem test 1" );
-  CMD_REG( adcpeak,  "adcpeak                       ADC problem test 2" );
-#ifdef PLOT
-  CMD_REG( adctransfer, "adctransfer" );
-#endif
-  CMD_REG( analyze,  "analyze                       test analyzer chain" );
-  CMD_REG( readback, "readback                      extended read back" );
-
-  CMD_REG( adctest,  "adctest                       check ADC pulse height readout" );
-  CMD_REG( ethsend,  "ethsend <string>              send <string> in a Ethernet packet" );
-  CMD_REG( ethrx,    "ethrx                         shows number of received packets" );
-  CMD_REG( shmoo,    "shmoo vx xrange vy ymin yrange" );
-  CMD_REG( phscan,   "phscan                        ROC pulse height scan" );
   CMD_REG( readback, "readback                      read out ROC data" );
 
   CMD_REG( dselmod,  "dselmod                       select deser400 for DAQ channel 0" );
@@ -10811,47 +10058,6 @@ void cmd() // called once from psi46test
     for( size_t idac = 0; idac < 256; ++idac )
       dacval[iroc][idac] = -1;
 
-  dacnam[  1] = "Vdig      ";
-  dacnam[  2] = "Vana      ";
-  dacnam[  3] = "Vsf       ";
-  dacnam[  3] = "Vsh       "; // digV2.1
-  dacnam[  4] = "Vcomp     ";
-
-  dacnam[  5] = "Vleak_comp"; // only analog
-  dacnam[  6] = "VrgPr     "; // removed on dig
-  dacnam[  7] = "VwllPr    ";
-  dacnam[  8] = "VrgSh     "; // removed on dig
-  dacnam[  9] = "VwllSh    ";
-
-  dacnam[ 10] = "VhldDel   ";
-  dacnam[ 11] = "Vtrim     ";
-  dacnam[ 12] = "VthrComp  ";
-
-  dacnam[ 13] = "VIBias_Bus";
-  dacnam[ 14] = "Vbias_sf  ";
-
-  dacnam[ 15] = "VoffsetOp ";
-  dacnam[ 16] = "VIbiasOp  "; // analog
-  dacnam[ 17] = "VoffsetRO "; //
-  dacnam[ 17] = "PHOffset  "; // digV2.1
-  dacnam[ 18] = "VIon      ";
-
-  dacnam[ 19] = "Vcomp_ADC "; // dig
-  dacnam[ 20] = "VIref_ADC "; // dig
-  dacnam[ 20] = "PHScale   "; // digV2.1
-  dacnam[ 21] = "VIbias_roc"; // analog
-  dacnam[ 22] = "VIColOr   ";
-
-  dacnam[ 25] = "VCal      ";
-  dacnam[ 26] = "CalDel    ";
-
-  dacnam[ 31] = "VD        ";
-  dacnam[ 32] = "VA        ";
-
-  dacnam[253] = "CtrlReg   ";
-  dacnam[254] = "WBC       ";
-  dacnam[255] = "RBReg";
-
   // init globals (to something other than the default zero):
 
   for( int roc = 0; roc < 16; ++roc )
@@ -10860,33 +10066,6 @@ void cmd() // called once from psi46test
 	modthr[roc][col][row] = 255;
 	modtrm[roc][col][row] =  15;
       }
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // gain file:
-
-  ifstream gainFile( gainFileName.c_str() );
-
-  if( gainFile ) {
-
-    haveGain = 1;
-    cout << "gainFile: " << gainFileName << endl;
-
-    char ih[99];
-    int icol;
-    int irow;
-
-    while( gainFile >> ih ) {
-      gainFile >> icol;
-      gainFile >> irow;
-      gainFile >> p0[icol][irow];
-      gainFile >> p1[icol][irow];
-      gainFile >> p2[icol][irow];
-      gainFile >> p3[icol][irow];
-      gainFile >> p4[icol][irow];
-      gainFile >> p5[icol][irow];
-    }
-
-  } // gainFile
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // set ROOT styles:
@@ -10982,6 +10161,5 @@ void cmd() // called once from psi46test
       */
     }
   }
-
 
 }
