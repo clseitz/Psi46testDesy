@@ -985,51 +985,51 @@ CMD_PROC(chip)
     cout << "SetPixelAddressInverted" << endl;
   }
 
-  dacName[  1] = "Vdig      ";
-  dacName[  2] = "Vana      ";
+  dacName[  1] = "Vdig";
+  dacName[  2] = "Vana";
   if( Chip < 400 )
-    dacName[  3] = "Vsf       ";
+    dacName[  3] = "Vsf";
   else
-    dacName[  3] = "Vsh       "; // digV2.1
-  dacName[  4] = "Vcomp     ";
+    dacName[  3] = "Vsh"; // digV2.1
+  dacName[  4] = "Vcomp";
 
   dacName[  5] = "Vleak_comp"; // only analog
-  dacName[  6] = "VrgPr     "; // removed on dig
-  dacName[  7] = "VwllPr    ";
-  dacName[  8] = "VrgSh     "; // removed on dig
-  dacName[  9] = "VwllSh    ";
+  dacName[  6] = "VrgPr"; // removed on dig
+  dacName[  7] = "VwllPr";
+  dacName[  8] = "VrgSh"; // removed on dig
+  dacName[  9] = "VwllSh";
 
-  dacName[ 10] = "VhldDel   ";
-  dacName[ 11] = "Vtrim     ";
-  dacName[ 12] = "VthrComp  ";
+  dacName[ 10] = "VhldDel";
+  dacName[ 11] = "Vtrim";
+  dacName[ 12] = "VthrComp";
 
   dacName[ 13] = "VIBias_Bus";
-  dacName[ 14] = "Vbias_sf  ";
+  dacName[ 14] = "Vbias_sf";
 
-  dacName[ 15] = "VoffsetOp ";
-  dacName[ 16] = "VIbiasOp  "; // analog
+  dacName[ 15] = "VoffsetOp";
+  dacName[ 16] = "VIbiasOp"; // analog
   if( Chip < 400 )
-    dacName[ 17] = "VoffsetRO "; //
+    dacName[ 17] = "VoffsetRO"; //
   else
-    dacName[ 17] = "PHOffset  "; // digV2.1
-  dacName[ 18] = "VIon      ";
+    dacName[ 17] = "PHOffset"; // digV2.1
+  dacName[ 18] = "VIon";
 
-  dacName[ 19] = "Vcomp_ADC "; // dig
+  dacName[ 19] = "Vcomp_ADC"; // dig
   if( Chip < 400 )
-    dacName[ 20] = "VIref_ADC "; // dig
+    dacName[ 20] = "VIref_ADC"; // dig
   else
-    dacName[ 20] = "PHScale   "; // digV2.1
+    dacName[ 20] = "PHScale"; // digV2.1
   dacName[ 21] = "VIbias_roc"; // analog
-  dacName[ 22] = "VIColOr   ";
+  dacName[ 22] = "VIColOr";
 
-  dacName[ 25] = "VCal      ";
-  dacName[ 26] = "CalDel    ";
+  dacName[ 25] = "VCal";
+  dacName[ 26] = "CalDel";
 
-  dacName[ 31] = "VD        ";
-  dacName[ 32] = "VA        ";
+  dacName[ 31] = "VD";
+  dacName[ 32] = "VA";
 
-  dacName[253] = "CtrlReg   ";
-  dacName[254] = "WBC       ";
+  dacName[253] = "CtrlReg";
+  dacName[254] = "WBC";
   dacName[255] = "RBReg";
 
   string gainFileName;
