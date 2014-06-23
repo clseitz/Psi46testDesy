@@ -8868,6 +8868,11 @@ CMD_PROC(bbtest) // bump bond test
   cout << ">50% pixels: " << nActive << endl;
   cout << "100% pixels: " << nPerfect << endl;
 
+  Log.printf( "[Bump Statistic] \n");
+  Log.printf( " >0 pixels %i \n", nok );
+  Log.printf( " >50 pixels %i \n", nActive );
+  Log.printf( " >100 pixels %i \n", nPerfect );
+
   if( nok > 0 ) {
     cout << "PH min " << phmin << ", max " << phmax << endl;
     double mid = sum / nok;
