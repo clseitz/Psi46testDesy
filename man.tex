@@ -748,16 +748,16 @@ for further analysis.
 
 \texttt{root -l scurves-c405-trim30.root}
 
-\texttt{.x ROCscurve\_fit.C}
+\texttt{.x ROCscurve\_fit.C+}
 
-This will run for some time and produce two output files: minscurves.ps
-(containing all the s-curve plots/fits for each pixel) and fit\_results\_scurve.root
+This will run for a bit and produce two output files: minscurves.ps
+(containing all the s-curve plots/fits for each pixel) and fit\_results\_scurve\_\{originalname\}.root
 (containing a tree with threshold, sigma, fit stauts, and chisquare
 for each pixel).
 
 The tree output file can be further analyzed with the following macro:
 
-\texttt{root -l fit\_results\_scurves-c405-trim36.root}
+\texttt{root -l fit\_results\_\{originalname\}.root}
 
 \texttt{.x ROCscurve\_ana.C}
 
