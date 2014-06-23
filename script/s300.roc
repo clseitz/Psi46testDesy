@@ -21,10 +21,10 @@ ctrlvl 10
 sdalvl 10
 tinlvl 10
 
---- pattern generator: set redout timing --------------------
+--- pattern generator: reset cal trig token
 pgstop
 pgset 0 b101000  25  pg_resr pg_sync
-pgset 1 b000100 165  pg_cal, set WBC = pg_cal - 6
+pgset 1 b000100 105  pg_cal, set WBC = pg_cal - 6, < 160 for tb.PixelThreshold
 pgset 2 b000010  16  pg_trg  
 pgset 3 b000001   0  pg_tok, end of pgset
 
@@ -78,7 +78,7 @@ dac  25  222  Vcal
 dac  26  134  CalDel
 
 dac 253    4  CtrlReg
-dac 254  159  WBC (159 to get 79 pixel/DC, but not 80 = erase)
+dac 254   99  WBC
 
 flush
 
