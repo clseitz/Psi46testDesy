@@ -4714,7 +4714,7 @@ CMD_PROC(caldelmap) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
   bool xtalk = 0;
   bool cals = 0;
 
-#ifdef DAQOPENCLOSE
+#ifndef DAQOPENCLOSE
   tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
   tb.Daq_Close();
 #endif
@@ -4773,6 +4773,7 @@ CMD_PROC(caldelmap) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
 
 #ifndef DAQOPENCLOSE
   tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 #endif
 
   tb.Flush();
@@ -6264,7 +6265,7 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
   const int vdac = dacval[0][dac];
 
   const int vctl = dacval[0][CtrlReg];
-  tb.SetDAC( CtrlReg, 0 );
+  tb.SetDAC( CtrlReg, 0 ); // small Vcal
 
   int nTrig = 20;
   int start = 30;
@@ -6288,14 +6289,14 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
 		dacName[dac].c_str(), col, row, trim, dacName[dac].c_str() ),
 	  nstp, dacstrt-0.5, dacstop+0.5 );
 
-  tb.roc_Col_Enable( col, true );
-  tb.roc_Pix_Trim( col, row, trim );
-
-#ifdef DAQOPENCLOSE
+#ifndef DAQOPENCLOSE
   tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
   tb.Daq_Close();
   tb.uDelay(1000);
 #endif
+
+  tb.roc_Col_Enable( col, true );
+  tb.roc_Pix_Trim( col, row, trim );
 
   tb.Flush();
 
@@ -6307,6 +6308,12 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
     tb.SetDAC( dac, i );
     tb.uDelay(1000);
     tb.Flush();
+
+    // NIOS code pixel_dtb.cc
+    //for( int16_t i = 0; i < nTriggers; i++) {
+    //  Pg_Single();
+    //  uDelay(4); // 4 us => WBC < 160
+    //}
 
     int thr = tb.PixelThreshold( col, row,
 				 start, step,
@@ -6340,6 +6347,7 @@ CMD_PROC(thrdac) // thrdac col row dac (thr vs dac)
 
 #ifndef DAQOPENCLOSE
   tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 #endif
 
   tb.Flush();
@@ -6927,7 +6935,7 @@ void RocThrMap( int roc, int start, int step,
 
   tb.roc_I2cAddr(roc); // just to be sure
 
-#ifdef DAQOPENCLOSE
+#ifndef DAQOPENCLOSE
   tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
   tb.Daq_Close();
   tb.uDelay(1000);
@@ -6970,6 +6978,7 @@ void RocThrMap( int roc, int start, int step,
 
 #ifndef DAQOPENCLOSE
   tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 #endif
 
   tb.Flush();
@@ -7606,7 +7615,7 @@ CMD_PROC(vthrcomp)
     int tbits = modtrm[roc][colmin][rowmin];
     tb.roc_Pix_Trim( colmin, rowmin, tbits );
 
-#ifdef DAQOPENCLOSE
+#ifndef DAQOPENCLOSE
     tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
     tb.Daq_Close();
     tb.uDelay(1000);
@@ -7661,6 +7670,7 @@ CMD_PROC(vthrcomp)
 
 #ifndef DAQOPENCLOSE
   tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.Flush();
 #endif
 
@@ -7795,7 +7805,7 @@ CMD_PROC(trim)
 		  colmax, rowmax ),
 	    128, 0, 256 );
 
-#ifdef DAQOPENCLOSE
+#ifndef DAQOPENCLOSE
     tb.Daq_Stop(); // tb.PixelThreshold starts with Daq_Open
     tb.Daq_Close();
     tb.uDelay(1000);
@@ -7985,6 +7995,7 @@ CMD_PROC(trim)
 
 #ifndef DAQOPENCLOSE
   tb.Daq_Open( tbState.GetDaqSize() ); // PixelThreshold ends with dclose
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.Flush();
 #endif
 
