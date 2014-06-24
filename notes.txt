@@ -1,66 +1,65 @@
 
-Wed 15.5.2014
-upgrade dtb_v2.19.flash
-
-Wed 14.5.2014
-upgrade dtb_v2.17.flash
-
-Fri 2.5.2014
-upgrade dtb_v2.14.flash
-
 v2.02  Beat's 2.1
 v2.03  new FLAG_FORCE_MASKED in Loops: one pixel at a time, trim 15
 v2.04  DAC correction table
 v2.05  bug fix for FLAG_FORCE_MASKED
 v2.06  load trim bits
 v2.07  setLoopTriggerDelay [us]
-
 v2.10  Daq_FillLevel, bool Loop... true = done, false = interrupt
-
-v2.14  SetLoopTriggerDelay [BC]
-v2.15  SetTrimValues uint8 instead int8
-v2.17  Faster Daq_FillLevel() in TriggerLoops
-v2.18  FW 2.2 from Beat: fix missing 2 bytes problem
-v2.19  FLAG_FORCE_MASKED is now default, overide with FLAG_FORCE_UNMASKED
+v2.11  (22.4.2014)
+v2.14  (28.4.2014 Simon) SetLoopTriggerDelay [BC]
+v2.15  (12.5.2014 Simon) SetTrimValues uint8 instead int8
+v2.17  (13.5.2014 Simon) Faster Daq_FillLevel() in TriggerLoops
+v2.18  (14.5.2014 Beat)  FW 2.2: fix missing 2 bytes problem (not always)
+v2.19  (15.5.2014 Simon) FLAG_FORCE_MASKED is now default, overide with FLAG_FORCE_UNMASKED
+v2.20  (16.5.2014 Simon) triggerDelay auto calculation (for modules)
+V2.21  (21.5.2014 Simon) Pg_Triggers(uint32_t triggers, uint16_t period [BC])
+v2.22  ( 6.6.2014 Beat)  FW 2.3 with 32 bit transfer into RAM
 
 --------------------------------------------------------------------------------
 
-rpc_calls updated
+update rpc_calls.cpp with tools:
 
 git clone https://github.com/psi46/pixel-dtb-firmware.git
-mv pixel-dtb-firmware/  pixel-dtb-firmware-2-17
+mv pixel-dtb-firmware/  pixel-dtb-firmware-2-22
 
 cd tools-16MB/rpcgen
-generate.sh ~/psi/dtb/pixel-dtb-firmware-2-17/software/dtb_expert/pixel_dtb.h
+generate.sh ~/psi/dtb/pixel-dtb-firmware-2-22/software/dtb_expert/pixel_dtb.h
 
-cd tst217
+cd tst222
 cp ../tools-16MB/rpcgen/rpc_calls.cpp .
 
-up date pixel_dtb.h
+manually update pixel_dtb.h
 (compare to pxar/core/rpc/rpc_calls.h)
 
 make
 
-cp ../pixel-dtb-firmware-2-17/FLASH/dtb_v2.17.flash .
+cp ../pixel-dtb-firmware-2-22/FLASH/dtb_v2.22.flash .
 
-upgrade
+> upgrade dtb_v2.22.flash
 
-psi46test for DTB V2.0 (18.3.2014)
+psi46test for DTB V2.2 (20.6.2014)
 USB opened DTB_WS6RT9
 DTB DTB_WS6RT9 opened
 --- DTB info-------------------------------------
 Board id:    80
 HW version:  DTB1.2
 FW version:  2.2
-SW version:  2.19
+SW version:  2.21
 USB id:      DTB_WS6RT9
 MAC address: 40D855118050
 Hostname:    pixelDTB080
+Comment:     
+-------------------------------------------------
+PC  hash 333290928
+DTB hash 333290928
+RPC call hashes of PC and DTB match: 333290928
+
 > rpcinfo
 --- DTB RPC info ----------------------------------------
 RPC version:     2.0
-RPC timestamp:   14.05.2014 13:36:21
-Number of calls: 126
+RPC timestamp:   
+Number of calls: 128
 Function calls:
     0: uint16_t GetRpcVersion();
     1: int32_t GetRpcCallId(string&);
@@ -118,637 +117,80 @@ Function calls:
    53: void SetRocAddress(uint8_t);
    54: void Pg_SetCmd(uint16_t, uint16_t);
    55: void Pg_SetCmdAll(vector<uint16_t>&);
-   56: void Pg_Stop();
-   57: void Pg_Single();
-   58: void Pg_Trigger();
-   59: void Pg_Loop(uint16_t);
-   60: uint32_t Daq_Open(uint32_t, uint8_t);
-   61: void Daq_Close(uint8_t);
-   62: void Daq_Start(uint8_t);
-   63: void Daq_Stop(uint8_t);
-   64: uint32_t Daq_GetSize(uint8_t);
-   65: uint8_t Daq_FillLevel(uint8_t);
-   66: uint8_t Daq_FillLevel();
-   67: uint8_t Daq_Read(HWvectorR&, uint32_t, uint8_t);
-   68: uint8_t Daq_Read(HWvectorR&, uint32_t, uint32_t&, uint8_t);
-   69: void Daq_Select_ADC(uint16_t, uint8_t, uint8_t, uint8_t);
-   70: void Daq_Select_Deser160(uint8_t);
-   71: void Daq_Select_Deser400();
-   72: void Daq_Deser400_Reset(uint8_t);
-   73: void Daq_Select_Datagenerator(uint16_t);
-   74: void Daq_DeselectAll();
-   75: void roc_I2cAddr(uint8_t);
-   76: void roc_ClrCal();
-   77: void roc_SetDAC(uint8_t, uint8_t);
-   78: void roc_Pix(uint8_t, uint8_t, uint8_t);
-   79: void roc_Pix_Trim(uint8_t, uint8_t, uint8_t);
-   80: void roc_Pix_Mask(uint8_t, uint8_t);
-   81: void roc_Pix_Cal(uint8_t, uint8_t, bool);
-   82: void roc_Col_Enable(uint8_t, bool);
-   83: void roc_Col_Mask(uint8_t);
-   84: void roc_Chip_Mask();
-   85: bool TBM_Present();
-   86: void tbm_Enable(bool);
-   87: void tbm_Addr(uint8_t, uint8_t);
-   88: void mod_Addr(uint8_t);
-   89: void tbm_Set(uint8_t, uint8_t);
-   90: bool tbm_Get(uint8_t, uint8_t&);
-   91: bool tbm_GetRaw(uint8_t, uint32_t&);
-   92: bool GetPixelAddressInverted();
-   93: void SetPixelAddressInverted(bool);
-   94: int32_t CountReadouts(int32_t);
-   95: int32_t CountReadouts(int32_t, int32_t);
-   96: int32_t CountReadouts(int32_t, int32_t, int32_t);
-   97: int32_t PH(int32_t, int32_t, int32_t, int16_t);
-   98: int32_t PixelThreshold(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, bool, bool);
-   99: bool test_pixel_address(int32_t, int32_t);
-  100: int8_t CalibratePixel(int16_t, int16_t, int16_t, int16_t&, int32_t&);
-  101: int8_t CalibrateDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
-  102: int8_t CalibrateDacDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
-  103: int16_t TrimChip(vector<int16_t>&);
-  104: int16_t CalibrateMap(int16_t, vectorR<int16_t>&, vectorR<int32_t>&, vectorR<uint32_t>&);
-  105: int16_t TriggerRow(int16_t, int16_t, vector<int16_t>&, int16_t);
-  106: bool TestColPixel(uint8_t, uint8_t, bool, vectorR<uint8_t>&);
-  107: void Ethernet_Send(string&);
-  108: uint32_t Ethernet_RecvPackets();
-  109: void LoopInterruptReset();
-  110: void SetLoopTriggerDelay(uint16_t);
-  111: bool SetI2CAddresses(vector<uint8_t>&);
-  112: bool SetTrimValues(uint8_t, vector<uint8_t>&);
-  113: bool LoopMultiRocAllPixelsCalibrate(vector<uint8_t>&, uint16_t, uint16_t);
-  114: bool LoopMultiRocOnePixelCalibrate(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t);
-  115: bool LoopSingleRocAllPixelsCalibrate(uint8_t, uint16_t, uint16_t);
-  116: bool LoopSingleRocOnePixelCalibrate(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t);
-  117: bool LoopMultiRocAllPixelsDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  118: bool LoopMultiRocOnePixelDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  119: bool LoopSingleRocAllPixelsDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  120: bool LoopSingleRocOnePixelDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  121: bool LoopMultiRocAllPixelsDacDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  122: bool LoopMultiRocOnePixelDacDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  123: bool LoopSingleRocAllPixelsDacDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  124: bool LoopSingleRocOnePixelDacDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  125: void VectorTest(vector<uint16_t>&, vectorR<uint16_t>&);
+   56: void Pg_SetSum(uint16_t);
+   57: void Pg_Stop();
+   58: void Pg_Single();
+   59: void Pg_Trigger();
+   60: void Pg_Triggers(uint32_t, uint16_t);
+   61: void Pg_Loop(uint16_t);
+   62: uint32_t Daq_Open(uint32_t, uint8_t);
+   63: void Daq_Close(uint8_t);
+   64: void Daq_Start(uint8_t);
+   65: void Daq_Stop(uint8_t);
+   66: uint32_t Daq_GetSize(uint8_t);
+   67: uint8_t Daq_FillLevel(uint8_t);
+   68: uint8_t Daq_FillLevel();
+   69: uint8_t Daq_Read(HWvectorR&, uint32_t, uint8_t);
+   70: uint8_t Daq_Read(HWvectorR&, uint32_t, uint32_t&, uint8_t);
+   71: void Daq_Select_ADC(uint16_t, uint8_t, uint8_t, uint8_t);
+   72: void Daq_Select_Deser160(uint8_t);
+   73: void Daq_Select_Deser400();
+   74: void Daq_Deser400_Reset(uint8_t);
+   75: void Daq_Select_Datagenerator(uint16_t);
+   76: void Daq_DeselectAll();
+   77: void roc_I2cAddr(uint8_t);
+   78: void roc_ClrCal();
+   79: void roc_SetDAC(uint8_t, uint8_t);
+   80: void roc_Pix(uint8_t, uint8_t, uint8_t);
+   81: void roc_Pix_Trim(uint8_t, uint8_t, uint8_t);
+   82: void roc_Pix_Mask(uint8_t, uint8_t);
+   83: void roc_Pix_Cal(uint8_t, uint8_t, bool);
+   84: void roc_Col_Enable(uint8_t, bool);
+   85: void roc_Col_Mask(uint8_t);
+   86: void roc_Chip_Mask();
+   87: bool TBM_Present();
+   88: void tbm_Enable(bool);
+   89: void tbm_Addr(uint8_t, uint8_t);
+   90: void mod_Addr(uint8_t);
+   91: void tbm_Set(uint8_t, uint8_t);
+   92: bool tbm_Get(uint8_t, uint8_t&);
+   93: bool tbm_GetRaw(uint8_t, uint32_t&);
+   94: bool GetPixelAddressInverted();
+   95: void SetPixelAddressInverted(bool);
+   96: int32_t CountReadouts(int32_t);
+   97: int32_t CountReadouts(int32_t, int32_t);
+   98: int32_t CountReadouts(int32_t, int32_t, int32_t);
+   99: int32_t PH(int32_t, int32_t, int32_t, int16_t);
+  100: int32_t PixelThreshold(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, bool, bool);
+  101: bool test_pixel_address(int32_t, int32_t);
+  102: int8_t CalibratePixel(int16_t, int16_t, int16_t, int16_t&, int32_t&);
+  103: int8_t CalibrateDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
+  104: int8_t CalibrateDacDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
+  105: int16_t TrimChip(vector<int16_t>&);
+  106: int16_t CalibrateMap(int16_t, vectorR<int16_t>&, vectorR<int32_t>&, vectorR<uint32_t>&);
+  107: int16_t TriggerRow(int16_t, int16_t, vector<int16_t>&, int16_t);
+  108: bool TestColPixel(uint8_t, uint8_t, bool, vectorR<uint8_t>&);
+  109: void Ethernet_Send(string&);
+  110: uint32_t Ethernet_RecvPackets();
+  111: void LoopInterruptReset();
+  112: void SetLoopTriggerDelay(uint16_t);
+  113: bool SetI2CAddresses(vector<uint8_t>&);
+  114: bool SetTrimValues(uint8_t, vector<uint8_t>&);
+  115: bool LoopMultiRocAllPixelsCalibrate(vector<uint8_t>&, uint16_t, uint16_t);
+  116: bool LoopMultiRocOnePixelCalibrate(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t);
+  117: bool LoopSingleRocAllPixelsCalibrate(uint8_t, uint16_t, uint16_t);
+  118: bool LoopSingleRocOnePixelCalibrate(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t);
+  119: bool LoopMultiRocAllPixelsDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  120: bool LoopMultiRocOnePixelDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  121: bool LoopSingleRocAllPixelsDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  122: bool LoopSingleRocOnePixelDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  123: bool LoopMultiRocAllPixelsDacDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  124: bool LoopMultiRocOnePixelDacDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  125: bool LoopSingleRocAllPixelsDacDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  126: bool LoopSingleRocOnePixelDacDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  127: void VectorTest(vector<uint16_t>&, vectorR<uint16_t>&);
 
---------------------------------------------------------------------------------
-3.5.2014
-TBM ports:
-port 0 = ROC  0 -  3
-port 1 = ROC  4 -  7
-port 2 = ROC  8 - 11
-port 3 = ROC 12 - 15
-port 6 = ROC  0 - 15
-
-LoopSingleRoc for modules:
-reduce data volume (empty ROC headers) by activating only one port
-
---------------------------------------------------------------------------------
-3.5.2014
-
-effdac 0 22 33 19
-DacScanPix mTrig 100, flags hex 0
-DAQ size 563200 words
-DAQ fill 1
-DAQ done 1
-data size 563200, remaining 0
-events 25600 = 256 dac values
- 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100
-
-data size per TBM channel:
-4 words TBM header data
-8 words ROC header data
-6 words per pixel
-4 words TBM trailer data
-=
-16 + 6*nPix words
-
-
-cmd.cpp modsc1: while until done from LoopSingleRocOnePixelDacScan
-
-> modsc1 10 (only one ROC)
-
-expect 10*256*4160 = 10'649'600 events
-expect 10*256*4160*22 = 234'291'200 words
-
-ROC 0
-pixels activated
-loop...
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 27.4775 s = 10733.4 us / pix
-DAQ done 0
-DAQ size channel 0 = 26'230'216 words 
-data size 1048576, remaining 25181640
-data size 2097152, remaining 24133064
-data size 3145728, remaining 23084488
-data size 4194304, remaining 22035912
-data size 5242880, remaining 20987336
-data size 6291456, remaining 19938760
-data size 7340032, remaining 18890184
-data size 8388608, remaining 17841608
-data size 9437184, remaining 16793032
-data size 10485760, remaining 15744456
-data size 11534336, remaining 14695880
-data size 12582912, remaining 13647304
-data size 13631488, remaining 12598728
-data size 14680064, remaining 11550152
-data size 15728640, remaining 10501576
-data size 16777216, remaining 9453000
-data size 17825792, remaining 8404424
-data size 18874368, remaining 7355848
-data size 19922944, remaining 6307272
-data size 20971520, remaining 5258696
-data size 22020096, remaining 4210120
-data size 23068672, remaining 3161544
-data size 24117248, remaining 2112968
-data size 25165824, remaining 1064392
-data size 26214400, remaining 15816
-data size 26230216, remaining 0
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 65.5867 s = 25619.8 us / pix
-DAQ done 0
-DAQ size channel 0 = 26230148 words 
-data size 27278792, remaining 25181572
-data size 28327368, remaining 24132996
-data size 29375944, remaining 23084420
-data size 30424520, remaining 22035844
-data size 31473096, remaining 20987268
-data size 32521672, remaining 19938692
-data size 33570248, remaining 18890116
-data size 34618824, remaining 17841540
-data size 35667400, remaining 16792964
-data size 36715976, remaining 15744388
-data size 37764552, remaining 14695812
-data size 38813128, remaining 13647236
-data size 39861704, remaining 12598660
-data size 40910280, remaining 11550084
-data size 41958856, remaining 10501508
-data size 43007432, remaining 9452932
-data size 44056008, remaining 8404356
-data size 45104584, remaining 7355780
-data size 46153160, remaining 6307204
-data size 47201736, remaining 5258628
-data size 48250312, remaining 4210052
-data size 49298888, remaining 3161476
-data size 50347464, remaining 2112900
-data size 51396040, remaining 1064324
-data size 52444616, remaining 15748
-data size 52460364, remaining 0
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 104.054 s = 40646.1 us / pix
-DAQ done 0
-DAQ size channel 0 = 26230246 words 
-data size 53508940, remaining 25181670
-data size 54557516, remaining 24133094
-data size 55606092, remaining 23084518
-data size 56654668, remaining 22035942
-data size 57703244, remaining 20987366
-data size 58751820, remaining 19938790
-data size 59800396, remaining 18890214
-data size 60848972, remaining 17841638
-data size 61897548, remaining 16793062
-data size 62946124, remaining 15744486
-data size 63994700, remaining 14695910
-data size 65043276, remaining 13647334
-data size 66091852, remaining 12598758
-data size 67140428, remaining 11550182
-data size 68189004, remaining 10501606
-data size 69237580, remaining 9453030
-data size 70286156, remaining 8404454
-data size 71334732, remaining 7355878
-data size 72383308, remaining 6307302
-data size 73431884, remaining 5258726
-data size 74480460, remaining 4210150
-data size 75529036, remaining 3161574
-data size 76577612, remaining 2112998
-data size 77626188, remaining 1064422
-data size 78674764, remaining 15846
-data size 78690610, remaining 0
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 142.491 s = 55660.5 us / pix
-DAQ done 0
-DAQ size channel 0 = 26230194 words 
-data size 79739186, remaining 25181618
-data size 80787762, remaining 24133042
-data size 81836338, remaining 23084466
-data size 82884914, remaining 22035890
-data size 83933490, remaining 20987314
-data size 84982066, remaining 19938738
-data size 86030642, remaining 18890162
-data size 87079218, remaining 17841586
-data size 88127794, remaining 16793010
-data size 89176370, remaining 15744434
-data size 90224946, remaining 14695858
-data size 91273522, remaining 13647282
-data size 92322098, remaining 12598706
-data size 93370674, remaining 11550130
-data size 94419250, remaining 10501554
-data size 95467826, remaining 9452978
-data size 96516402, remaining 8404402
-data size 97564978, remaining 7355826
-data size 98613554, remaining 6307250
-data size 99662130, remaining 5258674
-data size 100710706, remaining 4210098
-data size 101759282, remaining 3161522
-data size 102807858, remaining 2112946
-data size 103856434, remaining 1064370
-data size 104905010, remaining 15794
-data size 104920804, remaining 0
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 180.904 s = 70665.5 us / pix
-DAQ done 0
-DAQ size channel 0 = 26230240 words 
-data size 105969380, remaining 25181664
-data size 107017956, remaining 24133088
-data size 108066532, remaining 23084512
-data size 109115108, remaining 22035936
-data size 110163684, remaining 20987360
-data size 111212260, remaining 19938784
-data size 112260836, remaining 18890208
-data size 113309412, remaining 17841632
-data size 114357988, remaining 16793056
-data size 115406564, remaining 15744480
-data size 116455140, remaining 14695904
-data size 117503716, remaining 13647328
-data size 118552292, remaining 12598752
-data size 119600868, remaining 11550176
-data size 120649444, remaining 10501600
-data size 121698020, remaining 9453024
-data size 122746596, remaining 8404448
-data size 123795172, remaining 7355872
-data size 124843748, remaining 6307296
-data size 125892324, remaining 5258720
-data size 126940900, remaining 4210144
-data size 127989476, remaining 3161568
-data size 129038052, remaining 2112992
-data size 130086628, remaining 1064416
-data size 131135204, remaining 15840
-data size 131151044, remaining 0
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 218.738 s = 85444.6 us / pix
-DAQ done 0
-DAQ size channel 0 = 26230272 words 
-data size 132199620, remaining 25181696
-data size 133248196, remaining 24133120
-data size 134296772, remaining 23084544
-data size 135345348, remaining 22035968
-data size 136393924, remaining 20987392
-data size 137442500, remaining 19938816
-data size 138491076, remaining 18890240
-data size 139539652, remaining 17841664
-data size 140588228, remaining 16793088
-data size 141636804, remaining 15744512
-data size 142685380, remaining 14695936
-data size 143733956, remaining 13647360
-data size 144782532, remaining 12598784
-data size 145831108, remaining 11550208
-data size 146879684, remaining 10501632
-data size 147928260, remaining 9453056
-data size 148976836, remaining 8404480
-data size 150025412, remaining 7355904
-data size 151073988, remaining 6307328
-data size 152122564, remaining 5258752
-data size 153171140, remaining 4210176
-data size 154219716, remaining 3161600
-data size 155268292, remaining 2113024
-data size 156316868, remaining 1064448
-data size 157365444, remaining 15872
-data size 157381316, remaining 0
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 256.485 s = 100189 us / pix
-DAQ done 0
-DAQ size channel 0 = 26230134 words 
-data size 158429892, remaining 25181558
-data size 159478468, remaining 24132982
-data size 160527044, remaining 23084406
-data size 161575620, remaining 22035830
-data size 162624196, remaining 20987254
-data size 163672772, remaining 19938678
-data size 164721348, remaining 18890102
-data size 165769924, remaining 17841526
-data size 166818500, remaining 16792950
-data size 167867076, remaining 15744374
-data size 168915652, remaining 14695798
-data size 169964228, remaining 13647222
-data size 171012804, remaining 12598646
-data size 172061380, remaining 11550070
-data size 173109956, remaining 10501494
-data size 174158532, remaining 9452918
-data size 175207108, remaining 8404342
-data size 176255684, remaining 7355766
-data size 177304260, remaining 6307190
-data size 178352836, remaining 5258614
-data size 179401412, remaining 4210038
-data size 180449988, remaining 3161462
-data size 181498564, remaining 2112886
-data size 182547140, remaining 1064310
-data size 183595716, remaining 15734
-data size 183611450, remaining 0
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 294.252 s = 114942 us / pix
-DAQ done 0
-DAQ size channel 0 = 26230128 words 
-data size 184660026, remaining 25181552
-data size 185708602, remaining 24132976
-data size 186757178, remaining 23084400
-data size 187805754, remaining 22035824
-data size 188854330, remaining 20987248
-data size 189902906, remaining 19938672
-data size 190951482, remaining 18890096
-data size 192000058, remaining 17841520
-data size 193048634, remaining 16792944
-data size 194097210, remaining 15744368
-data size 195145786, remaining 14695792
-data size 196194362, remaining 13647216
-data size 197242938, remaining 12598640
-data size 198291514, remaining 11550064
-data size 199340090, remaining 10501488
-data size 200388666, remaining 9452912
-data size 201437242, remaining 8404336
-data size 202485818, remaining 7355760
-data size 203534394, remaining 6307184
-data size 204582970, remaining 5258608
-data size 205631546, remaining 4210032
-data size 206680122, remaining 3161456
-data size 207728698, remaining 2112880
-data size 208777274, remaining 1064304
-data size 209825850, remaining 15728
-data size 209'841'578, remaining 0
-waiting for FPGA...
-LoopSingleRocOnePixelDacScan takes 310.511 s = 121293 us / pix
-DAQ done 1
-DAQ size channel 0 = 4831752 words 
-data size 210890154, remaining 3783176
-data size 211938730, remaining 2734600
-data size 212987306, remaining 1686024
-data size 214035882, remaining 637448
-data size 214'673'330, remaining 0
-ROC 0: events 10649600 (expect 10649600), ROC headers 85196800 (expect 85196800), pixels 7379955
-Loop and Daq_Read takes 313.773 s = 1.30495 MiB/s
-  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  2  2  2  2  1  4  6  4  7  7  8  6  9 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10
-thr 75, width 5
-histos 11, 12, 13, 21, 22, 23
-test duration 314.088 s
 
 
 --------------------------------------------------------------------------------
-Sun 4.5.2014
-module D0003
-modsc 10
-
-
-loop...
-CTestboard::LoopMultiRocAllPixelsDacScan...
-waiting for FPGA...
-DAQ size channel 0 = 26230464 words 
-data[0] size 502573484, remaining 22036160
-data[0] size 506767788, remaining 17841856
-data[0] size 510962092, remaining 13647552
-data[0] size 515156396, remaining 9453248
-data[0] size 519350700, remaining 5258944
-data[0] size 523545004, remaining 1064640
-data[0] size 524609644, remaining 0
-DAQ size channel 1 = 25082910 words 
-data[1] size 480730856, remaining 20888606
-data[1] size 484925160, remaining 16694302
-data[1] size 489119464, remaining 12499998
-data[1] size 493313768, remaining 8305694
-data[1] size 497508072, remaining 4111390
-data[1] size 501619462, remaining 0
-LoopMultiRocAllPixelDacScan takes 804.57 s
-done 0
-
-loop...
-CTestboard::LoopMultiRocAllPixelsDacScan...
-waiting for FPGA...
-DAQ size channel 0 = 0 words 
-data[0] size 524'609'644, remaining 0
-DAQ size channel 1 = 0 words 
-data[1] size 501'619'462, remaining 0
-LoopMultiRocAllPixelDacScan takes 804.574 s
-done 1
-Loop and Daq_Read takes 804.574 s = 2.43281 MiB/s
-
-DAQ size channel 0 = 524'609'644 words 
-TBM ch 0: events 10623820 (expect 2560), ROC headers 84990560 (expect 20480), pixels 59104754
-DAQ size channel 1 = 501'619'462 words 
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-Error kroc 16
-TBM ch 1: events 10624008 (expect 2560), ROC headers 84990532 (expect 20480), pixels 55273034
-
-
-
-
-
-
-
-
-modsc 10
-
-done 0
-loop...
-CTestboard::LoopMultiRocAllPixelsDacScan...
-waiting for FPGA...
-DAQ size channel 0 = 26230780 words 
-data[0] size 476340742, remaining 22036476
-data[0] size 480535046, remaining 17842172
-data[0] size 484729350, remaining 13647868
-data[0] size 488923654, remaining 9453564
-data[0] size 493117958, remaining 5259260
-data[0] size 497312262, remaining 1064956
-data[0] size 498377218, remaining 0
-DAQ size channel 1 = 25114048 words 
-data[1] size 455509516, remaining 20919744
-data[1] size 459703820, remaining 16725440
-data[1] size 463898124, remaining 12531136
-data[1] size 468092428, remaining 8336832
-data[1] size 472286732, remaining 4142528
-data[1] size 476429260, remaining 0
-LoopMultiRocAllPixelDacScan takes 507.08 s
-done 0
-loop...
-CTestboard::LoopMultiRocAllPixelsDacScan...
-waiting for FPGA...
-DAQ size channel 0 = 26230570 words 
-data[0] size 502571522, remaining 22036266
-data[0] size 506765826, remaining 17841962
-data[0] size 510960130, remaining 13647658
-data[0] size 515154434, remaining 9453354
-data[0] size 519348738, remaining 5259050
-data[0] size 523543042, remaining 1064746
-data[0] size 524607788, remaining 0
-DAQ size channel 1 = 25078738 words 
-data[1] size 480623564, remaining 20884434
-data[1] size 484817868, remaining 16690130
-data[1] size 489012172, remaining 12495826
-data[1] size 493206476, remaining 8301522
-data[1] size 497400780, remaining 4107218
-data[1] size 501507998, remaining 0
-LoopMultiRocAllPixelDacScan takes 532.685 s
-done 0
-
-loop...
-CTestboard::LoopMultiRocAllPixelsDacScan...
-waiting for FPGA...
-DAQ size channel 0 = 0 words 
-data[0] size 524607788, remaining 0
-DAQ size channel 1 = 0 words 
-data[1] size 501507998, remaining 0
-LoopMultiRocAllPixelDacScan takes 532.69 s
-done 1
-
-Loop and Daq_Read takes 532.69 s = 3.67411 MiB/s
-
-DAQ size channel 0 = 524'607'788 words 
-TBM ch 0: events 10623170 (expect 2560), ROC headers 84985360 (expect 20480), pixels 59106178
-DAQ size channel 1 = 501'507'998 words 
-
---------------------------------------------------------------------------------
-Wed 7.5.2014
-mod D0003
-sm
-x
-arm 22:23 44
-pg2: cal trg trg
-rd0
-
-words read 128, remaining 0
- 81 9D A0 B1 79 79 79 79 79 79 79 79 C2 D2 E0 F0
- 81 9E A0 B1 78 13 25 30 41 58 60 13 25 30 43 58
- 61 78 13 25 30 41 56 6A 13 25 30 43 56 6D 78 13
- 25 30 41 54 6C 13 25 30 43 54 6D 78 13 25 30 41
- 58 60 13 25 30 43 58 62 78 13 25 30 41 58 60 13
- 25 30 43 58 60 78 13 25 30 41 58 61 13 25 30 43
- 58 60 78 13 25 30 41 58 69 13 25 30 43 58 6C 78
- 13 25 30 41 56 65 13 25 30 43 56 68 C0 D0 E4 F0
-
-TBM header 1D01  EV( 29) STF(0) PKR(0) STKCNT( 0)
- 0. ROC header 9
- 1. ROC header 9
- 2. ROC header 9
- 3. ROC header 9
- 4. ROC header 9
- 5. ROC header 9
- 6. ROC header 9
- 7. ROC header 9
-TBM trailer 2200  NTP(0) RST(0) RSR(1) SYE(0) SYT(0) CTC(0) CAL(1) SF(0) D0( 0)
-
-TBM header 1E01  EV( 30) STF(0) PKR(0) STKCNT( 0)
- 8. ROC header 8
-    350180 = pix 22.44 ph 192
-    350381 = pix 23.44 ph 193
- 9. ROC header 8
-    35016A = pix 22.44 ph 186
-    35036D = pix 23.44 ph 189
-10. ROC header 8
-    35014C = pix 22.44 ph 172
-    35034D = pix 23.44 ph 173
-11. ROC header 8
-    350180 = pix 22.44 ph 192
-    350382 = pix 23.44 ph 194
-12. ROC header 8
-    350180 = pix 22.44 ph 192
-    350380 = pix 23.44 ph 192
-13. ROC header 8
-    350181 = pix 22.44 ph 193
-    350380 = pix 23.44 ph 192
-14. ROC header 8
-    350189 = pix 22.44 ph 201
-    35038C = pix 23.44 ph 204
-15. ROC header 8
-    350165 = pix 22.44 ph 181
-    350368 = pix 23.44 ph 184
-TBM trailer 0040  NTP(0) RST(0) RSR(0) SYE(0) SYT(0) CTC(0) CAL(0) SF(0) D1( 0)
-
-OK
-> modtd 40000
-1.01337 s, last 1280,  rest 0,  calls 57,  events 552,  got 71936,  rest 0,  pix 8832,  err 0
-2.02029 s, last 1280,  rest 0,  calls 120,  events 1242,  got 160256,  rest 0,  pix 19872,  err 0
-3.01431 s, last 1280,  rest 0,  calls 177,  events 1858,  got 239104,  rest 0,  pix 29728,  err 0
-4.01416 s, last 1280,  rest 0,  calls 234,  events 2480,  got 318720,  rest 0,  pix 39680,  err 0
-5.00319 s, last 1280,  rest 0,  calls 302,  events 3210,  got 412160,  rest 0,  pix 51360,  err 0
-6.02107 s, last 1280,  rest 0,  calls 368,  events 3924,  got 503552,  rest 0,  pix 62784,  err 0
-7.00308 s, last 1280,  rest 0,  calls 425,  events 4540,  got 582400,  rest 0,  pix 72640,  err 0
-8.018 s, last 1280,  rest 0,  calls 487,  events 5202,  got 667136,  rest 0,  pix 83232,  err 0
-q9.02102 s, last 1280,  rest 0,  calls 546,  events 5840,  got 748800,  rest 0,  pix 93440,  err 0
-
-histos 21, 22
-
-ROC  0, hits 6008
-ROC  1, hits 6008
-ROC  2, hits 6008
-ROC  3, hits 6008
-ROC  4, hits 6008
-ROC  5, hits 6008
-ROC  6, hits 6008
-ROC  7, hits 6008
-ROC  8, hits 6008
-ROC  9, hits 6008
-ROC 10, hits 6008
-ROC 11, hits 6008
-ROC 12, hits 6008
-ROC 13, hits 6008
-ROC 14, hits 6008
-ROC 15, hits 6008
-
-run duration   9.19922
-DAQ calls      556
-events ch 0    6008
-TBM headers 0  6008
-TBM trailers 0 6008
-ROC headers 0  48064
-events ch 1    6008
-TBM headers 1  6008
-TBM trailers 1 6008
-ROC headers 1  48064
-words read     769024
-data rate      0.159448 MiB/s
-pixels         96128 = 16 / event = 1 / event / ROC (every 2nd trigger has 2 pix)
-address errors 0
-
-OK
-
-
---------------------------------------------------------------------------------
-Sat 10.8.2014
-chip 205
-update usb.cpp 
-  ftStatus = FT_SetBaudRate( ftHandle, 9600 ); // HP 8.5.2014
-  ftStatus = FT_SetUSBParameters( ftHandle, 8192, 8192 );
-
-cmd.cpp:
-  tb.Daq_Open( Blocksize ); // PixelThreshold ends with dclose
-
-s205
-trim 30
-dclose
-dopen 40100100
-dacscanroc 25
-takes 167 s = 15 us per pix per trig
-
-usb.cpp:
-  FT_SetTimeouts( ftHandle, 200000, 200000 ); // [ms] for dacscanroc
-
-
---------------------------------------------------------------------------------
-rsync -vrtpE * /media/Dell\ USB\ Portable\ HDD/psi/dtb/tst250
+ rsync -vrtpE * /media/Dell\ USB\ Portable\ HDD/psi/dtb/Psi46testDesy
