@@ -63,3 +63,7 @@ digV2.1 2014
  403  gap30-slit
  404  gap30
  405  gap30
+
+ 422  (ETH 202)
+ 426  (ETH 206, no output)
+ 431  (ETH 211)
