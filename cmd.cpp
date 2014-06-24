@@ -3464,16 +3464,48 @@ CMD_PROC(wdac) // write DACs to file
   fname << "dacParameters_c" << Chip << "_" << desc.c_str() << ".dat";
   ofstream dacFile( fname.str().c_str() ); // love it!
 
-  for( int32_t i = 0; i < 16; i++ )
-    if( roclist[i] ) {
-      for( int j = 1; j < 256; ++j )
-	if( dacval[i][j] > -1 ) {
-	  dacFile << setw(3) << j
-		  << "  " << dacName[j] << "\t"
-		  << setw(5) << dacval[i][j] << endl;
+  for( int32_t roc = 0; roc < 16; roc++ )
+    if( roclist[roc] ) {
+      for( int idac = 1; idac < 256; ++idac )
+	if( dacval[roc][idac] > -1 ) {
+	  dacFile << setw(3) << idac
+		  << "  " << dacName[idac] << "\t"
+		  << setw(5) << dacval[roc][idac] << endl;
 	}
     }
   cout << "DAC values written to " << fname.str() << endl;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(rddac) // read DACs from file
+{
+  char cdesc[80];
+  PAR_STRING( cdesc, 80 );
+  string desc = cdesc;
+  ostringstream fname; // output string stream
+  fname << "dacParameters_c" << Chip << "_" << desc.c_str() << ".dat";
+  ifstream dacFile( fname.str().c_str() );
+  if( ! dacFile ) {
+    cout << "dac file " << fname.str() << " does not exist" << endl;
+    return 0;
+  }
+  cout << "read dac values from " << fname.str() << endl;
+
+  int idac;
+  string dacName;
+  int vdac;
+  for( int32_t roc = 0; roc < 16; roc++ )
+    if( roclist[roc] ) {
+      dacFile >> idac >> dacName >> vdac;
+      if( idac < 0 )
+	cout << "illegal dac number " << idac;
+      else if( idac > 255 )
+	cout << "illegal dac number " << idac;
+      else
+	dacval[roc][idac] = vdac;
+    }
+
   return true;
 }
 
@@ -3485,7 +3517,7 @@ CMD_PROC(wtrim) // write trim bits to file
   string desc = cdesc;
   ostringstream fname; // output string stream
   fname << "trimParameters_c" << Chip << "_" << desc.c_str() << ".dat";
-  ofstream trimFile( fname.str().c_str() ); // love it!
+  ofstream trimFile( fname.str().c_str() );
 
   for( int32_t roc = 0; roc < 16; roc++ )
     if( roclist[roc] ) {
@@ -3510,7 +3542,7 @@ CMD_PROC(rdtrim) // read trim bits from file
   string desc = cdesc;
   ostringstream fname; // output string stream
   fname << "trimParameters_c" << Chip << "_" << desc.c_str() << ".dat";
-  ifstream trimFile( fname.str().c_str() ); // love it!
+  ifstream trimFile( fname.str().c_str() );
   if( ! trimFile ) {
     cout << "trim file " << fname.str() << " does not exist" << endl;
     return 0;
@@ -10379,6 +10411,7 @@ void cmd() // called once from psi46test
   CMD_REG( wbc,      "wbc <value>                   set WBC" );
   CMD_REG( show,     "show                          print dacs" );
   CMD_REG( wdac,     "wdac [description]            write dacParameters_chip_desc.dat" );
+  CMD_REG( rddac,    "rddac [description]           read dacParameters_chip_desc.dat" );
   CMD_REG( wtrim,    "wtrim [description]           write trimParameters_chip_desc.dat" );
   CMD_REG( rdtrim,   "rdtrim [description]          read trimParameters_chip_desc.dat" );
 
