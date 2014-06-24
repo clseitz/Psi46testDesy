@@ -1025,8 +1025,8 @@ CMD_PROC(chip)
   dacName[ 25] = "VCal";
   dacName[ 26] = "CalDel";
 
-  dacName[ 31] = "VD";
-  dacName[ 32] = "VA";
+  dacName[ 31] = "VD ";
+  dacName[ 32] = "VA ";
 
   dacName[253] = "CtrlReg";
   dacName[254] = "WBC";
@@ -1995,20 +1995,20 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
   double duration = 0;
   double tprev = 0;
 
-  if( h11 ) delete h11;
-  h11 = new
+  if( h10 ) delete h10;
+  h10 = new
     TH1D( "pixels",
 	  "pixels per trigger;multiplicity [pixel];triggers",
 	  101, -0.5, 100.5 );
 
-  if( h12 ) delete h12;
-  h12 = new
+  if( h11 ) delete h11;
+  h11 = new
     TH1D( "pixelPH",
 	  "pixel PH;pixel PH [ADC];pixels",
 	  256, -0.5, 255.5 );
 
-  if( h13 ) delete h13;
-  h13 = new
+  if( h12 ) delete h12;
+  h12 = new
     TH1D( "pixel_charge",
 	  dacval[0][CtrlReg] == 0 ?
 	  "pixel charge;pixel charge [small Vcal DAC];pixels" :
@@ -2126,8 +2126,8 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
 			 << ":" << ph << "(" << (int)vc << ")";
 	  if( ldb1 ) cout << " " << ix <<  "." << iy
 			  << ":" << ph << "(" << (int)vc << ")";
-	  h12->Fill( ph );
-	  h13->Fill( vc );
+	  h11->Fill( ph );
+	  h12->Fill( vc );
 	  h21->Fill( ix, iy );
 	  h22->Fill( ix, iy, vc );
 	  if( ix < 52 && iy < 80 ) {
@@ -2151,7 +2151,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
       even = 1-even;
 
       if( ( data[i] & 0x4000 ) == 0x4000 ) { // FPGA end marker
-	h11->Fill( npxev);
+	h10->Fill( npxev);
       }
 
     } // data
@@ -2203,9 +2203,9 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
   //double defaultRightMargin = c1->GetRightMargin();
   //c1->SetLeftMargin(0.10);
   //c1->SetRightMargin(0.18);
+  h10->Write();
   h11->Write();
   h12->Write();
-  h13->Write();
   h21->Write();
   h22->Write();
   gStyle->SetOptStat(10); // entries
@@ -2213,7 +2213,7 @@ CMD_PROC(takedata) // takedata period (ROC, trigger f = 40 MHz / period)
   h21->GetYaxis()->SetTitleOffset(1.3);
   h21->Draw("colz");
   c1->Update();
-  cout << "histos 11, 12, 13, 21, 22" << endl;
+  cout << "histos 10, 11, 12, 21, 22" << endl;
   //c1->SetLeftMargin(defaultLeftMargin);
   //c1->SetRightMargin(defaultRightMargin);
 
@@ -3445,7 +3445,8 @@ CMD_PROC(show) // DP
     if( roclist[i] ) {
       for( int j = 1; j < 256; ++j )
 	if( dacval[i][j] > -1 ) {
-	  cout << setw(3) << j << "  " << dacName[j]
+	  cout << setw(3) << j
+	       << "  " << dacName[j] << "\t"
 	       << setw(5) << dacval[i][j] << endl;
 	  Log.printf( "%3i %4i\n", j, dacval[i][j] );
 	}
@@ -3456,22 +3457,123 @@ CMD_PROC(show) // DP
 //------------------------------------------------------------------------------
 CMD_PROC(wdac) // write DACs to file
 {
-  char chip[80];
-  PAR_STRING( chip, 80 );
-  string cname = chip;
+  char cdesc[80];
+  PAR_STRING( cdesc, 80 );
+  string desc = cdesc;
   ostringstream fname; // output string stream
-  fname << "dacParameters_" << cname.c_str() << ".dat";
+  fname << "dacParameters_c" << Chip << "_" << desc.c_str() << ".dat";
   ofstream dacFile( fname.str().c_str() ); // love it!
 
-  for( int32_t i = 0; i < 16; i++ )
-    if( roclist[i] ) {
-      for( int j = 1; j < 256; ++j )
-	if( dacval[i][j] > -1 ) {
-	  dacFile << setw(3) << j << "  " << dacName[j]
-		  << setw(5) << dacval[i][j] << endl;
+  for( int32_t roc = 0; roc < 16; roc++ )
+    if( roclist[roc] ) {
+      for( int idac = 1; idac < 256; ++idac )
+	if( dacval[roc][idac] > -1 ) {
+	  dacFile << setw(3) << idac
+		  << "  " << dacName[idac] << "\t"
+		  << setw(5) << dacval[roc][idac] << endl;
 	}
     }
   cout << "DAC values written to " << fname.str() << endl;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(rddac) // read DACs from file
+{
+  char cdesc[80];
+  PAR_STRING( cdesc, 80 );
+  string desc = cdesc;
+  ostringstream fname; // output string stream
+  fname << "dacParameters_c" << Chip << "_" << desc.c_str() << ".dat";
+  ifstream dacFile( fname.str().c_str() );
+  if( ! dacFile ) {
+    cout << "dac file " << fname.str() << " does not exist" << endl;
+    return 0;
+  }
+  cout << "read dac values from " << fname.str() << endl;
+
+  int idac;
+  string dacName;
+  int vdac;
+  for( int32_t roc = 0; roc < 16; roc++ )
+    if( roclist[roc] ) {
+      dacFile >> idac >> dacName >> vdac;
+      if( idac < 0 )
+	cout << "illegal dac number " << idac;
+      else if( idac > 255 )
+	cout << "illegal dac number " << idac;
+      else
+	dacval[roc][idac] = vdac;
+    }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(wtrim) // write trim bits to file
+{
+  char cdesc[80];
+  PAR_STRING( cdesc, 80 );
+  string desc = cdesc;
+  ostringstream fname; // output string stream
+  fname << "trimParameters_c" << Chip << "_" << desc.c_str() << ".dat";
+  ofstream trimFile( fname.str().c_str() );
+
+  for( int32_t roc = 0; roc < 16; roc++ )
+    if( roclist[roc] ) {
+      for( int col = 0; col < 52; col++ )
+	for( int row = 0; row < 80; row++ ) {
+	  trimFile << setw(2) << modtrm[roc][col][row]
+		   << "  Pix"
+		   << setw(3) << col
+		   << setw(3) << row
+		   << endl;
+	}
+    }
+  cout << "trim values written to " << fname.str() << endl;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(rdtrim) // read trim bits from file
+{
+  char cdesc[80];
+  PAR_STRING( cdesc, 80 );
+  string desc = cdesc;
+  ostringstream fname; // output string stream
+  fname << "trimParameters_c" << Chip << "_" << desc.c_str() << ".dat";
+  ifstream trimFile( fname.str().c_str() );
+  if( ! trimFile ) {
+    cout << "trim file " << fname.str() << " does not exist" << endl;
+    return 0;
+  }
+  cout << "read trim values from " << fname.str() << endl;
+
+  string Pix; // dummy
+  int icol;
+  int irow;
+  int itrm;
+  vector<uint8_t> trimvalues(4160);
+  for( int32_t roc = 0; roc < 16; roc++ )
+    if( roclist[roc] ) {
+      for( int col = 0; col < 52; col++ )
+	for( int row = 0; row < 80; row++ ) {
+	  trimFile >> itrm >> Pix >> icol >> irow;
+	  if( icol != col ) cout << "pixel number out of order at "
+				 << col << " " << row << endl;
+	  else if( irow != row ) cout << "pixel number out of order at "
+				 << col << " " << row << endl;
+	  else {
+	    modtrm[roc][col][row] = itrm;
+	    int i = 80*col+row;
+	    trimvalues[i] = itrm;
+	  }
+	} // pix
+      tb.roc_I2cAddr(roc);
+      tb.SetTrimValues( roc, trimvalues ); // load into FPGA
+      DO_FLUSH;
+    } // roc
+
   return true;
 }
 
@@ -7106,7 +7208,7 @@ CMD_PROC(thrmap) // uses tb.PixelThreshold
 
     if( roclist[roc] == 0 ) continue;
 
-    cout << endl << setw(2) << "ROC " << roc << endl;
+    cout << setw(2) << "ROC " << roc << endl;
 
     tb.roc_I2cAddr(roc);
     tb.SetDAC( CtrlReg, 0 );
@@ -8767,6 +8869,7 @@ CMD_PROC(bbtest) // bump bond test
 
   const int vcal = dacval[0][Vcal];
   tb.SetDAC( Vcal, 255 ); // max Vcal
+
   tb.Flush();
 
   // measure:
@@ -9576,8 +9679,6 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
   while( done == 0 ) {
 
-    cout << "loop..." << endl << flush;
-
     gettimeofday( &tv, NULL );
     long s1 = tv.tv_sec; // seconds since 1.1.1970
     long u1 = tv.tv_usec; // microseconds
@@ -9605,7 +9706,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     cout << "LoopSingleRocAllPixelsDacScan takes " << dt << " s"
 	 << " = " << tloop / 4160 / mTrig / nstp * 1e6 << " us / pix"
 	 << endl;
-    cout << "done " << done << endl;
+    cout << ( done ? "done" : "not done" ) << endl;
 
     vector<uint16_t> dataB;
     dataB.reserve( Blocksize );
@@ -9635,6 +9736,8 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     cout << "Daq_Read takes " << tread << " s"
 	 << " = " << 2*dSize / tread / 1024/1024 << " MiB/s"
 	 << endl;
+
+    if( ! done ) cout << "loop more..." << endl << flush;
 
   } // while not done
 
@@ -10307,7 +10410,10 @@ void cmd() // called once from psi46test
   CMD_REG( ctl,      "ctl <value>                   set control register" );
   CMD_REG( wbc,      "wbc <value>                   set WBC" );
   CMD_REG( show,     "show                          print dacs" );
-  CMD_REG( wdac,     "wdac chip                     write dacParameters" );
+  CMD_REG( wdac,     "wdac [description]            write dacParameters_chip_desc.dat" );
+  CMD_REG( rddac,    "rddac [description]           read dacParameters_chip_desc.dat" );
+  CMD_REG( wtrim,    "wtrim [description]           write trimParameters_chip_desc.dat" );
+  CMD_REG( rdtrim,   "rdtrim [description]          read trimParameters_chip_desc.dat" );
 
   CMD_REG( cole,     "cole <range>                  enable column" );
   CMD_REG( cold,     "cold <range>                  disable columns" );
