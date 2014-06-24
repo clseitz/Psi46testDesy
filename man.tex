@@ -734,7 +734,7 @@ shown in Figure.
 %
 \begin{figure}
 \noindent \begin{centering}
-\includegraphics[scale=0.5]{c405-thrdist-scurve-trim36} 
+\includegraphics[scale=0.5]{c405-thrdist-scurve-trim36.pdf} 
 \par\end{centering}
 
 \protect\caption{Distribution of the number of responses as a function of Vcal fitted
@@ -748,16 +748,16 @@ for further analysis.
 
 \texttt{root -l scurves-c405-trim30.root}
 
-\texttt{.x ROCscurve\_fit.C}
+\texttt{.x ROCscurve\_fit.C+}
 
-This will run for some time and produce two output files: minscurves.ps
-(containing all the s-curve plots/fits for each pixel) and fit\_results\_scurve.root
+This will run for a bit and produce two output files: minscurves.ps
+(containing all the s-curve plots/fits for each pixel) and fit\_results\_scurve\_\{originalname\}.root
 (containing a tree with threshold, sigma, fit stauts, and chisquare
 for each pixel).
 
 The tree output file can be further analyzed with the following macro:
 
-\texttt{root -l fit\_results\_scurves-c405-trim36.root}
+\texttt{root -l fit\_results\_\{originalname\}.root}
 
 \texttt{.x ROCscurve\_ana.C}
 
@@ -768,7 +768,7 @@ saves them in threshold\_scurve.ps.
 %
 \begin{figure}
 \noindent \begin{centering}
-\includegraphics[scale=0.6]{c405-thrsigma-trim36} 
+\includegraphics[scale=0.6]{c405-thrsigma-trim36.pdf} 
 \par\end{centering}
 
 \protect\caption{The top row shows the threshold distribution (left) and the width

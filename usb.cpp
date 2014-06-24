@@ -5,7 +5,7 @@
 #include "rpc_error.h"
 #include "usb.h"
 #include <iostream> // cout
-//#include <unistd.h>
+#include <unistd.h> // needed for Mac
 
 using namespace std;
 
