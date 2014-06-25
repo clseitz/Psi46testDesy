@@ -3448,7 +3448,7 @@ CMD_PROC(show) // DP
 	  cout << setw(3) << j
 	       << "  " << dacName[j] << "\t"
 	       << setw(5) << dacval[i][j] << endl;
-	  Log.printf( "%3i %4i\n", j, dacval[i][j] );
+	  Log.printf( "%3i %4i  %s\n", j, dacval[i][j], dacName[j].c_str());
 	}
     }
   return true;
@@ -9869,10 +9869,43 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     h23->SetStats(0);
     h23->Draw("colz");
     c1->Update();
+
+    int nActive; // count number of active bump bonds
+    int nPerfect;
+    int nIneff;
+
+    nActive = 0;
+    nPerfect = 0;
+    nIneff = 0;
+
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
-	if( h23->GetBinContent( col+1, row+1 ) < 0.5 ) // ROOT bin counting starts at 1
-	  cout << "missing bump bond at " << setw(2) << col << setw(3) << row << endl;
+	{
+	  if( h23->GetBinContent( col+1, row+1 ) < mTrig/2 ) // ROOT bin counting starts at 1
+	    {
+	      nIneff++;
+	      cout << "missing bump bond at col, row: " << setw(2) << col << setw(3) << row << endl;
+	    }
+	  else // count number of Active bump bonds
+	    {
+	      nActive++;
+	    }
+	  if ( int(h23->GetBinContent( col+1, row+1 )) == mTrig )
+	    {
+	      nPerfect++;
+	    }
+	}
+    
+    cout << "Number of Active bump bonds: " << nActive << endl;
+    cout << "Number of Perfect bump bonds: " << nPerfect << endl;
+    cout << "Number of Inefficient bump bonds: " << nIneff << endl;
+
+    // save it in the Log-file
+
+    Log.printf( "Number of Active bump bonds: %i\n", nActive );
+    Log.printf( "Number of Perfect bump bonds: %i\n", nPerfect );
+    Log.printf( "Number of Inefficient bump bonds: %i\n", nIneff );
+
   }
   else {
     h21->SetStats(0);
