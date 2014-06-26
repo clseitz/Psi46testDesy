@@ -1,7 +1,7 @@
 
 .PHONY: all clean distclean
 
-OBJS = cmd.o command.o pixel_dtb.o protocol.o settings.o psi46test.o datastream.o analyzer.o linux/rs232.o profiler.o rpc.o rpc_calls.o usb.o rpc_error.o rs232.o iseg.o
+OBJS = cmd.o command.o pixel_dtb.o protocol.o settings.o psi46test.o datastream.o analyzer.o profiler.o rpc.o rpc_calls.o usb.o rpc_error.o rs232.o iseg.o
 # chipdatabase.o color.o defectlist.o error.o histo.o pixelmap.o prober.o ps.o scanner.o
 # test_dig.o
 # plot.o
@@ -24,7 +24,7 @@ endif
 
 # PATTERN RULES:
 
-obj/%.o : %.cpp  %.h
+obj/%.o : %.cpp %.h 
 	@mkdir -p obj/linux
 	@echo 'root C flags = ' $(ROOTCFLAGS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
