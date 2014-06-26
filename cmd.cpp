@@ -979,10 +979,15 @@ CMD_PROC(chip)
 
   cout << "Chip " << Chip << endl;
 
-  if( Chip >= 200 && Chip < 299 ){
+  if( Chip >= 200 && Chip < 299 ) {
     tb.SetPixelAddressInverted(1);
     tb.invertAddress = 1;
     cout << "SetPixelAddressInverted" << endl;
+  }
+  else { // just to be sure
+    tb.SetPixelAddressInverted(0);
+    tb.invertAddress = 0;
+    cout << "SetPixelAddressNotInverted" << endl;
   }
 
   dacName[  1] = "Vdig";
