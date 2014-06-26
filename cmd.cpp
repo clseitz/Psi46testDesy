@@ -3448,7 +3448,7 @@ CMD_PROC(show) // DP
 	  cout << setw(3) << j
 	       << "  " << dacName[j] << "\t"
 	       << setw(5) << dacval[i][j] << endl;
-	  Log.printf( "%3i %4i  %s\n", j, dacval[i][j], dacName[j].c_str());
+	  Log.printf( "%3i %4i  %s\n", j, dacval[i][j], dacName[j].c_str() );
 	}
     }
   return true;
@@ -3491,21 +3491,33 @@ CMD_PROC(rddac) // read DACs from file
     return 0;
   }
   cout << "read dac values from " << fname.str() << endl;
+  Log.printf( "[RDDAC] %s\n", fname.str().c_str() );
 
   int idac;
-  string dacName;
+  string dacname;
   int vdac;
-  for( int32_t roc = 0; roc < 16; roc++ )
-    if( roclist[roc] ) {
-      dacFile >> idac >> dacName >> vdac;
-      if( idac < 0 )
-	cout << "illegal dac number " << idac;
-      else if( idac > 255 )
-	cout << "illegal dac number " << idac;
-      else
-	dacval[roc][idac] = vdac;
+  int roc = -1;
+  while( !dacFile.eof() ) {
+    dacFile >> idac >> dacname >> vdac;
+    if( idac == 1 ) {
+      roc++;
+      cout << "ROC " << roc << endl;
+      tb.roc_I2cAddr(roc);
     }
-
+    if( idac < 0 )
+      cout << "illegal dac number " << idac;
+    else if( idac > 255 )
+      cout << "illegal dac number " << idac;
+    else {
+      tb.roc_SetDAC( idac, vdac );
+      dacval[roc][idac] = vdac;
+      cout << setw(3) << idac
+	   << "  " << dacName[idac] << "\t"
+	   << setw(5) << vdac << endl;
+      Log.printf( "[SETDAC] %i  %i\n", idac, vdac );
+    }
+  }
+  DO_FLUSH;
   return true;
 }
 
@@ -3548,6 +3560,7 @@ CMD_PROC(rdtrim) // read trim bits from file
     return 0;
   }
   cout << "read trim values from " << fname.str() << endl;
+  Log.printf( "[RDTRIM] %s\n", fname.str().c_str() );
 
   string Pix; // dummy
   int icol;
@@ -9859,8 +9872,6 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
   } // col
 
-  Log.flush();
-
   h11->Write();
   h21->Write();
   h22->Write();
@@ -9870,41 +9881,32 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     h23->Draw("colz");
     c1->Update();
 
-    int nActive; // count number of active bump bonds
-    int nPerfect;
-    int nIneff;
-
-    nActive = 0;
-    nPerfect = 0;
-    nIneff = 0;
+    int nActive = 0;
+    int nPerfect = 0;
+    int nDead = 0;
 
     for( int col = 0; col < 52; ++col )
-      for( int row = 0; row < 80; ++row )
-	{
-	  if( h23->GetBinContent( col+1, row+1 ) < mTrig/2 ) // ROOT bin counting starts at 1
-	    {
-	      nIneff++;
-	      cout << "missing bump bond at col, row: " << setw(2) << col << setw(3) << row << endl;
-	    }
-	  else // count number of Active bump bonds
-	    {
-	      nActive++;
-	    }
-	  if ( int(h23->GetBinContent( col+1, row+1 )) == mTrig )
-	    {
-	      nPerfect++;
-	    }
+      for( int row = 0; row < 80; ++row ) {
+	int nresponses = h23->GetBinContent( col+1, row+1 ); // ROOT bin counting starts at 1
+	if( nresponses == 0 ) {
+	  nDead++;
+	  cout << "dead pixel and/or missing bump bond at col, row: "
+	       << setw(2) << col << setw(3) << row << endl;
 	}
+	else if( nresponses >= mTrig/2 )
+	  nActive++;
+
+	if( nresponses == mTrig )
+	  nPerfect++;
+      }
     
-    cout << "Number of Active bump bonds: " << nActive << endl;
+    cout << "Number of Active bump bonds:  " << nActive << endl;
     cout << "Number of Perfect bump bonds: " << nPerfect << endl;
-    cout << "Number of Inefficient bump bonds: " << nIneff << endl;
+    cout << "Number of Dead bump bonds:    " << nDead << endl;
 
-    // save it in the Log-file
-
-    Log.printf( "Number of Active bump bonds: %i\n", nActive );
+    Log.printf( "Number of Active bump bonds:  %i\n", nActive );
     Log.printf( "Number of Perfect bump bonds: %i\n", nPerfect );
-    Log.printf( "Number of Inefficient bump bonds: %i\n", nIneff );
+    Log.printf( "Number of Dead bump bonds:    %i\n", nDead );
 
   }
   else {
@@ -9913,6 +9915,8 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     c1->Update();
   }
   cout << "histos 21, 22, 11, 23" << endl;
+
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
