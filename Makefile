@@ -24,7 +24,7 @@ endif
 
 # PATTERN RULES:
 
-obj/%.o : %.cpp
+obj/%.o : %.cpp  %.h
 	@mkdir -p obj/linux
 	@echo 'root C flags = ' $(ROOTCFLAGS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
