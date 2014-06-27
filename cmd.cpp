@@ -24,11 +24,8 @@
 
 #include "psi46test.h" // includes pixel_dtb.h
 #include "analyzer.h" // includes datastream.h
-//#include "plot.h"
-//#include "histo.h"
 
 #include "command.h"
-//DP#include "defectlist.h"
 #include "rpc.h"
 
 #include "iseg.h" // HV
@@ -350,6 +347,7 @@ bool UpdateDTB(const char *filename)
     printf( "FLASH write start (LED 1..4 on)\n"
 	    "DO NOT INTERUPT DTB POWER !\n"
 	    "Wait till LEDs goes off\n"
+	    "  exit from psi46test\n"
 	    "  power cycle the DTB\n" );
     tb.UpgradeExec(recordCount);
     tb.Flush();
@@ -4518,7 +4516,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
   cout << "  DAQ size " << tb.Daq_GetSize( tbmch ) << endl;
   cout << "  DAQ fill " << (int) tb.Daq_FillLevel( tbmch ) << endl;
-  cout << "  DAQ done " << done << endl;
+  cout << ( done ? "done" : "not done" ) << endl;
 
   vector<uint16_t> data;
   data.reserve( tb.Daq_GetSize( tbmch ) );
@@ -5305,10 +5303,8 @@ CMD_PROC(modpixsc) // S-curve for modules, one pix per ROC
 //------------------------------------------------------------------------------
 CMD_PROC(modsc) // S-curve for modules, all pix
 {
-  int kTrig;
-  PAR_INT( kTrig, 1, 65000 );
-
-  uint16_t nTrig = kTrig;
+  int nTrig;
+  PAR_INT( nTrig, 1, 65000 );
   cout << "nTrig " << nTrig << endl;
 
   timeval tv;
@@ -5455,9 +5451,8 @@ CMD_PROC(modsc) // S-curve for modules, all pix
     long u2 = tv.tv_usec; // microseconds
     double dt = s2-s1 + (u2-u1)*1e-6;
 
-    cout << "LoopMultiRocAllPixelDacScan takes " << dt << " s"
-	 << endl;
-    cout << "done " << done << endl;
+    cout << "LoopMultiRocAllPixelDacScan takes " << dt << " s" << endl;
+    cout << ( done ? "done" : "not done" ) << endl;
 
   } // while not done
 
@@ -5868,7 +5863,7 @@ CMD_PROC(modsc1) // S-curve for modules, all pix, one ROC at a time
       cout << "LoopSingleRocOnePixelDacScan takes " << dt << " s"
 	   << " = " << dt / nstp / nTrig /4160 * 1e6 << " us / pix"
 	   << endl;
-      cout << "DAQ done " << done << endl;
+      cout << ( done ? "done" : "not done" ) << endl;
 
       // read and unpack data:
 
@@ -6854,9 +6849,8 @@ CMD_PROC(modmap) // works
     long u2 = tv.tv_usec; // microseconds
     double dt = s2-s1 + (u2-u1)*1e-6;
 
-    cout << "LoopMultiRocAllPixelDacScan takes " << dt << " s"
-	 << endl;
-    cout << "done " << done << endl;
+    cout << "LoopMultiRocAllPixelDacScan takes " << dt << " s" << endl;
+    cout << ( done ? "done" : "not done" ) << endl;
 
   } // while not done
 
@@ -7387,7 +7381,7 @@ CMD_PROC(thrmapsc) // raw data S-curve: 60 s / ROC
     cout << "LoopSingleRocAllPixelsDacScan takes " << dt << " s"
 	 << " = " << tloop / 4160 / nTrig / nstp * 1e6 << " us / pix"
 	 << endl;
-    cout << "done " << done << endl;
+    cout << ( done ? "done" : "not done" ) << endl;
 
     cout << "DAQ size " << dSize << " words" << endl;
 
@@ -9903,8 +9897,9 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
 	if( nresponses == mTrig )
 	  nPerfect++;
-      }
-    
+
+      } // row
+
     cout << "Number of Active bump bonds:  " << nActive << endl;
     cout << "Number of Perfect bump bonds: " << nPerfect << endl;
     cout << "Number of Dead bump bonds:    " << nDead << endl;
@@ -9914,6 +9909,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     Log.printf( "Number of Dead bump bonds:    %i\n", nDead );
 
   }
+
   else {
     h21->SetStats(0);
     h21->Draw("colz");
