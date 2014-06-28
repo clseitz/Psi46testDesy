@@ -133,6 +133,12 @@ CMD_PROC(showtb) // test board state
   else
     cout << "no DAQ open" << endl;
 
+  uint8_t status = tb.GetStatus();
+  printf( "SD card detect: %c\n", (status&8) ? '1' : '0' );
+  printf( "CRC error:      %c\n", (status&4) ? '1' : '0' );
+  printf( "Clock good:     %c\n", (status&2) ? '1' : '0' );
+  printf( "CLock present:  %c\n", (status&1) ? '1' : '0' );
+
   Log.printf( "Clock phase %i\n", tbState.GetClockPhase() );
   Log.printf( "Deser phase %i\n", tbState.GetDeserPhase() );
   if( tbState.GetDaqOpen() )
@@ -150,23 +156,6 @@ CMD_PROC(showtb) // test board state
 CMD_PROC(showhv) // iseg HV status
 {
   iseg.status();
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(status)
-{
-  uint8_t status = tb.GetStatus();
-  printf( "SD card detect: %c\n", (status&8) ? '1' : '0' );
-  printf( "CRC error:      %c\n", (status&4) ? '1' : '0' );
-  printf( "Clock good:     %c\n", (status&2) ? '1' : '0' );
-  printf( "CLock present:  %c\n", (status&1) ? '1' : '0' );
-
-  if( tbState.GetDaqOpen() )
-    cout << "allocated DAQ block in DTB memory " << tbState.GetDaqSize() << " words" << endl;
-  else
-    cout << "DAQ not open" << endl;
-
   return true;
 }
 
@@ -10328,7 +10317,6 @@ CMD_PROC(h)
 void cmd() // called once from psi46test
 {
   CMD_REG( showtb,   "showtb                        print DTB state" );
-  CMD_REG( status,   "status                        shows testboard status" );
   CMD_REG( showhv,   "show hv                       status of iseg HV supply" );
   CMD_REG( scan,     "scan                          enumerate USB devices" );
   CMD_REG( open,     "open <name>                   open connection to testboard" );
