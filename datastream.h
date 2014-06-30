@@ -5,7 +5,7 @@
 #include <list>
 #include <vector>
 
-#include "config.h"
+#include "version.h"
 #include "psi46test.h"
 #include "datapipe.h"
 #include "protocol.h"

@@ -8,7 +8,7 @@
 #include "profiler.h"
 
 #include "rpc.h"
-#include "config.h"
+#include "version.h"
 
 #ifdef _WIN32
 #include "pipe.h"

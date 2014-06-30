@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "htable.h"
-#include "config.h"
+#include "version.h"
 
 class CInterpreter;
 

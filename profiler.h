@@ -3,7 +3,7 @@
 
 #include <string>
 #include <list>
-#include "config.h"
+#include "version.h"
 
 // MSVC: __FUNCTION__ __FUNCDNAME__ __FUNCSIG__
 // GCC:  __func__     __FUNCTION__  __PRETT_FUNCTION__
