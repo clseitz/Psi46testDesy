@@ -9790,12 +9790,14 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   h11 = new TH1D( "Responses",
 		  "Responses;max responses;pixels",
 		  mTrig+1, -0.5, mTrig+0.5 );
-
+  
   if( h23 ) delete h23;
   h23 = new TH2D( "ResposeMap",
 		  "Response map;col;row;max responses",
 		  52, -0.5, 51.5,
 		  80, -0.5, 79.5 );
+  
+  
 
   // unpack data:
   // ~/psi/dtb/pixel-dtb-firmware/software/dtb_expert/trigger_loops.cpp
@@ -9864,7 +9866,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
       if( err ) break;
 
       h11->Fill( nmx );
-      h23->Fill( col, row, nmx );
+      //h23->Fill( col, row, nmx );
 
     } // row
 
@@ -9875,38 +9877,99 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   h11->Write();
   h21->Write();
   h22->Write();
-  h23->Write();
+  //h23->Write();
+
   if( nTrig < 0 ) { // BB test
+
+    // Localize the missing Bump from h22
+
+    int nbinx = h22->GetNbinsX();
+    int nbiny = h22->GetNbinsY();
+
+    int iActive;
+    int iMissing;
+    int iIneff;
+
+    iActive = 0;
+    iMissing = 0;
+    iIneff = 0;
+
+    int ibinCenter;
+
+    // Find Plateau
+
+    for ( int ibin = 0; ibin <= nbinx ; ibin++)     
+      {	
+	ibinCenter = h22->GetXaxis()->GetBinCenter(ibin);
+	// just for valid pixels 0-4160      
+	if (ibinCenter > -1)
+	  {
+	    // Search for the Plateau 	  
+	    int iEnd;
+	    int iBegin;
+	    iEnd = 0;
+	    iBegin = 0;
+	    // Find first the maximum
+	    int imax;
+	    imax = 0;
+	    for (int j=0; j <= nbiny ; j++)
+	      {
+		int cnt = h22->GetBinContent(ibin,j);	  
+		// Find Maximum
+		if( cnt > imax ) imax = cnt;
+	      }
+	    // use the maximum response to localize the Plateau
+	    for (int jbin=0; jbin <= nbiny ; jbin++)
+	      {    
+		int cnt = h22->GetBinContent(ibin,jbin);	  
+		// Find Plateau
+		if( cnt == imax ) 
+		  {
+		    iEnd = jbin; // end of plateau
+		    if( iBegin == 0 ) iBegin = jbin; // begin of plateau
+		  }		   	      
+	      }
+
+	    // cout << "Bin: " << ibin << " Plateau Begins and End in  " << iBegin << " - " << iEnd << endl;	    
+	    
+	    if ( iEnd-iBegin < 15 )
+	      {
+		iMissing++;
+		cout << "Missing Bump at raw col: " << ibinCenter%80 << " " << ibinCenter/80 << endl;
+		Log.printf( "Missing Bump at raw col: %i %i\n", ibin%80, ibin/80);
+		h23->Fill(ibinCenter/80,ibinCenter%80,0);
+	      }
+	    else
+	      {
+		h23->Fill(ibinCenter/80,ibinCenter%80,imax);
+		if (imax > mTrig/2)
+		  {
+		    iActive++; 		    
+		  }
+		else
+		  {
+		    iIneff++;
+		    cout << "Inefficient Bump at raw col: " << ibinCenter%80 << " " << ibinCenter/80 << endl;
+		  }
+		
+	      }
+	  }
+	else{
+	}
+      }	
+
+    Log.printf( "Number of Active bump bonds [above trig/2]: %i\n", iActive );
+    Log.printf( "Number of Inefficient bump bonds: %i\n", iIneff);
+    Log.printf( "Number of Missing bump bonds: %i\n", iMissing );
+
+    cout << "Number of Active bump bonds: " <<  iActive << endl;
+    cout << "Number of Inefficient bump bonds: " <<  iIneff << endl;
+    cout << "Number of Missing bump bonds: " << iMissing << endl;
+
+    h23->Write();
     h23->SetStats(0);
     h23->Draw("colz");
     c1->Update();
-
-    int nActive = 0;
-    int nPerfect = 0;
-    int nDead = 0;
-
-    for( int col = 0; col < 52; ++col )
-      for( int row = 0; row < 80; ++row ) {
-	int nresponses = h23->GetBinContent( col+1, row+1 ); // ROOT bin counting starts at 1
-	if( nresponses == 0 ) {
-	  nDead++;
-	  cout << "dead pixel and/or missing bump bond at col, row: "
-	       << setw(2) << col << setw(3) << row << endl;
-	}
-	else if( nresponses >= mTrig/2 )
-	  nActive++;
-
-	if( nresponses == mTrig )
-	  nPerfect++;
-      }
-    
-    cout << "Number of Active bump bonds:  " << nActive << endl;
-    cout << "Number of Perfect bump bonds: " << nPerfect << endl;
-    cout << "Number of Dead bump bonds:    " << nDead << endl;
-
-    Log.printf( "Number of Active bump bonds:  %i\n", nActive );
-    Log.printf( "Number of Perfect bump bonds: %i\n", nPerfect );
-    Log.printf( "Number of Dead bump bonds:    %i\n", nDead );
 
   }
   else {
