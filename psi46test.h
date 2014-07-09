@@ -8,7 +8,7 @@
 #include <TRootEmbeddedCanvas.h>
 #include <TCanvas.h>
 
-#include "config.h"
+#include "version.h"
 #include "pixel_dtb.h"
 #include "settings.h"
 //DP#include "prober.h"
@@ -17,7 +17,7 @@
 //DP#include "test.h"
 //DP#include "chipdatabase.h"
 
-#define VERSIONINFO TITLE " " VERSION " (" TIMESTAMP ")" // from config.h
+#define VERSIONINFO TITLE " " VERSION " (" TIMESTAMP ")" // from version.h
 
 // global variables:
 extern int nEntry; // counts the entries in the log file
