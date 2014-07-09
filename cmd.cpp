@@ -24,11 +24,8 @@
 
 #include "psi46test.h" // includes pixel_dtb.h
 #include "analyzer.h" // includes datastream.h
-//#include "plot.h"
-//#include "histo.h"
 
 #include "command.h"
-//DP#include "defectlist.h"
 #include "rpc.h"
 
 #include "iseg.h" // HV
@@ -94,6 +91,7 @@ TH1D * h16;
 TH2D * h21;
 TH2D * h22;
 TH2D * h23;
+TH2D * h24;
 
 Iseg iseg;
 
@@ -136,6 +134,12 @@ CMD_PROC(showtb) // test board state
   else
     cout << "no DAQ open" << endl;
 
+  uint8_t status = tb.GetStatus();
+  printf( "SD card detect: %c\n", (status&8) ? '1' : '0' );
+  printf( "CRC error:      %c\n", (status&4) ? '1' : '0' );
+  printf( "Clock good:     %c\n", (status&2) ? '1' : '0' );
+  printf( "CLock present:  %c\n", (status&1) ? '1' : '0' );
+
   Log.printf( "Clock phase %i\n", tbState.GetClockPhase() );
   Log.printf( "Deser phase %i\n", tbState.GetDeserPhase() );
   if( tbState.GetDaqOpen() )
@@ -153,23 +157,6 @@ CMD_PROC(showtb) // test board state
 CMD_PROC(showhv) // iseg HV status
 {
   iseg.status();
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC(status)
-{
-  uint8_t status = tb.GetStatus();
-  printf( "SD card detect: %c\n", (status&8) ? '1' : '0' );
-  printf( "CRC error:      %c\n", (status&4) ? '1' : '0' );
-  printf( "Clock good:     %c\n", (status&2) ? '1' : '0' );
-  printf( "CLock present:  %c\n", (status&1) ? '1' : '0' );
-
-  if( tbState.GetDaqOpen() )
-    cout << "allocated DAQ block in DTB memory " << tbState.GetDaqSize() << " words" << endl;
-  else
-    cout << "DAQ not open" << endl;
-
   return true;
 }
 
@@ -350,6 +337,7 @@ bool UpdateDTB(const char *filename)
     printf( "FLASH write start (LED 1..4 on)\n"
 	    "DO NOT INTERUPT DTB POWER !\n"
 	    "Wait till LEDs goes off\n"
+	    "  exit from psi46test\n"
 	    "  power cycle the DTB\n" );
     tb.UpgradeExec(recordCount);
     tb.Flush();
@@ -431,7 +419,7 @@ CMD_PROC(init)
 //------------------------------------------------------------------------------
 CMD_PROC(flush)
 {
-  tb.Flush(); // USB commands to DTB
+  tb.Flush(); // send buffer of USB commands to DTB
   return true;
 }
 
@@ -979,10 +967,15 @@ CMD_PROC(chip)
 
   cout << "Chip " << Chip << endl;
 
-  if( Chip >= 200 && Chip < 299 ){
+  if( Chip >= 200 && Chip < 299 ) {
     tb.SetPixelAddressInverted(1);
     tb.invertAddress = 1;
     cout << "SetPixelAddressInverted" << endl;
+  }
+  else { // just to be sure
+    tb.SetPixelAddressInverted(0);
+    tb.invertAddress = 0;
+    cout << "SetPixelAddressNotInverted" << endl;
   }
 
   dacName[  1] = "Vdig";
@@ -4513,7 +4506,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
   cout << "  DAQ size " << tb.Daq_GetSize( tbmch ) << endl;
   cout << "  DAQ fill " << (int) tb.Daq_FillLevel( tbmch ) << endl;
-  cout << "  DAQ done " << done << endl;
+  cout << ( done ? "done" : "not done" ) << endl;
 
   vector<uint16_t> data;
   data.reserve( tb.Daq_GetSize( tbmch ) );
@@ -5300,11 +5293,8 @@ CMD_PROC(modpixsc) // S-curve for modules, one pix per ROC
 //------------------------------------------------------------------------------
 CMD_PROC(modsc) // S-curve for modules, all pix
 {
-  int kTrig;
-  PAR_INT( kTrig, 1, 65000 );
-
-  uint16_t nTrig = kTrig;
-  cout << "nTrig " << nTrig << endl;
+  int nTrig;
+  PAR_INT( nTrig, 1, 65000 );
 
   timeval tv;
   gettimeofday( &tv, NULL );
@@ -5450,9 +5440,8 @@ CMD_PROC(modsc) // S-curve for modules, all pix
     long u2 = tv.tv_usec; // microseconds
     double dt = s2-s1 + (u2-u1)*1e-6;
 
-    cout << "LoopMultiRocAllPixelDacScan takes " << dt << " s"
-	 << endl;
-    cout << "done " << done << endl;
+    cout << "LoopMultiRocAllPixelDacScan takes " << dt << " s" << endl;
+    cout << ( done ? "done" : "not done" ) << endl;
 
   } // while not done
 
@@ -5863,7 +5852,7 @@ CMD_PROC(modsc1) // S-curve for modules, all pix, one ROC at a time
       cout << "LoopSingleRocOnePixelDacScan takes " << dt << " s"
 	   << " = " << dt / nstp / nTrig /4160 * 1e6 << " us / pix"
 	   << endl;
-      cout << "DAQ done " << done << endl;
+      cout << ( done ? "done" : "not done" ) << endl;
 
       // read and unpack data:
 
@@ -6210,6 +6199,9 @@ CMD_PROC(calsdac) // calsdac col row dac (cals PH vs dac)
     return false;
   }
 
+  int nTrig;
+  if( !PAR_IS_INT( nTrig, 1, 65500 ) ) nTrig = 10;
+
   Log.section( "CALSDAC", false );
   Log.printf( " pixel %i %i DAC %i\n", col, row, dac );
 
@@ -6218,7 +6210,6 @@ CMD_PROC(calsdac) // calsdac col row dac (cals PH vs dac)
   long s0 = tv.tv_sec; // seconds since 1.1.1970
   long u0 = tv.tv_usec; // microseconds
 
-  int nTrig = 10; // enough
   vector<int16_t> nReadouts; // size 0
   vector<double> PHavg;
   vector<double> PHrms;
@@ -6849,9 +6840,8 @@ CMD_PROC(modmap) // works
     long u2 = tv.tv_usec; // microseconds
     double dt = s2-s1 + (u2-u1)*1e-6;
 
-    cout << "LoopMultiRocAllPixelDacScan takes " << dt << " s"
-	 << endl;
-    cout << "done " << done << endl;
+    cout << "LoopMultiRocAllPixelDacScan takes " << dt << " s" << endl;
+    cout << ( done ? "done" : "not done" ) << endl;
 
   } // while not done
 
@@ -7382,7 +7372,7 @@ CMD_PROC(thrmapsc) // raw data S-curve: 60 s / ROC
     cout << "LoopSingleRocAllPixelsDacScan takes " << dt << " s"
 	 << " = " << tloop / 4160 / nTrig / nstp * 1e6 << " us / pix"
 	 << endl;
-    cout << "done " << done << endl;
+    cout << ( done ? "done" : "not done" ) << endl;
 
     cout << "DAQ size " << dSize << " words" << endl;
 
@@ -9790,14 +9780,18 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   h11 = new TH1D( "Responses",
 		  "Responses;max responses;pixels",
 		  mTrig+1, -0.5, mTrig+0.5 );
-  
+
   if( h23 ) delete h23;
   h23 = new TH2D( "ResposeMap",
 		  "Response map;col;row;max responses",
 		  52, -0.5, 51.5,
 		  80, -0.5, 79.5 );
-  
-  
+
+  if( h24 ) delete h24;
+  h24 = new TH2D( "BBtestMap",
+		  "BBtest map;col;row;max responses",
+		  52, -0.5, 51.5,
+		  80, -0.5, 79.5 );
 
   // unpack data:
   // ~/psi/dtb/pixel-dtb-firmware/software/dtb_expert/trigger_loops.cpp
@@ -9866,7 +9860,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
       if( err ) break;
 
       h11->Fill( nmx );
-      //h23->Fill( col, row, nmx );
+      h23->Fill( col, row, nmx );
 
     } // row
 
@@ -9877,7 +9871,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   h11->Write();
   h21->Write();
   h22->Write();
-  //h23->Write();
+  h23->Write();
 
   if( nTrig < 0 ) { // BB test
 
@@ -9937,11 +9931,11 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 		iMissing++;
 		cout << "Missing Bump at raw col: " << ibinCenter%80 << " " << ibinCenter/80 << endl;
 		Log.printf( "Missing Bump at raw col: %i %i\n", ibin%80, ibin/80);
-		h23->Fill(ibinCenter/80,ibinCenter%80,0);
+		h24->Fill(ibinCenter/80,ibinCenter%80,0);
 	      }
 	    else
 	      {
-		h23->Fill(ibinCenter/80,ibinCenter%80,imax);
+		h24->Fill(ibinCenter/80,ibinCenter%80,imax);
 		if (imax > mTrig/2)
 		  {
 		    iActive++; 		    
@@ -9966,9 +9960,9 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     cout << "Number of Inefficient bump bonds: " <<  iIneff << endl;
     cout << "Number of Missing bump bonds: " << iMissing << endl;
 
-    h23->Write();
-    h23->SetStats(0);
-    h23->Draw("colz");
+    h24->Write();
+    h24->SetStats(0);
+    h24->Draw("colz");
     c1->Update();
 
   }
@@ -10390,7 +10384,6 @@ CMD_PROC(h)
 void cmd() // called once from psi46test
 {
   CMD_REG( showtb,   "showtb                        print DTB state" );
-  CMD_REG( status,   "status                        shows testboard status" );
   CMD_REG( showhv,   "show hv                       status of iseg HV supply" );
   CMD_REG( scan,     "scan                          enumerate USB devices" );
   CMD_REG( open,     "open <name>                   open connection to testboard" );
@@ -10555,12 +10548,12 @@ void cmd() // called once from psi46test
   CMD_REG( effdac,   "effdac roc col row dac        Efficiency vs DAC one pixel" );
   CMD_REG( phdac,    "phdac col row dac             PH vs DAC one pixel" );
   CMD_REG( gaindac,  "gaindac                       calibrated PH vs Vcal" );
-  CMD_REG( calsdac,  "calsdac col row dac           cals vs DAC one pixel" );
+  CMD_REG( calsdac,  "calsdac col row dac [nTrig]   cals vs DAC one pixel" );
   CMD_REG( dacdac,   "dacdac col row dacx dacy      DAC DAC scan" );
 
   CMD_REG( dacscanroc,"dacscanroc dac [nTrig]       PH vs DAC, all pixels" );
 
-  CMD_REG( tune,     "tune                          tune gain and offset" );
+  CMD_REG( tune,     "tune col row                  tune gain and offset" );
   CMD_REG( phmap,    "phmap nTrig                   ROC PH map" );
   CMD_REG( calsmap,  "calsmap nTrig                 CALS map = bump bond test" );
   CMD_REG( effmap,   "effmap nTrig                  pixel alive map" );
