@@ -3,7 +3,7 @@
 #define SETTINGS_H
 
 #include <stdio.h>
-#include "config.h"
+#include "version.h"
 
 #define NUMSETTING 3
 
