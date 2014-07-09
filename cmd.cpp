@@ -9925,12 +9925,11 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 	      }
 
 	    // cout << "Bin: " << ibin << " Plateau Begins and End in  " << iBegin << " - " << iEnd << endl;	    
-	    
 	    if ( iEnd-iBegin < 15 )
 	      {
 		iMissing++;
-		cout << "Missing Bump at raw col: " << ibinCenter%80 << " " << ibinCenter/80 << endl;
-		Log.printf( "Missing Bump at raw col: %i %i\n", ibin%80, ibin/80);
+		cout << "[Missing Bump at raw col:] " << ibinCenter%80 << " " << ibinCenter/80 << endl;
+		Log.printf( "[Missing Bump at raw col:] %i %i\n", ibin%80, ibin/80);
 		h24->Fill(ibinCenter/80,ibinCenter%80,0);
 	      }
 	    else
@@ -9951,7 +9950,21 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 	else{
 	}
       }	
+    
+    // save the map in the log file
 
+    for ( int ibin=1; ibin <= h24->GetNbinsX(); ibin++) 
+      {
+	for (int jbin=1; jbin <= h24->GetNbinsY() ; jbin++)
+	  {  
+	    int c_val = h24->GetBinContent(ibin,jbin);
+	    Log.printf( " %i", c_val );
+	    //cout << ibin << " " << jbin << " " << c_val << endl;
+	  }
+	Log.printf( "\n" );
+      }
+    Log.flush();
+    
     Log.printf( "Number of Active bump bonds [above trig/2]: %i\n", iActive );
     Log.printf( "Number of Inefficient bump bonds: %i\n", iIneff);
     Log.printf( "Number of Missing bump bonds: %i\n", iMissing );
