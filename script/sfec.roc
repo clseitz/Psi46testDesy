@@ -15,10 +15,10 @@ ia  100 mA
 #fsel 1 # 0 = 40 MHz, 1 = 20 MHz
 
 - timing phase [ns]
-clk 19  (FEC 30 cm cable)
-ctr 19  (CLK +  0)
-sda 30  (CLK + 11)
-tin 20  (CLK +  1)
+clk 20  (FEC 30 cm cable)
+ctr 20  (CLK +  0)
+sda 31  (CLK + 11)
+tin 21  (CLK +  1)
 
 deser 5
 
@@ -31,7 +31,7 @@ tinlvl 15
 --- pattern generator: set redout timing --------------------
 pgstop
 pgset 0 b101000  16  pg_resr pg_sync
-pgset 1 b000100  45  pg_cal, set WBC = pg_cal - 6
+pgset 1 b000100  66  pg_cal, set WBC = pg_cal - 6
 pgset 2 b000010  20  pg_trg  
 pgset 3 b000001   0  pg_tok, end of pgset
 
@@ -56,10 +56,12 @@ mdelay 500
 
 hvon
 
---- set divgV2 chip 320 DACs-----------------------------
+--- set divgV2 chip DACs:
 
-dac   1   15  Vdig  FEC 30 cm cable
-dac   2  200  Vana  for 27 mA
+chip 350
+
+dac   1    6  Vdig  FEC 30 cm cable
+dac   2  200  Vana  35 mA for effmap
 dac   3  130  Vsf   linearity
 dac   4   12  Vcomp
 
@@ -85,7 +87,7 @@ dac  25  222  Vcal
 dac  26  134  CalDel
 
 dac 253    4  CtrlReg
-dac 254   39  WBC (159 to get 79 pixel/DC, but not 80 = erase)
+dac 254   60  WBC
 
 flush
 

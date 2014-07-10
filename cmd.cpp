@@ -1227,6 +1227,14 @@ CMD_PROC(upd) // redraw ROOT canvas; only works for global histos
     c1->Update();
     gStyle->SetStatY(statY);
   }
+  else if( plot == 24 ) {
+    double statY = gStyle->GetStatY();
+    gStyle->SetStatY(0.95);
+    gStyle->SetOptStat(10); // entries
+    h24->Draw("colz");
+    c1->Update();
+    gStyle->SetStatY(statY);
+  }
 
   return true;
 }
@@ -6263,8 +6271,8 @@ CMD_PROC(calsdac) // calsdac col row dac (cals PH vs dac)
 
   h11->Write();
   h12->Write();
-  h11->SetStats(0);
-  h11->Draw();
+  h12->SetStats(0);
+  h12->Draw();
   c1->Update();
   cout << "histos 11, 12" << endl;
 
@@ -9620,6 +9628,12 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     return false;
   }
 
+  cout << "scan dac " << dacName[dac]
+       << " at CtrlReg " << dacval[0][CtrlReg]
+       << ", VthrComp " << dacval[0][VthrComp]
+       << ", CalDel " << dacval[0][CalDel]
+       << endl;
+
   Log.section( "DACSCANROC", false );
   Log.printf( " DAC %i\n", dac );
 
@@ -9984,7 +9998,7 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     h21->Draw("colz");
     c1->Update();
   }
-  cout << "histos 21, 22, 11, 23" << endl;
+  cout << "histos 11, 21, 22, 23, 24" << endl;
 
   Log.flush();
 
@@ -10558,7 +10572,7 @@ void cmd() // called once from psi46test
   CMD_REG( thrmap,   "thrmap guess                  threshold map trimmed" );
   CMD_REG( thrmapsc, "thrmapsc stop (4=cals)        threshold map" );
 
-  CMD_REG( effdac,   "effdac roc col row dac        Efficiency vs DAC one pixel" );
+  CMD_REG( effdac,   "effdac col row dac            Efficiency vs DAC one pixel" );
   CMD_REG( phdac,    "phdac col row dac             PH vs DAC one pixel" );
   CMD_REG( gaindac,  "gaindac                       calibrated PH vs Vcal" );
   CMD_REG( calsdac,  "calsdac col row dac [nTrig]   cals vs DAC one pixel" );
