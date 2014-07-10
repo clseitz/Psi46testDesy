@@ -4139,18 +4139,19 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(fire) // fire col row (nTrig) [cal and read]
+CMD_PROC(fire) // fire col row (nTrig) [send cal and read ROC]
 {
   int col, row;
   PAR_INT( col, 0, 51 );
   PAR_INT( row, 0, 79 );
   int nTrig;
-  if( !PAR_IS_INT( nTrig, 1, 65500 ) ) nTrig = 1;
+  if( !PAR_IS_INT( nTrig, -65500, 65500 ) ) nTrig = 1;
 
   tb.roc_Col_Enable( col, true );
   int trim = modtrm[0][col][row];
   tb.roc_Pix_Trim( col, row, trim );
-  tb.roc_Pix_Cal ( col, row, false );
+  bool cals = nTrig < 0;
+  tb.roc_Pix_Cal ( col, row, cals );
 
   cout << "fire"
        << " col " << col
@@ -4168,7 +4169,7 @@ CMD_PROC(fire) // fire col row (nTrig) [cal and read]
   tb.uDelay(100);
   tb.Flush();
 
-  for( int k = 0; k < nTrig; k++ ) {
+  for( int k = 0; k < abs(nTrig); k++ ) {
     tb.Pg_Single();
     tb.uDelay(20);
   }
@@ -4216,9 +4217,11 @@ CMD_PROC(fire) // fire col row (nTrig) [cal and read]
 
   for( unsigned int i = 0; i < data.size(); i++ ) {
 
-    if( (data[i] & 0xffc) == 0x7f8 ) { // header
+    if( (data[i] & 0xffc) == 0x7f8 ) { // ROC header
       even = 0;
+      if( evt > 0 ) cout << endl;
       evt++;
+      cout << "evt " << setw(2) << evt;
     }
     else if( even ) { // merge 2 words into one pixel int:
 
@@ -4233,6 +4236,8 @@ CMD_PROC(fire) // fire col row (nTrig) [cal and read]
 	uint16_t iy = dec.GetY();
 	uint16_t ph = dec.GetPH();
 	double vc = PHtoVcal( ph, ix, iy );
+
+	cout << " pix " << setw(2) << ix << setw(3) << iy << setw(4) << ph;
 
 	if( ix == col && iy == row ) {
 	  cnt++;
@@ -4252,6 +4257,7 @@ CMD_PROC(fire) // fire col row (nTrig) [cal and read]
     even = 1-even;
 
   } // data
+
   if( extra ) cout << endl;
 
   double ph = -1;
