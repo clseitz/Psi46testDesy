@@ -10270,44 +10270,60 @@ CMD_PROC(dacdac) // LoopSingleRocOnePixelDacDacScan:
   c1->Update();
   cout << "histos 21, 22, 23" << endl;
 
-  int dac1Mean = int(h23->GetMean(1));
-  int dac2Mean = int(h23->GetMean(2));
+  if( dac1 == 26 && dac2 == 12 ) { // Tornado plot: VthrComp vs CalDel
 
-  // look for a better value: 
+    int dac1Mean = int( h23->GetMean(1) );
 
-  int nm = 0;
-  int i0 = 0;
-  int i9 = 0;
+    cout << "dac " << dac1 << " mean " << dac1Mean << endl;
 
-  for( int j = 0; j < nstp1; ++j ) {    
-    int cnt = h23->GetBinContent(dac1Mean,j);
-    h_one->Fill(j,h23->GetBinContent(dac1Mean,j));
-    //cout << " " << cnt;
-    //Log.printf( "%i %i\n", j, cnt );
+    // find efficiency plateau of dac2 at dac1Mean:
 
-    if( cnt > nm ) {
-      nm = cnt;
-      i0 = j; // begin of plateau
+    int nm = 0;
+    int i0 = 0;
+    int i9 = 0;
+
+    for( int j = 1; j < nstp1; ++j ) {
+
+      int cnt = h23->GetBinContent( dac1Mean, j );
+
+      h_one->Fill( j, cnt );
+
+      //cout << " " << cnt;
+      //Log.printf( "%i %i\n", j, cnt );
+
+      if( cnt > nm ) {
+	nm = cnt;
+	i0 = j; // begin of plateau
+      }
+      if( cnt >= nm ) {
+	i9 = j; // end of plateau
+      }
     }
-    if( cnt >= nm ) {
-      i9 = j; // end of plateau
-    }      
-  } 
 
-  //
-  cout << "Proposed values for dac1=" << dac1 << " : "  << dac1Mean << endl;
-  int dac2Best = i0 + (i9-i0)/4;
-  cout << "Proposed values for dac2=" << dac2 << " are: " << endl;
-  cout << " 1) 25% from Plateau " << dac2Best << endl;
-  cout << " 2) Mean "  << dac2Mean << endl;
-  cout << "For dac2: " << dac2 << " Plateau begin-end " << i0 << "-" << i9 << endl;
+    cout << "dac " << dac2 << " plateau from " << i0 << " to " << i9 << endl;
 
-  Log.printf( "dac1 %i %i\n", dac1, int(dac1Mean) );
-  Log.printf( "dac2 %i %i\n", dac2, int(dac2Best) );
-  Log.printf( "dac2 %i Plateau begin %i end %i\n", dac2, i0, i9 );
-  
-  h_one->Write();
-  delete h_one;
+    int dac2Best = i0 + (i9-i0)/4;
+
+    cout << "set dac " << dac1 << " " << dacName[dac1]
+	 << " to mean "  << dac1Mean << endl;
+
+    cout << "set dac " << dac2 << " " << dacName[dac2]
+	 << " to best " << dac2Best << endl;
+
+    tb.SetDAC( dac1, dac1Mean );
+    tb.SetDAC( dac2, dac2Best );
+    dacval[0][dac1] = dac1Mean;
+    dacval[0][dac2] = dac2Best;
+
+    Log.printf( "[SETDAC] %i  %i\n", dac1, dac1Mean );
+    Log.printf( "[SETDAC] %i  %i\n", dac2, dac2Best );
+
+    Log.printf( "dac2 %i Plateau begin %i end %i\n", dac2, i0, i9 );
+
+    h_one->Write();
+    delete h_one;
+
+  } // Tornado
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
