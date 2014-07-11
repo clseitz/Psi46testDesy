@@ -9801,6 +9801,11 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 		  "Responses;max responses;pixels",
 		  mTrig+1, -0.5, mTrig+0.5 );
 
+  if( h12 ) delete h12;
+  h12 = new TH1D( "CalsVthrPlateauWidth",
+		  "Width of VthrComp plateau for cals;width of VthrComp plateau for cals [DAC];pixels",
+		  101, -0.5, 100.5 );
+
   if( h23 ) delete h23;
   h23 = new TH2D( "ResposeMap",
 		  "Response map;col;row;max responses",
@@ -9900,111 +9905,107 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     int nbinx = h22->GetNbinsX();
     int nbiny = h22->GetNbinsY();
 
-    int iActive;
-    int iMissing;
-    int iIneff;
+    int nActive;
+    int nMissing;
+    int nIneff;
 
-    iActive = 0;
-    iMissing = 0;
-    iIneff = 0;
+    nActive = 0;
+    nMissing = 0;
+    nIneff = 0;
 
     int ibinCenter;
 
     // Find Plateau
 
-    for ( int ibin = 0; ibin <= nbinx ; ibin++)     
-      {	
-	ibinCenter = h22->GetXaxis()->GetBinCenter(ibin);
-	// just for valid pixels 0-4160      
-	if (ibinCenter > -1)
-	  {
-	    // Search for the Plateau 	  
-	    int iEnd;
-	    int iBegin;
-	    iEnd = 0;
-	    iBegin = 0;
-	    // Find first the maximum
-	    int imax;
-	    imax = 0;
-	    for (int j=0; j <= nbiny ; j++)
-	      {
-		int cnt = h22->GetBinContent(ibin,j);	  
-		// Find Maximum
-		if( cnt > imax ) imax = cnt;
-	      }
-	    // use the maximum response to localize the Plateau
-	    for (int jbin=0; jbin <= nbiny ; jbin++)
-	      {    
-		int cnt = h22->GetBinContent(ibin,jbin);	  
-		// Find Plateau
-		if( cnt == imax ) 
-		  {
-		    iEnd = jbin; // end of plateau
-		    if( iBegin == 0 ) iBegin = jbin; // begin of plateau
-		  }		   	      
-	      }
+    for( int ibin = 1; ibin <= nbinx ; ibin++ ) {
 
-	    // cout << "Bin: " << ibin << " Plateau Begins and End in  " << iBegin << " - " << iEnd << endl;	    
-	    if ( iEnd-iBegin < 15 )
-	      {
-		iMissing++;
-		cout << "[Missing Bump at raw col:] " << ibinCenter%80 << " " << ibinCenter/80 << endl;
-		Log.printf( "[Missing Bump at raw col:] %i %i\n", ibin%80, ibin/80);
-		h24->Fill(ibinCenter/80,ibinCenter%80,0);
-	      }
-	    else
-	      {
-		h24->Fill(ibinCenter/80,ibinCenter%80,imax);
-		if (imax > mTrig/2)
-		  {
-		    iActive++; 		    
-		  }
-		else
-		  {
-		    iIneff++;
-		    cout << "Inefficient Bump at raw col: " << ibinCenter%80 << " " << ibinCenter/80 << endl;
-		  }
-		
-	      }
+      ibinCenter = h22->GetXaxis()->GetBinCenter(ibin);
+
+      // Find first the maximum
+      int imax;
+      imax = 0;
+      for( int j = 1; j <= nbiny ; j++ ) {
+	int cnt = h22->GetBinContent( ibin, j );
+	// Find Maximum
+	if( cnt > imax ) imax = cnt;
+      }
+
+      if( imax < mTrig/2 ) {
+	++nIneff;
+	cout << "Dead pixel at raw col: " << ibinCenter%80
+	     << " " << ibinCenter/80 << endl;
+      }
+      else {
+
+	// Search for the Plateau
+
+	int iEnd = 0;
+	int iBegin = 0;
+
+	// use the maximum response to localize the Plateau
+	for( int jbin = 0; jbin <= nbiny; jbin++ ) {
+	  int cnt = h22->GetBinContent(ibin,jbin);	  
+	  // Find Plateau
+	  if( cnt >= imax/2 ) {
+	    iEnd = jbin; // end of plateau
+	    if( iBegin == 0 ) iBegin = jbin; // begin of plateau
 	  }
-	else{
 	}
-      }	
-    
+
+	// cout << "Bin: " << ibin << " Plateau Begins and End in  " << iBegin << " - " << iEnd << endl;
+	// narrow plateau is from noise
+
+	h12->Fill( iEnd-iBegin );
+
+	if( iEnd-iBegin < 15 ) {
+
+	  nMissing++;
+	  cout << "[Missing Bump at raw col:] " << ibinCenter%80 << " " << ibinCenter/80 << endl;
+	  Log.printf( "[Missing Bump at raw col:] %i %i\n", ibin%80, ibin/80);
+	  h24->Fill(ibinCenter/80,ibinCenter%80,0);
+	}
+	else {
+	  h24->Fill(ibinCenter/80,ibinCenter%80,imax);
+	  nActive++;
+	} // plateau width
+      } // active imax
+    } // x-bins
+
+    h12->Write();
+
     // save the map in the log file
 
-    for ( int ibin=1; ibin <= h24->GetNbinsX(); ibin++) 
-      {
-	for (int jbin=1; jbin <= h24->GetNbinsY() ; jbin++)
-	  {  
-	    int c_val = h24->GetBinContent(ibin,jbin);
-	    Log.printf( " %i", c_val );
-	    //cout << ibin << " " << jbin << " " << c_val << endl;
-	  }
-	Log.printf( "\n" );
-      }
+    for ( int ibin = 1; ibin <= h24->GetNbinsX(); ++ibin ) {
+      for (int jbin = 1; jbin <= h24->GetNbinsY() ; ++jbin ) {
+	int c_val = h24->GetBinContent( ibin, jbin );
+	Log.printf( " %i", c_val );
+	//cout << ibin << " " << jbin << " " << c_val << endl;
+      } //row
+      Log.printf( "\n" );
+    } // col
     Log.flush();
     
-    Log.printf( "Number of Active bump bonds [above trig/2]: %i\n", iActive );
-    Log.printf( "Number of Inefficient bump bonds: %i\n", iIneff);
-    Log.printf( "Number of Missing bump bonds: %i\n", iMissing );
+    Log.printf( "Number of Active bump bonds [above trig/2]: %i\n", nActive );
+    Log.printf( "Number of Missing bump bonds: %i\n", nMissing );
+    Log.printf( "Number of Dead pixel: %i\n", nIneff);
 
-    cout << "Number of Active bump bonds: " <<  iActive << endl;
-    cout << "Number of Inefficient bump bonds: " <<  iIneff << endl;
-    cout << "Number of Missing bump bonds: " << iMissing << endl;
+    cout << "Number of Active bump bonds: " <<  nActive << endl;
+    cout << "Number of Missing bump bonds: " << nMissing << endl;
+    cout << "Number of Dead pixel: " <<  nIneff << endl;
 
     h24->Write();
     h24->SetStats(0);
     h24->Draw("colz");
     c1->Update();
+    cout << "histos 11, 12, 21, 22, 23, 24" << endl;
 
-  }
+  } // BB test
   else {
     h21->SetStats(0);
     h21->Draw("colz");
     c1->Update();
   }
-  cout << "histos 11, 21, 22, 23, 24" << endl;
+  cout << "histos 11, 21, 22, 23" << endl;
 
   Log.flush();
 
