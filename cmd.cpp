@@ -10000,12 +10000,13 @@ CMD_PROC(dacscanroc) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     cout << "histos 11, 12, 21, 22, 23, 24" << endl;
 
   } // BB test
+
   else {
     h21->SetStats(0);
     h21->Draw("colz");
     c1->Update();
+    cout << "histos 11, 21, 22, 23" << endl;
   }
-  cout << "histos 11, 21, 22, 23" << endl;
 
   Log.flush();
 

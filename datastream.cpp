@@ -14,7 +14,6 @@ void CRocPixel::DecodeRaw()
   x = 2*c + (r&1);
 }
 
-
 // === CDtbSource (CSource<uint16_t>) ================================
 
 uint16_t CDtbSource::FillBuffer()
