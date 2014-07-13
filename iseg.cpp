@@ -13,37 +13,38 @@
 using namespace std;
 
 //------------------------------------------------------------------------------
-double outToDouble( char * word )
+double outToDouble( char *word )
 {
   int sign = 1;
   int orderSign = 1;
   int order = 0;
 
-  if( word[0]=='-' ) {
+  if( word[0] == '-' ) {
     sign = -1;
-    if( word[6] == '-' ) orderSign = -1;
+    if( word[6] == '-' )
+      orderSign = -1;
   }
-  else
-    if( word[5] == '-' ) orderSign = -1;
+  else if( word[5] == '-' )
+    orderSign = -1;
 
   char *istr;
   istr = strtok( &word[0], " +-" );
-  double value = atof(istr);
+  double value = atof( istr );
   while( istr != NULL ) {
-    order = atoi(istr);
-    istr = strtok (NULL," +-");
+    order = atoi( istr );
+    istr = strtok( NULL, " +-" );
   }
 
-  return( sign * value * pow( 10, orderSign*order ) );
+  return ( sign * value * pow( 10, orderSign * order ) );
 }
 
 //------------------------------------------------------------------------------
 // Constructor: Connects to the device, initializes communication
-Iseg::Iseg()
+Iseg::Iseg(  )
 {
-  // "S1": Read status
-  // "D1": New set-voltage
-  // "G1": Apply new set-voltage
+ // "S1": Read status
+ // "D1": New set-voltage
+ // "G1": Apply new set-voltage
 
   ldb = 1;
 
@@ -67,7 +68,7 @@ Iseg::Iseg()
   char answer[256] = { 0 };
   writeCommandAndReadAnswer( "S1", answer );
   if( strcmp( answer, "S1=ON" ) != 0 ) {
-    // Try once more:
+   // Try once more:
     writeCommandAndReadAnswer( "S1", answer );
   }
   handleAnswers( answer );
@@ -83,50 +84,55 @@ Iseg::Iseg()
 
 //------------------------------------------------------------------------------
 // Destructor: Will turn off the HV and terminate connection to the HV Power Supply device
-Iseg::~Iseg()
+Iseg::~Iseg(  )
 {
-  if( iseg_connected == 0 ) return;
-  setVoltage(0);
-  closeComPort(); // Close the COM port
+  if( iseg_connected == 0 )
+    return;
+  setVoltage( 0 );
+  closeComPort(  ); // Close the COM port
   iseg_connected = 0;
 }
 
 //------------------------------------------------------------------------------
-void Iseg::handleAnswers( char* answer )
+void Iseg::handleAnswers( char *answer )
 {
-  if(      strcmp( answer, "S1=ON" ) == 0 ) {
-    if( ldb ) cout << "  voltage is set" << endl;
+  if( strcmp( answer, "S1=ON" ) == 0 ) {
+    if( ldb )
+      cout << "  voltage is set" << endl;
   }
   else if( strcmp( answer, "S1=OFF" ) == 0 ) {
     cout << "HV Power Supply set to OFF!" << endl;
     iseg_connected = 0;
   }
-  else if( strcmp( answer, "S1=TRP" ) == 0 ) { 
+  else if( strcmp( answer, "S1=TRP" ) == 0 ) {
     cout << "Power supply tripped!" << endl;
     supply_tripped = true;
   }
-  else if( strcmp( answer, "S1=ERR" ) == 0 ) { 
+  else if( strcmp( answer, "S1=ERR" ) == 0 ) {
     cout << "Power supply tripped!" << endl;
     supply_tripped = true;
   }
-  else if( strcmp( answer, "S1=MAN") == 0) { 
+  else if( strcmp( answer, "S1=MAN" ) == 0 ) {
     cout << "HV Power Supply set to MANUAL mode!" << endl;
     iseg_connected = 0;
   }
-  else if( strcmp( answer, "S1=L2H") == 0 ) {
-    if( ldb ) cout << "Voltage is rising" << endl;
+  else if( strcmp( answer, "S1=L2H" ) == 0 ) {
+    if( ldb )
+      cout << "Voltage is rising" << endl;
   }
-  else if( strcmp( answer, "S1=H2L") == 0 ) {
-    if( ldb ) cout << "Voltage is falling" << endl;
+  else if( strcmp( answer, "S1=H2L" ) == 0 ) {
+    if( ldb )
+      cout << "Voltage is falling" << endl;
   }
   else {
-    if( ldb ) cout << "Unknown device return value";
+    if( ldb )
+      cout << "Unknown device return value";
     supply_tripped = false;
   }
 }
 
 //------------------------------------------------------------------------------
-void Iseg::status()
+void Iseg::status(  )
 {
   if( iseg_connected == 0 ) {
     cout << "iseg not connected" << endl;
@@ -154,10 +160,12 @@ void Iseg::status()
   cout << "ramp speed    " << answer << " V/s" << endl;
 
   writeCommandAndReadAnswer( "D1", answer );
-  cout << "voltage set   " << answer << " = " << outToDouble(answer) << " V" << endl;
+  cout << "voltage set   " << answer << " = " << outToDouble( answer ) << " V"
+    << endl;
 
   writeCommandAndReadAnswer( "U1", answer );
-  cout << "voltage meas  " << answer << " = " << outToDouble(answer) << " V" << endl;
+  cout << "voltage meas  " << answer << " = " << outToDouble( answer ) << " V"
+    << endl;
 
   writeCommandAndReadAnswer( "N1", answer );
   cout << "current limit " << answer << " % of range" << endl;
@@ -166,13 +174,15 @@ void Iseg::status()
   cout << "current trip  " << answer << endl;
 
   writeCommandAndReadAnswer( "LS1", answer );
-  cout << "current trip  " << answer << " = " << outToDouble(answer) << endl;
+  cout << "current trip  " << answer << " = " << outToDouble( answer ) <<
+    endl;
 
   writeCommandAndReadAnswer( "I1", answer );
-  cout << "current meas  " << answer << " = " << outToDouble(answer) << " A" << endl;
+  cout << "current meas  " << answer << " = " << outToDouble( answer ) << " A"
+    << endl;
 
 }
-    
+
 //------------------------------------------------------------------------------
 // Sets the desired voltage
 bool Iseg::setVoltage( double volts )
@@ -182,13 +192,14 @@ bool Iseg::setVoltage( double volts )
     return 1; // error
   }
 
-  // Internally store voltage:
-  voltage_set = double(volts);
+ // Internally store voltage:
+  voltage_set = double ( volts );
 
   if( hv_on ) {
-    if( ldb ) cout << "Setting HV to " << voltage_set << " V" << endl;
-    char command[256] = {0};
-    char answer[256] = {0};
+    if( ldb )
+      cout << "Setting HV to " << voltage_set << " V" << endl;
+    char command[256] = { 0 };
+    char answer[256] = { 0 };
     sprintf( &command[0], "D1=%.f", voltage_set );
     writeCommandAndReadAnswer( command, answer );
     writeCommandAndReadAnswer( "G1", answer );
@@ -197,34 +208,34 @@ bool Iseg::setVoltage( double volts )
   else {
     cout << "HV not activated" << endl;
   }
-  // FIXME not checking for return codes yet!
+ // FIXME not checking for return codes yet!
   return true;
 }
-    
+
 //------------------------------------------------------------------------------
 // Reads back the configured voltage
-double Iseg::getVoltage()
+double Iseg::getVoltage(  )
 {
   if( iseg_connected == 0 ) {
     cout << "iseg not connected" << endl;
     return 0;
   }
-  char answer[256] = {0};
+  char answer[256] = { 0 };
   writeCommandAndReadAnswer( "U1", answer );
-  return outToDouble(answer);
+  return outToDouble( answer );
 }
 
 //------------------------------------------------------------------------------
 // Reads back the current drawn
-double Iseg::getCurrent()
+double Iseg::getCurrent(  )
 {
   if( iseg_connected == 0 ) {
     cout << "iseg not connected" << endl;
     return 0;
   }
-  char answer[256] = {0};
+  char answer[256] = { 0 };
   writeCommandAndReadAnswer( "I1", answer );
-  return outToDouble(answer);
+  return outToDouble( answer );
 }
 
 //------------------------------------------------------------------------------
@@ -235,14 +246,15 @@ bool Iseg::setCurrentLimit( int limit )
     cout << "iseg not connected" << endl;
     return 0;
   }
-  if( limit > 100 ) limit = 100;
+  if( limit > 100 )
+    limit = 100;
 
   cout << "Setting current limit to " << limit << " uA" << endl;
 
-  char command[256] = {0};
-  char answer[256] = {0};
-  // Factor 100 is required since this value is the sensitive region,
-  // not milliamps!
+  char command[256] = { 0 };
+  char answer[256] = { 0 };
+ // Factor 100 is required since this value is the sensitive region,
+ // not milliamps!
   sprintf( &command[0], "LS1=%i", limit );
   writeCommandAndReadAnswer( command, answer );
   writeCommandAndReadAnswer( "G1", answer );
@@ -252,20 +264,20 @@ bool Iseg::setCurrentLimit( int limit )
 
 //------------------------------------------------------------------------------
 // Read the current limit in compliance mode [uA]
-double Iseg::getCurrentLimit()
+double Iseg::getCurrentLimit(  )
 {
   if( iseg_connected == 0 ) {
     cout << "iseg not connected" << endl;
     return 0;
   }
-  char answer[256] = {0};
+  char answer[256] = { 0 };
   writeCommandAndReadAnswer( "LS1", answer );
 
-  return outToDouble(answer) * 1E6; // A to uA
+  return outToDouble( answer ) * 1E6; // A to uA
 }
 
 //------------------------------------------------------------------------------
-bool Iseg::tripped()
+bool Iseg::tripped(  )
 {
   if( supply_tripped )
     return true;

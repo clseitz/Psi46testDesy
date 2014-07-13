@@ -20,31 +20,31 @@
 #define VERSIONINFO TITLE " " VERSION " (" TIMESTAMP ")" // from version.h
 
 // global variables:
-extern int nEntry; // counts the entries in the log file
+extern int nEntry;              // counts the entries in the log file
 
-extern CTestboard tb; // in pixel_dtb.h
-extern CSettings settings;  // global settings
+extern CTestboard tb;           // in pixel_dtb.h
+extern CSettings settings;      // global settings
 //DP extern CProber prober; // prober
-extern CProtocol Log;  // log file
+extern CProtocol Log;           // log file
 
 //DP extern CChip g_chipdata;
 
 //DP extern int delayAdjust;
 //DP extern int deserAdjust;
 
-void cmd();
+void cmd(  );
 
 #ifdef ROOT
 
-class MyMainFrame : public TGMainFrame {
+class MyMainFrame:public TGMainFrame {
 
 private:
-  TGMainFrame *fMain;
+  TGMainFrame * fMain;
   TRootEmbeddedCanvas *fEcanvas;
 public:
-  MyMainFrame( const TGWindow *p, UInt_t w, UInt_t h );
-  virtual ~MyMainFrame();
-  TCanvas * GetCanvas();
+    MyMainFrame( const TGWindow * p, UInt_t w, UInt_t h );
+    virtual ~ MyMainFrame(  );
+  TCanvas *GetCanvas(  );
 };
 
 #endif

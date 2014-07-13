@@ -9,23 +9,27 @@
 #include <stdio.h>
 #include <string>
 
-class CProtocol
-{
+class CProtocol {
   FILE *f;
- public:
-  CProtocol() { f = NULL; }
-  ~CProtocol() { close(); }
+public:
+    CProtocol(  ) {
+    f = NULL;
+  } ~CProtocol(  ) {
+    close(  );
+  }
   bool open( const char filename[] );
   bool append( const char filename[] );
-  void close();
+  void close(  );
   void timestamp( const char s[] );
   void section( const char s[], bool crlf = true );
   void section( const char s[], const char par[] );
   void puts( const char s[] );
   void puts( const std::string s );
   void printf( const char *fmt, ... );
-  void flush();
-  FILE* File() { return f; }
+  void flush(  );
+  FILE *File(  ) {
+    return f;
+  }
 };
 
 #endif

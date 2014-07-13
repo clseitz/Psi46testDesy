@@ -21,8 +21,7 @@
 //#define USBREADBUFFERSIZE   4096 // 4.1 MiB/s
 #define USBREADBUFFERSIZE 65536 // 4.1 MiB/s
 
-class CUSB : public CRpcIo
-{
+class CUSB:public CRpcIo {
   bool isUSB_open;
   FT_HANDLE ftHandle;
   FT_STATUS ftStatus;
@@ -35,31 +34,35 @@ class CUSB : public CRpcIo
   DWORD m_posR, m_sizeR;
   unsigned char m_bufferR[USBREADBUFFERSIZE];
 
-  int GetQueue();
-  bool FillBuffer(DWORD minBytesToRead);
+  int GetQueue(  );
+  bool FillBuffer( DWORD minBytesToRead );
 
- public:
-  CUSB()
-    {
-      m_posR = m_sizeR = m_posW = 0;
-      isUSB_open = false;
-      ftHandle = 0; ftStatus = 0;
-      enumPos = enumCount = 0;
-    }
-  ~CUSB() { /* Close(); */ }
-  int GetLastError() { return ftStatus; }
-  static const char* GetErrorMsg( int error );
+public:
+    CUSB(  ) {
+    m_posR = m_sizeR = m_posW = 0;
+    isUSB_open = false;
+    ftHandle = 0;
+    ftStatus = 0;
+    enumPos = enumCount = 0;
+  } ~CUSB(  ) { /* Close(); */
+  }
+  int GetLastError(  ) {
+    return ftStatus;
+  }
+  static const char *GetErrorMsg( int error );
   bool EnumFirst( unsigned int &nDevices );
   bool EnumNext( char name[] );
   bool Enum( char name[], unsigned int pos );
   bool Open( char serialNumber[] );
-  void Close();
-  bool Connected() { return isUSB_open; };
+  void Close(  );
+  bool Connected(  ) {
+    return isUSB_open;
+  };
 
   void Write( const void *buffer, unsigned int size );
   void SetTimeout( int ms ); // DP
-  void Flush();
-  void Clear();
+  void Flush(  );
+  void Clear(  );
   bool WaitForFilledQueue( int pSize, int pMaxWait = 10000 ); // DP, HP
   void Read( void *buffer, unsigned int size );
 };

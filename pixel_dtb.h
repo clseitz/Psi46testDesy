@@ -5,10 +5,10 @@
 
 #pragma once
 
-#include "profiler.h"
-
-#include "rpc.h"
 #include "version.h"
+#include "rpc.h"
+
+#include "profiler.h"
 
 #ifdef _WIN32
 #include "pipe.h"

@@ -5,11 +5,9 @@
 #include <string>
 
 
-class CRpcError
-{
- public:
-  enum errorId
-  {
+class CRpcError {
+public:
+  enum errorId {
     OK,
     TIMEOUT,
     WRITE_ERROR,
@@ -28,9 +26,12 @@ class CRpcError
     UNDEF
   } error;
   int functionId;
- CRpcError() : error(CRpcError::OK), functionId(-1) {}
- CRpcError(errorId e) : error(e) {}
-  void SetFunction(unsigned int cmdId) { functionId = cmdId; }
-  const char *GetMsg();
-  void What();
+    CRpcError(  ):error( CRpcError::OK ), functionId( -1 ) {
+  } CRpcError( errorId e ):error( e ) {
+  }
+  void SetFunction( unsigned int cmdId ) {
+    functionId = cmdId;
+  }
+  const char *GetMsg(  );
+  void What(  );
 };

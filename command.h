@@ -19,71 +19,85 @@ class CInterpreter;
 
 #define CMDLINELENGTH 80
 
-bool keypressed();
+bool keypressed(  );
 
 #define MAXSYMLEN  10
 
-struct CSymbol { char name[MAXSYMLEN+1]; int value; };
+struct CSymbol {
+  char name[MAXSYMLEN + 1];
+  int value;
+};
 
 //------------------------------------------------------------------------------
-class CCmdLine
-{
+class CCmdLine {
   bool interactive;
-  char s[CMDLINELENGTH+1];
+  char s[CMDLINELENGTH + 1];
   char *cmd, *par;
-  bool read( FILE *f );
-  bool isCmd( const char name[] ) { return strcmp(cmd,name) == 0; }
+  bool read( FILE * f );
+  bool isCmd( const char name[] ) {
+    return strcmp( cmd, name ) == 0;
+  } static const CSymbol symtable[];
 
-  static const CSymbol symtable[];
-
-  static bool isAlpha( char ch )
-  { return ( 'A' <= ch && ch <= 'Z' ) || ( 'a' <= ch && ch <= 'z' ); }
-  static bool isNumber( char ch ) { return '0' <= ch && ch <= '9'; }
-  static bool isAlphaNum( char ch ) { return isAlpha(ch) || isNumber(ch); }
-  static bool isWhitespace( char ch ) { return ch == ' ' || ch == '\t'; }
+  static bool isAlpha( char ch ) {
+    return ( 'A' <= ch && ch <= 'Z' ) || ( 'a' <= ch && ch <= 'z' );
+  }
+  static bool isNumber( char ch ) {
+    return '0' <= ch && ch <= '9';
+  }
+  static bool isAlphaNum( char ch ) {
+    return isAlpha( ch ) || isNumber( ch );
+  }
+  static bool isWhitespace( char ch ) {
+    return ch == ' ' || ch == '\t';
+  }
   static int GetHex( char ch );
   bool getSymbol( int &value );
   bool getNumber( int &value );
-  void setInteractive( bool on ) { interactive = on; }
- public:
-  const char* getName() { return cmd; }
+  void setInteractive( bool on ) {
+    interactive = on;
+  }
+public:
+  const char *getName(  ) {
+    return cmd;
+  }
   bool getInt( int &value, int min, int max );
   bool getIntRange( int &valuemin, int &valuemax, int skipmin, int skipmax );
   bool getString( char *value, int size );
   bool getStringEOL( char *value, int size );
-  bool isInteractive() { return interactive; }
+  bool isInteractive(  ) {
+    return interactive;
+  }
   friend class CInterpreter;
 };
 
-typedef bool(*CMDFUNCTION)(CCmdLine &);
+typedef bool( *CMDFUNCTION ) ( CCmdLine & );
 
 //------------------------------------------------------------------------------
-class CCommand
-{
+class CCommand {
   const char *m_help;
   CMDFUNCTION m_exec;
- public:
-  friend class CInterpreter;
+public:
+    friend class CInterpreter;
 };
 
 //------------------------------------------------------------------------------
-class CInterpreter
-{
-  CHashTable<CCommand> cmdList;
+class CInterpreter {
+  CHashTable < CCommand > cmdList;
   CCmdLine cmdline;
   char scriptPath[256];
-  void help();
- public:
-  CInterpreter();
-  ~CInterpreter() {};
+  void help(  );
+public:
+    CInterpreter(  );
+   ~CInterpreter(  ) {
+  };
   void SetScriptPath( const char path[] );
   void AddCommand( const char name[], CMDFUNCTION f, const char help[] );
-  bool run( FILE *f, int iter = 0 );
+  bool run( FILE * f, int iter = 0 );
 };
 
 
 //------------------------------------------------------------------------------
-bool cmd_not_implemented(CCmdLine &par);
+bool cmd_not_implemented( CCmdLine & par );
 
 extern CInterpreter cmd_intp;
 
