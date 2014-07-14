@@ -158,4 +158,12 @@ Documentation:
 --------------
 
 man.pdf  
-written in LYX (man.lyx)
+man.tex (pdflatex, created by LYX)
+
+
+Code style:
+-----------
+
+use indent command: indent *.h and indent *.h
+uses .indent.pro
+see indent.cpp
