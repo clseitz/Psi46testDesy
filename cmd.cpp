@@ -61,6 +61,7 @@ int dacval[16][256];            // DP
 string dacName[256];
 
 int Chip = 400;
+int Module = 3;
 
 int roclist[16] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -1720,7 +1721,7 @@ void Decoder::AnalyzeSamples(  )
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( dread ) // daq read and print
+CMD_PROC( dread ) // daq read and print as ROC data
 {
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
@@ -1851,46 +1852,10 @@ CMD_PROC( dread ) // daq read and print
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( dreadr ) // dump int
-{
-  uint32_t words_remaining = 0;
-  vector < uint16_t > data;
-
-  tb.Daq_Read( data, words_remaining );
-
-  int size = data.size(  );
-  printf( "#samples: %i remaining: %i\n", size, int ( words_remaining ) );
-
-  for( int i = 0; i < size; i++ ) {
-    int x = data[i] & 0x0fff;
-    if( x & 0x0800 )
-      x |= 0xfffff000;
-    printf( " %6i", x );
-    if( i % 10 == 9 )
-      printf( "\n" );
-  }
-  printf( "\n" );
-
- // Log:
-
-  for( int i = 0; i < size; i++ ) {
-    int x = data[i] & 0x0fff;
-    if( x & 0x0800 )
-      x |= 0xfffff000;
-    Log.printf( "%6i", x );
-    if( i % 100 == 99 )
-      Log.printf( "\n" );
-  }
-  Log.printf( "\n" );
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
 CMD_PROC( dreadm ) // module
 {
   int channel;
-  if( !PAR_IS_INT( channel, 0, 7 ) )
+  if( !PAR_IS_INT( channel, 0, 1 ) )
     channel = 0;
 
   uint32_t words_remaining = 0;
@@ -1989,152 +1954,6 @@ CMD_PROC( dreadm ) // module
   printf( "\n" );
   Log.printf( "\n" );
   Log.flush(  );
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC( dread400 ) // for modules
-{
-  int channel;
-  if( !PAR_IS_INT( channel, 0, 1 ) )
-    channel = 0;
-
-  uint32_t words_remaining = 0;
-  vector < uint16_t > data;
-
-  tb.Daq_Read( data, Blocksize, words_remaining, channel );
-
-  int size = data.size(  );
-  printf( "words read %i, remaining %i\n", size, words_remaining );
-
-  for( int i = 0; i < size; i++ ) {
-    int x = data[i] & 0xffff;
-    printf( " %X", x );
-    Log.printf( " %X", x );
-    if( i % 16 == 15 || i == size - 1 )
-      printf( "\n" );
-    if( i % 16 == 15 || i == size - 1 )
-      Log.printf( "\n" );
-  }
-
-  unsigned int hdr = 0, trl = 0;
-  unsigned int raw = 0;
-  uint32_t iroc = 0;
-  for( int i = 0; i < size; i++ ) {
-    int d = data[i] & 0xf;      // 4 bits data
-    int q = ( data[i] >> 4 ) & 0xf; // 4 flag bits
-   // int TBM_eventnr,TBM_stackinfo,ColAddr,RowAddr,PulseHeight,TBM_trailerBits,TBM_readbackData;
-    switch ( q ) {
-    case 0:
-      printf( "  0(%1X)", d );
-      break;
-
-    case 1:
-      printf( "\n    %1X", d );
-      raw = d;
-      break;
-    case 2:
-      printf( "%1X", d );
-      raw = ( raw << 4 ) + d;
-      break;
-    case 3:
-      printf( "%1X", d );
-      raw = ( raw << 4 ) + d;
-      break;
-    case 4:
-      printf( "%1X", d );
-      raw = ( raw << 4 ) + d;
-      break;
-    case 5:
-      printf( "%1X", d );
-      raw = ( raw << 4 ) + d;
-      break;
-    case 6:
-      printf( "%1X", d );
-      raw = ( raw << 4 ) + d;
-      DecodePixel( raw );
-      break;
-
-    case 7:
-      printf( "\n%2i. ROC header %1X", iroc, d );
-      iroc++;
-      break;
-
-    case 8:
-      printf( "\nTBM header %1X", d );
-      hdr = d;
-      break;
-    case 9:
-      printf( "%1X", d );
-      hdr = ( hdr << 4 ) + d;
-      break;
-    case 10:
-      printf( "%1X", d );
-      hdr = ( hdr << 4 ) + d;
-      break;
-    case 11:
-      printf( "%1X", d );
-      hdr = ( hdr << 4 ) + d;
-      DecodeTbmHeader( hdr );
-      break;
-
-    case 12:
-      printf( "\nTBM trailer %1X", d );
-      trl = d;
-      break;
-    case 13:
-      printf( "%1X", d );
-      trl = ( trl << 4 ) + d;
-      break;
-    case 14:
-      printf( "%1X", d );
-      trl = ( trl << 4 ) + d;
-      break;
-    case 15:
-      printf( "%1X", d );
-      trl = ( trl << 4 ) + d;
-      DecodeTbmTrailer( trl );
-      break;
-    }
-  }
-  printf( "\n" );
-  Log.printf( "\n" );
-  Log.flush(  );
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC( dreada )
-{
-  uint32_t words_remaining = 0;
-  vector < uint16_t > data;
-
-  tb.Daq_Read( data, words_remaining );
-
-  int size = data.size(  );
-  printf( "#samples: %i remaining: %i\n", size, int ( words_remaining ) );
-
-  for( int i = 0; i < size; i++ ) {
-    int x = data[i] & 0x0fff;
-    if( x & 0x0800 )
-      x |= 0xfffff000;
-    printf( " %6i", x );
-    if( i % 10 == 9 )
-      printf( "\n" );
-  }
-  printf( "\n" );
-
-  for( int i = 0; i < size; i++ ) {
-    int x = data[i] & 0x0fff;
-    if( x & 0x0800 )
-      x |= 0xfffff000;
-    Log.printf( "%6i", x );
-    if( i % 100 == 99 )
-      printf( "\n" );
-  }
-  printf( "\n" );
 
   return true;
 }
@@ -11051,15 +10870,9 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( dsize,
            "dsize [<channel>]             Show DAQ buffer fill state" );
   CMD_REG( dread,
-           "dread [<channel>]             Read Daq buffer and show as raw data" );
-  CMD_REG( dreada,
-           "dreada                        Read Daq buffer and show as analog data" );
-  CMD_REG( dreadr,
-           "dreadr                        Read Daq buffer and show as ROC data" );
+           "dread                         Read Daq buffer and show as ROC data" );
   CMD_REG( dreadm,
-           "dreadm                        Read Daq buffer and show as module data" );
-  CMD_REG( dread400,
-           "dread400 channel=0            Read Daq buffer and show as module data" );
+           "dreadm [channel]              Read Daq buffer and show as module data" );
 
   CMD_REG( showclk, "showclk                       show CLK signal" );
   CMD_REG( showctr, "showctr                       show CTR signal" );
