@@ -1,4 +1,5 @@
-
+%% LyX 1.6.10 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
 \documentclass[english]{article}
 \usepackage{lmodern}
 \renewcommand{\sfdefault}{lmss}
@@ -22,6 +23,32 @@
 \providecommand{\tabularnewline}{\\}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User specified LaTeX commands.
+
+
+\usepackage{lmodern}\renewcommand{\sfdefault}{lmss}
+\usepackage{courier}\renewcommand{\familydefault}{\rmdefault}
+
+
+
+
+
+
+\makeatletter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
+%% Because html converters don't know tabularnewline
+\providecommand{\tabularnewline}{\\}
+
+\makeatother
+
+\usepackage{babel}
+
+\makeatother
+
+\usepackage{babel}
+
+
+
 \makeatother
 
 \usepackage{babel}
@@ -34,7 +61,7 @@
 \author{Daniel Pitzl, Claudia Seitz, DESY}
 
 
-\date{23.6.2014}
+\date{21.7.2014}
 
 \maketitle
 
@@ -209,8 +236,8 @@ plotting and offline processing.
 These commands don't require the presence of a ROC. Use them to check
 the USB connection and the board. 
 \begin{description}
-\item [\texttt{rpcinfo}] prints the list of functions available
-in the DTB SW via RPC. 
+\item [\texttt{rpcinfo}] prints the list of functions available in
+the DTB SW via RPC. 
 \item [\texttt{upgrade\ dtb\_v2.21.flash}] load new firmware/software
 into the FPGA. Wait until the LEDs are off. Exit psi46test. Power
 cycle the DTB (unplugging the power cable) to make sure that the new
@@ -221,20 +248,20 @@ executable is loaded from EPROM.
 version numbers 
 \item [\texttt{boardid}] prints the production serial number 
 \item [\texttt{welcome}] play the LED startup sequence 
-\item [\texttt{setled\ bits}] play with the four LEDs on the
-test board (bit pattern: 0 all off, 15 all on) 
+\item [\texttt{setled\ bits}] play with the four LEDs on the test
+board (bit pattern: 0 all off, 15 all on) 
 \item [\texttt{pon}] low voltage on 
 \item [\texttt{getva}] measure the analog supply voltage on the board 
-\item [\texttt{getvd}] measure the digital supply voltage on the board 
-\item [\texttt{va\ mV}] set the analog supply voltage (range
-0 to 3000 mV, 1700 mV is fine) 
-\item [\texttt{vd\ mV}] set the digital supply voltage (range
-0 to 3000 mV, 2500 mV is fine) 
-\item [\texttt{poff}] low voltage off. Do this before exiting
-from psi46test. 
-\item [\texttt{quit}] (or \texttt{exit}) closes the DTB (and
-RS232 iseg HV connection, if present), the log and ROOT files and
-ends psi46test. 
+\item [\texttt{getvd}] measure the digital supply voltage on the
+board 
+\item [\texttt{va\ mV}] set the analog supply voltage (range 0 to
+3000 mV, 1700 mV is fine) 
+\item [\texttt{vd\ mV}] set the digital supply voltage (range 0
+to 3000 mV, 2500 mV is fine) 
+\item [\texttt{poff}] low voltage off. Do this before exiting from
+psi46test. 
+\item [\texttt{quit}] (or \texttt{exit}) closes the DTB (and RS232
+iseg HV connection, if present), the log and ROOT files and ends psi46test. 
 \end{description}
 Rename \texttt{d.log} and/or \texttt{Test.root} if you want to keep
 them, otherwise they get overwritten with the next start of \texttt{psi46test}.
@@ -249,16 +276,24 @@ red-ringed lemo connector.
 Start again: \texttt{bin/psi46test c405.log} 
 \begin{description}
 \item [\texttt{s405}] execute start-up commands for a given chip
-(\texttt{script/s405.roc}) 
+(\texttt{script/s405.roc}) . Loads test board and ROC configuration 
+\item [\texttt{sm}] start up a module 
 \item [\texttt{getid}] measure digital current, should be around
 22-28\,mA per ROC 
-\item [\texttt{getia}] measure analog current, should be around 25\,mA per ROC.
-If it is around 5\,mA the ROC is not properly programmed.
-Inspect the settings in the start script.
-The problem is either here, or the ROC is dead. 
-\item [\texttt{deser160}] 2D scan of clock phase and 160\,MHz
-deserializer phase (for single ROCs), searching for the proper ROC
-header 7FA (hex). Sets the new values, if successful. 
+\item [\texttt{getia}] measure analog current, should be around 25\,mA
+per ROC. If it is around 5\,mA the ROC is not properly programmed.
+Inspect the settings in the start script. The problem is either here,
+or the ROC is dead. 
+\item [\texttt{deser160}] 2D scan of clock phase and 160\,MHz deserializer
+phase (for single ROCs), searching for the proper ROC header 7FA (hex).
+Sets the new values, if successful. 
+\end{description}
+If you already have DAC and trim settings, you may load them: 
+\begin{description}
+\item [\texttt{rddac~desc}] reads and loads \texttt{dacParameters\_cijk\_desc.dat}
+for a chip or \texttt{dacParameters\_Dm\_desc.dat} for a module 
+\item [\texttt{rdtrim\_desc}] reads and loads \texttt{trimParameters\_cijk\_desc.dat}
+for a chip or \texttt{trimParameters\_Dm\_desc.dat} for a module 
 \end{description}
 The following commands elicit a response from the ROC only if it is
 properly set up (\texttt{Vana}, \texttt{WBC}, \texttt{CalDel}, \texttt{VthrComp}
@@ -274,15 +309,15 @@ un-mask block of pixels and prepare for calibrate
 of reset-calibrate-trigger-token or whatever is programmed in the
 pattern generator) 
 \item [\texttt{cole\ col}] enable one column 
-\item [\texttt{cole\ col:col}] enable range of columns (e.g.
-\texttt{cole 0:51} for all) 
+\item [\texttt{cole\ col:col}] enable range of columns (e.g. \texttt{cole
+0:51} for all) 
 \item [\texttt{pixe\ col\ row}] unmask one pixel 
 \item [\texttt{pixe\ col:col\ row:row}] unmask block of pixels
 (e.g. \texttt{pixe 0:51 0:79} for the entire ROC) 
 \item [\texttt{cal\ col\ row}] activate one pixel for calibrate 
 \item [\texttt{cal\ col:col\ row:row}] activate pixels for calibrate
-(columns and rows independently, at all intersections of
-\texttt{col} and \texttt{row}) 
+(columns and rows independently, at all intersections of \texttt{col}
+and \texttt{row}) 
 \item [\texttt{cald}] clear calibrate from all pixels 
 \item [\texttt{mask}] disable all pixels 
 \item [\texttt{cold\ col}] disable column 
@@ -334,43 +369,42 @@ DAC  & name  & range  & DAC  & name  & range\tabularnewline
 \begin{description}
 \item [\texttt{optia\ target}] set Vana to get the desired target
 analog current {[}mA{]}, .e.g. optia 25 
-\item [\texttt{show}] current DAC settings (presumably, from
-book-keeping in psi46test; reading back DACs from the ROC is not possible) 
-\item [\texttt{dac\ number\ value}] set a DAC value (number
-is the DAC address). Some DACs have shortcuts: 
-\item [\texttt{vana\ value}] set \texttt{Vana} (check analog
-current with \texttt{getia}, 1 mA / 6 Vana DAC units) 
+\item [\texttt{show}] current DAC settings (presumably, from book-keeping
+in psi46test; reading back DACs from the ROC is not possible) 
+\item [\texttt{dac\ number\ value}] set a DAC value (number is
+the DAC address). Some DACs have shortcuts: 
+\item [\texttt{vana\ value}] set \texttt{Vana} (check analog current
+with \texttt{getia}, 1 mA / 6 Vana DAC units) 
 \item [\texttt{vthr\ value}] set global threshold \texttt{VthrComp} 
 \item [\texttt{vcal\ value}] set test pulse amplitude 
-\item [\texttt{ctl}] set control register (0 = small Vcal,
-4 = large Vcal, 1 = ROC off) 
-\item [\texttt{caldel\ col\ row}] measure pixel efficiency
-vs \texttt{CalDel}, set \texttt{CalDel} in the plateau region 
-\item [\texttt{caldelroc}] scan \texttt{CalDel} for the entire
-ROC (perfect pixels respond to all triggers, alive pixels have at
-least 50\% response), sets \texttt{CalDel} in the plateau region 
-\item [\texttt{thrmap\ guess}] measure pixel threshold map for
-current settings (faster if guess is close to truth) 
+\item [\texttt{ctl}] set control register (0 = small Vcal, 4 = large
+Vcal, 1 = ROC off) 
+\item [\texttt{caldel\ col\ row}] measure pixel efficiency vs \texttt{CalDel},
+set \texttt{CalDel} in the plateau region 
+\item [\texttt{caldelroc}] scan \texttt{CalDel} for the entire ROC
+(perfect pixels respond to all triggers, alive pixels have at least
+50\% response), sets \texttt{CalDel} in the plateau region 
+\item [\texttt{thrmap\ guess}] measure pixel threshold map for current
+settings (faster if guess is close to truth) 
 \item [\texttt{vthrcompi}] scan digital current vs global threshold,
 set \texttt{VthrComp} below the onset of the noise peak 
-\item [\texttt{vthrcomp\ target\,{[}guess{]}}] set VthrComp
-such that the minimum pixel threshold is at target Vcal units (faster
-if guess is near present threshold) 
+\item [\texttt{vthrcomp\ target\,{[}guess{]}}] set VthrComp such
+that the minimum pixel threshold is at target Vcal units (faster if
+guess is near present threshold) 
 \item [\texttt{trim\ target}] set \texttt{Vtrim} and \texttt{trim
 bits} such that all pixel thresholds are as close as possible to target
 Vcal units 
 \item [\texttt{effmap\ nTrig}] measure efficiency map (PixelAlive)
 with n triggers per pixel 
-\item [\texttt{trimbits}] adjust trim bits to recover maximum
-efficiency 
-\item [\texttt{wtrim\ chip}] write current trim bits to
-\texttt{trimParameters\_chip.dat} 
+\item [\texttt{trimbits}] adjust trim bits to recover maximum efficiency 
+\item [\texttt{wtrim\ desc}] write current trim bits to \texttt{trimParameters\_cijk\_desc.dat}
+(or \texttt{trimParameters\_Dm\_desc.dat for modules)} 
 \item [\texttt{phmap\ ntrig}] measure pixel pulse height map 
-\item [\texttt{tune}] set gain and offset such that the pulse
-heights of all pixels are in 80\% of the ADC range, for large and
-small Vcal, with 10\% margins against overflows and underflows 
-\item [\texttt{wdac\ chip}] write current DAC settings to
-\texttt{dacParameters\_chip.dat} 
+\item [\texttt{tune}] set gain and offset such that the pulse heights
+of all pixels are in 80\% of the ADC range, for large and small Vcal,
+with 10\% margins against overflows and underflows 
+\item [\texttt{wdac\ desc}] write current DAC settings to \texttt{dacParameters\_cijk\_desc.dat}
+(or \texttt{dacParameters\_Dm\_desc.dat for modules)} 
 \end{description}
 
 \subsection{DAC scans}
@@ -383,25 +417,25 @@ DAC value is restored at the end.
 (efficiency) for one pixel vs a DAC 
 \item [\texttt{phdac\ col\ row\ dac}] pulse height (ADC) vs DAC
 for one pixel 
-\item [\texttt{calsdac\ col\ row\ dac}] sensor calibrate pulse height (ADC)
-vs DAC at CtrlReg 4 (high range Vcal) for one pixel 
-\item [\texttt{thrdac\ col\ row\ dac}] threshold (in small
-Vcal units) vs DAC for one pixel 
-\item [\texttt{dacdac\ col\ row\ dacx\ dacy}] 2D DAC-DAC
-scan for one pixel, pulse height and efficiency (26 12 gives the tornado
+\item [\texttt{calsdac\ col\ row\ dac}] sensor calibrate pulse
+height (ADC) vs DAC at CtrlReg 4 (high range Vcal) for one pixel 
+\item [\texttt{thrdac\ col\ row\ dac}] threshold (in small Vcal
+units) vs DAC for one pixel 
+\item [\texttt{dacdac\ col\ row\ dacx\ dacy}] 2D DAC-DAC scan
+for one pixel, pulse height and efficiency (26 12 gives the tornado
 plot, 26 25 gives the time walk plot) 
-\item [\texttt{dacscanroc\ dac\ {[}nTrig{]}}] maps of pulse
-height and efficiency vs dac for all pixels (dac 25 at ctl 0 gives
-S-curves, dac 25 at ctl 4 gives gain calibration, dac 26 gives CalDel) 
-\item [\texttt{gaindac}] calibrated pulse height vs Vcal for all pixels,
-checks the gain calibration 
+\item [\texttt{dacscanroc\ dac\ {[}nTrig{]}}] maps of pulse height
+and efficiency vs dac for all pixels (dac 25 at ctl 0 gives S-curves,
+dac 25 at ctl 4 gives gain calibration, dac 26 gives CalDel) 
+\item [\texttt{gaindac}] calibrated pulse height vs Vcal for all
+pixels, checks the gain calibration 
 \end{description}
 
 \subsection{maps}
 \begin{description}
 \item [\texttt{effmap\ nTrig}] pixel efficiency map (PixelAlive) 
-\item [\texttt{thrmap\ guess}] measure pixel threshold map for
-current settings (faster if guess is close to truth) 
+\item [\texttt{thrmap\ guess}] measure pixel threshold map for current
+settings (faster if guess is close to truth) 
 \item [\texttt{phmap\ nTrig}] pulse height map (vary \texttt{vcal}
 and \texttt{ctl} to explore the full range) 
 \end{description}
@@ -414,19 +448,21 @@ gap capacitance, which can be detected if the bump bond connection
 is good.
 
 The tests internally select \texttt{ctl 4} to get the large test pulse
-range (and set it back to previous). 
+range (and restore the previous value). 
 \begin{description}
-\item [\texttt{cals\ col\ row}] active one pixel for sensor
-calibrate (requires \texttt{cole col }and\texttt{ pixe col row} to
-see the response with \texttt{single}) 
-\item [\texttt{calsdac\ col\ row\ dac}] sensor calibrate pulse height (ADC)
-vs DAC at CtrlReg 4 (high range Vcal) for one pixel 
-\item [\texttt{calsmap\ nTrig}] sensor calibrate pulse height
-map 
-\item [\texttt{bbtest\ nTrig}] sensor calibrate pulse height
-map with bump bond statistics 
-\item [\texttt{dacscanroc\ dac\ -nTrig}] sensor calibrate (selected by
-negative nTrig) pulse height and efficiency vs dac for all pixels
+\item [\texttt{cals\ col\ row}] active one pixel for sensor calibrate
+(requires \texttt{cole col }and\texttt{ pixe col row} to see the response
+with \texttt{single}) 
+\item [\texttt{calsdac\ col\ row\ dac}] sensor calibrate pulse
+height (ADC) vs DAC at CtrlReg 4 (high range Vcal) for one pixel 
+\item [\texttt{calsmap\ nTrig}] sensor calibrate pulse height map 
+\item [\texttt{bbtest\ nTrig}] sensor calibrate pulse height map
+with bump bond statistics (not fully efficient) 
+\item [\texttt{dadac~col~row~dac1~dac2}] 2-D \texttt{dac2} vs
+\texttt{dac1} scan with 10 triggers for one pixel. \texttt{dacdac
+22 33 26 12} sets \texttt{CalDel} for cals 
+\item [\texttt{dacscanroc\ dac\ -nTrig}] sensor calibrate (selected
+by negative nTrig) pulse height and efficiency vs dac for all pixels
 (\texttt{dac} 12 at \texttt{ctl} 4 gives bump bond test) 
 \end{description}
 
@@ -438,7 +474,9 @@ an adjustable rate. The rate is determined by the clock frequency
 (typically 40\,MHz) and the sum of the delays in the pattern generator
 sequence (at least WBC) plus a programmable delay: R = f / N, e.g. 
 \begin{description}
-\item [\texttt{pgloop\ 1000}] gives a rate of about 40\,kHz. 
+\item [\texttt{pgloop\ 1000}] gives a rate of about 40\,kHz
+\item [\texttt{takedata~period}] Take ROC data, decode, and plot
+\item [\texttt{modtd~period}] Take module data, decode, and plot
 \end{description}
 A DAQ process is started on the DTB such that the FPGA writes the
 deserialized raw data into memory. Up to 50 M words (100\,MB) can
@@ -452,6 +490,55 @@ which can be used with sources (X-ray, Sr, Ru), with fixed test pulse
 patterns (arm), or just with noise (at lowest thresholds, enable all
 pixels).
 
+
+\subsection{Module commands}
+
+The start-up script for a module (like \texttt{script/sm.roc}) defines
+up to 16 active ROCs and the module number. Several commands listed
+above use the number of active ROCs (1 or more) to decide if a ROC
+(160\,MHz Deser160 readout) or a module (400\,MHz readout with TBM)
+is present. Module-specifi commands: 
+\begin{description}
+\item [\texttt{show1~dac}] show one \texttt{dac} value from all
+ROCs 
+\item [\texttt{modcaldel~col~row}] scan and set \texttt{CalDel}
+for each ROC using one pixel 
+\item [\texttt{modpixsc~col~row~nTrig}] S-curve for one pixel
+per ROC 
+\item [\texttt{modsc~nTrig~{[}step{]}}] S-curve for each pixel,
+give threshold map. use nstep 2 or 4 or 8 for speed-up 
+\item [\texttt{modvthrcomp~target}] Set global threshold \texttt{VthrComp}
+for each ROC such that the softest pixel threshold is at \texttt{target}
+\texttt{Vcal} DAC units 
+\item [\texttt{modtrim~target}] Set trim bits for all pixel such
+that the pixel threshold is at \texttt{target} \texttt{Vcal} DAC units 
+\item [\texttt{modmap~nTrig}] Take a module efficiency and pulse
+height map (PixelAlive) with \texttt{nTrig} triggers 
+\item [\texttt{modtune}] Set PH gain and offset for each ROC such
+that all pixels fit into the ADC range 
+\item [\texttt{modtd~period}] take data with trigger rate 40\,MHz
+/ \texttt{period} 
+\end{description}
+
+\section{acronyms}
+
+Some acronyms and ideosyncratic abbreviations (aka slang): 
+\begin{description}
+\item [ROC] Read Out Chip. Comes in two flavours: analog (2005, running
+in CMS ) and digital (2012, for the upgrade), both in several versions.
+\item [DAC] Digital to Analog Converter (from bits to volts)
+\item [ADC] Analog to Digital Converter (from volts to bits)
+\item [HDI] High Density Interconnect
+\item [TBM] Token Bit Manager chip
+\item [DTB] Digital Test Board (there was an ATB analog test board)
+\item [LVDS] Low Voltage Differential Signalling (industry standard) 
+\item [LCDS] Low Current Differential Signalling (PSI Eigenbau)
+\item [I2C] Communication. The industry standard is slow (50\,kHz, write
+and read). The ROC uses Fast I2C (PSI Eigenbau at 40\,MHz, write
+only)
+\item [SCSI] 68 pin connector for cable between DTB and ROC or module
+adapter, up to 1\,m.
+\end{description}
 
 \section{algorithms}
 
@@ -585,10 +672,10 @@ safety margins.
 It is best to do pulse height tuning after threshold trimming to explore
 the low Vcal range. 
 \begin{description}
-\item [\texttt{tune~col~row}] pulse height tuning procedure using the given
-pixel for the first steps. Sets gain and offset DACs. 
-\item [\texttt{phmap~nTrig}] take pulse height maps at large and small Vcal
-to verify te result. 
+\item [\texttt{tune~col~row}] pulse height tuning procedure using
+the given pixel for the first steps. Sets gain and offset DACs. 
+\item [\texttt{phmap~nTrig}] take pulse height maps at large and
+small Vcal to verify te result. 
 \end{description}
 The DACs used for offset and gain depend on the digital ROC version:
 for psi46dig and digV2 we use \texttt{VoffsetOp} (15) and \texttt{VIref\_ADC}
@@ -615,12 +702,11 @@ The gain calibration starts from scans of pulse height vs test pulse
 amplitude, in low and high range: 
 \begin{description}
 \item [\texttt{ctl\ 0}] small Vcal 
-\item [\texttt{dacscanroc\ 25\ nTrig}] measure pulse height
-vs Vcal for each pixel, nTrig = 10 takes about 90 s, filling a 2D
-histogram \texttt{PH\_DAC25\_CR0\_map} 
+\item [\texttt{dacscanroc\ 25\ nTrig}] measure pulse height vs
+Vcal for each pixel, nTrig = 10 takes about 90 s, filling a 2D histogram
+\texttt{PH\_DAC25\_CR0\_map} 
 \item [\texttt{ctl\ 4}] large Vcal 
-\item [\texttt{dacscanroc\ 25\ nTrig}] filling \texttt{TH2D
-PH\_DAC25\_CR4\_map} 
+\item [\texttt{dacscanroc\ 25\ nTrig}] filling \texttt{TH2D PH\_DAC25\_CR4\_map} 
 \end{description}
 \texttt{mv Test.root phroc-c405-Ia25-trim30.root}
 
@@ -727,10 +813,10 @@ one can use the outputfile that was already produced (for small pulses
 ctl 0), otherwise do: 
 \begin{description}
 \item [\texttt{ctl\ 0}] Test should be done with small Vcal 
-\item [\texttt{dacscanroc\ 25\ nTrig}] fills TH2D histograms for pulse height
-(\texttt{PH\_DAC25\_CR0\_map}) and number of reponses
-(\texttt{N\_DAC25\_CR0\_map}),
-S-curves are determined from the number of responses 
+\item [\texttt{dacscanroc\ 25\ nTrig}] fills TH2D histograms for
+pulse height (\texttt{PH\_DAC25\_CR0\_map}) and number of reponses
+(\texttt{N\_DAC25\_CR0\_map}), S-curves are determined from the number
+of responses 
 \end{description}
 \texttt{mv Test.root scurves-c405-trim30.root}
 
@@ -799,10 +885,9 @@ and read out. Two tests are available:
 \item [\texttt{bbtest\ nTrig}] fast map of all pixels' responses
 to \texttt{cals} pulses, done with the largest pulse (\texttt{CtrlReg}
 4, \texttt{Vcal} 255) but with fixed threshold settings. 
-\item [\texttt{dacscanroc\ 12\ -nTrig}] scan global threshold
-\texttt{VthrComp} while pulsing through the sensor (selected with
-negative nTrig). Should be done with large pulses (\texttt{CtrlReg}
-4, \texttt{Vcal} 255). 
+\item [\texttt{dacscanroc\ 12\ -nTrig}] scan global threshold \texttt{VthrComp}
+while pulsing through the sensor (selected with negative nTrig). Should
+be done with large pulses (\texttt{CtrlReg} 4, \texttt{Vcal} 255). 
 \end{description}
 \clearpage{}
 
