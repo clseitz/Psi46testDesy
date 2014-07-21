@@ -96,42 +96,54 @@ TH2D *h24;
 Iseg iseg;
 
 //------------------------------------------------------------------------------
-class TBstate {
+class TBstate
+{
   bool daqOpen;
   uint32_t daqSize;
   int clockPhase;
   int deserPhase;
 
 public:
-    TBstate(  ):daqOpen( 0 ), daqSize( 0 ), clockPhase( 4 ), deserPhase( 4 ) {
-  } ~TBstate(  ) {
+  TBstate(  ):daqOpen( 0 ), daqSize( 0 ), clockPhase( 4 ), deserPhase( 4 )
+  {
+  }
+  ~TBstate(  )
+  {
   }
 
-  void SetDaqOpen( const bool open ) {
+  void SetDaqOpen( const bool open )
+  {
     daqOpen = open;
   }
-  bool GetDaqOpen(  ) {
+  bool GetDaqOpen(  )
+  {
     return daqOpen;
   }
 
-  void SetDaqSize( const uint32_t size ) {
+  void SetDaqSize( const uint32_t size )
+  {
     daqSize = size;
   }
-  uint32_t GetDaqSize(  ) {
+  uint32_t GetDaqSize(  )
+  {
     return daqSize;
   }
 
-  void SetClockPhase( const uint32_t phase ) {
+  void SetClockPhase( const uint32_t phase )
+  {
     clockPhase = phase;
   }
-  uint32_t GetClockPhase(  ) {
+  uint32_t GetClockPhase(  )
+  {
     return clockPhase;
   }
 
-  void SetDeserPhase( const uint32_t phase160 ) {
+  void SetDeserPhase( const uint32_t phase160 )
+  {
     deserPhase = phase160;
   }
-  uint32_t GetDeserPhase(  ) {
+  uint32_t GetDeserPhase(  )
+  {
     return deserPhase;
   }
 };
@@ -143,10 +155,8 @@ CMD_PROC( showtb ) // test board state
 {
   Log.section( "TBSTATE", true );
 
-  cout << " 40 MHz clock phase " << tbState.GetClockPhase(  ) << " ns" <<
-    endl;
-  cout << "160 MHz deser phase " << tbState.GetDeserPhase(  ) << " ns" <<
-    endl;
+  cout << " 40 MHz clock phase " << tbState.GetClockPhase(  ) << " ns" << endl;
+  cout << "160 MHz deser phase " << tbState.GetDeserPhase(  ) << " ns" << endl;
   if( tbState.GetDaqOpen(  ) )
     cout << "DAQ memeory size " << tbState.GetDaqSize(  ) << " words" << endl;
   else
@@ -562,10 +572,10 @@ CMD_PROC( fsel ) // clock frequency selector, 0 = 40 MHz
 
 //------------------------------------------------------------------------------
 // clock stretch
-//pixel_dtb.h:  #define STRETCH_AFTER_TRG  0
-//pixel_dtb.h:  #define STRETCH_AFTER_CAL  1
-//pixel_dtb.h:  #define STRETCH_AFTER_RES  2
-//pixel_dtb.h:  #define STRETCH_AFTER_SYNC 3
+//pixel_dtb.h: #define STRETCH_AFTER_TRG  0
+//pixel_dtb.h: #define STRETCH_AFTER_CAL  1
+//pixel_dtb.h: #define STRETCH_AFTER_RES  2
+//pixel_dtb.h: #define STRETCH_AFTER_SYNC 3
 // width = 0 disable stretch
 
 CMD_PROC( stretch ) // src=1 (after cal)  delay=8  width=999
@@ -1579,7 +1589,8 @@ void DecodePixel( unsigned int raw )
 //------------------------------------------------------------------------------
 #define DECBUFFERSIZE 2048
 
-class Decoder {
+class Decoder
+{
   int printEvery;
 
   int nReadout;
@@ -1591,13 +1602,17 @@ class Decoder {
 
   int x, y, ph;
 public:
-    Decoder(  ):printEvery( 0 ), nReadout( 0 ), nPixel( 0 ), f( 0 ),
-    nSamples( 0 ), samples( 0 ) {
-  } ~Decoder(  ) {
+  Decoder(  ):printEvery( 0 ), nReadout( 0 ), nPixel( 0 ), f( 0 ),
+	      nSamples( 0 ), samples( 0 )
+  {
+  }
+  ~Decoder(  )
+  {
     Close(  );
   }
   bool Open( const char *filename );
-  void Close(  ) {
+  void Close(  )
+  {
     if( f )
       fclose( f );
     f = 0;
@@ -1606,13 +1621,16 @@ public:
   bool Sample( uint16_t sample );
   void DumpSamples( int n );
   void Translate( unsigned long raw );
-  uint16_t GetX(  ) {
+  uint16_t GetX(  )
+  {
     return x;
   }
-  uint16_t GetY(  ) {
+  uint16_t GetY(  )
+  {
     return y;
   }
-  uint16_t GetPH(  ) {
+  uint16_t GetPH(  )
+  {
     return ph;
   }
   void AnalyzeSamples(  );
@@ -1697,7 +1715,7 @@ void Decoder::AnalyzeSamples(  )
     Translate( raw );
     fprintf( f, " %2i", x );
   }
- //    for( pos = 1; pos < nSamples; pos++) fprintf(f, " %03X", int(samples[pos]));
+ // for( pos = 1; pos < nSamples; pos++) fprintf(f, " %03X", int(samples[pos]));
   fprintf( f, "\n" );
 }
 
@@ -1877,7 +1895,7 @@ CMD_PROC( dreadm ) // module
 
   uint32_t words_remaining = 0;
   vector < uint16_t > data;
- //    int TBM_eventnr,TBM_stackinfo,ColAddr,RowAddr,PulseHeight,TBM_trailerBits,TBM_readbackData;
+ // int TBM_eventnr,TBM_stackinfo,ColAddr,RowAddr,PulseHeight,TBM_trailerBits,TBM_readbackData;
 
   tb.Daq_Read( data, Blocksize, words_remaining, channel );
 
@@ -2990,7 +3008,7 @@ CMD_PROC( showclk )
 {
   const unsigned int nSamples = 20;
   const int gain = 1;
- //    PAR_INT(gain,1,4);
+  // PAR_INT( gain, 1, 4 );
 
   unsigned int i, k;
   vector < uint16_t > data[20];
@@ -3053,7 +3071,7 @@ CMD_PROC( showctr )
 {
   const unsigned int nSamples = 60;
   const int gain = 1;
- //    PAR_INT(gain,1,4);
+  // PAR_INT( gain, 1, 4 );
 
   unsigned int i, k;
   vector < uint16_t > data[20];
@@ -4410,7 +4428,7 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
   tb.uDelay( 100 );
   tb.Flush(  );
 
-  for( int k = 0; k < abs( nTrig ); k++ ) {
+  for( int k = 0; k < abs( nTrig ); ++k ) {
     tb.Pg_Single(  );
     tb.uDelay( 20 );
   }
@@ -4769,8 +4787,8 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest, tbmch );
       data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "  data size " << data.size(  ) << ", remaining " << rest <<
-        endl;
+      cout << "  data size " << data.size(  )
+	   << ", remaining " << rest << endl;
       dataB.clear(  );
     }
   }
@@ -4868,8 +4886,8 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
       cout << "  Data error " << e << " at pos " << pos << endl;
       for( int i = pos - 8;
            i >= 0 && i < pos + 8 && i < int ( data.size(  ) ); i++ )
-        cout << setw( 12 ) << i << hex << setw( 5 ) << data.at( i ) << dec <<
-          endl;
+        cout << setw( 12 ) << i << hex << setw( 5 ) << data.at( i )
+	     << dec << endl;
       return false;
     }
 
@@ -5413,8 +5431,8 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
         tb.uDelay( 5000 );
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
         data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "data size " << data.size(  ) << ", remaining " << rest <<
-          endl;
+        cout << "data size " << data.size(  )
+	     << ", remaining " << rest << endl;
         dataB.clear(  );
       }
     }
@@ -5744,7 +5762,7 @@ CMD_PROC( modsc ) // S-curve for modules, all pix
         data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                             dataB.end(  ) );
         cout << "data[" << tbmch << "] size " << data[tbmch].size(  )
-          << ", remaining " << rest << endl;
+	     << ", remaining " << rest << endl;
         while( rest > 0 ) {
           dataB.clear(  );
           tb.uDelay( 5000 );
@@ -5752,7 +5770,7 @@ CMD_PROC( modsc ) // S-curve for modules, all pix
           data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                               dataB.end(  ) );
           cout << "data[" << tbmch << "] size " << data[tbmch].size(  )
-            << ", remaining " << rest << endl;
+	       << ", remaining " << rest << endl;
         }
       }
       catch( CRpcError & e ) {
@@ -6245,15 +6263,15 @@ CMD_PROC( modsc1 ) // S-curve for modules, all pix, one ROC at a time
         uint32_t rest;
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
         data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "data size " << data.size(  ) << ", remaining " << rest <<
-          endl;
+        cout << "data size " << data.size(  )
+	     << ", remaining " << rest << endl;
         while( rest > 0 ) {
           dataB.clear(  );
           tb.uDelay( 5000 );
           tb.Daq_Read( dataB, Blocksize, rest, tbmch );
           data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-          cout << "data size " << data.size(  ) << ", remaining " << rest <<
-            endl;
+          cout << "data size " << data.size(  )
+	       << ", remaining " << rest << endl;
         }
       }
       catch( CRpcError & e ) {
@@ -6954,14 +6972,15 @@ bool GetRocData( int nTrig, vector < int16_t > &nReadouts,
   try {
     uint32_t rest;
     tb.Daq_Read( data, Blocksize, rest ); // 32768 gives zero
-    cout << "  data size " << data.size(  ) << ", remaining " << rest << endl;
+    cout << "  data size " << data.size(  )
+	 << ", remaining " << rest << endl;
     while( rest > 0 ) {
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest );
       data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "  data size " << data.size(  ) << ", remaining " << rest <<
-        endl;
+      cout << "  data size " << data.size(  )
+	   << ", remaining " << rest << endl;
       dataB.clear(  );
     }
   }
@@ -7253,7 +7272,7 @@ CMD_PROC( modmap ) // works
         data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                             dataB.end(  ) );
         cout << "data[" << tbmch << "] size " << data[tbmch].size(  )
-          << ", remaining " << rest << endl;
+	     << ", remaining " << rest << endl;
         while( rest > 0 ) {
           dataB.clear(  );
           tb.uDelay( 5000 );
@@ -7261,7 +7280,7 @@ CMD_PROC( modmap ) // works
           data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                               dataB.end(  ) );
           cout << "data[" << tbmch << "] size " << data[tbmch].size(  )
-            << ", remaining " << rest << endl;
+	       << ", remaining " << rest << endl;
         }
       }
       catch( CRpcError & e ) {
@@ -7848,13 +7867,14 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
       uint32_t rest;
       tb.Daq_Read( dataB, Blocksize, rest );
       data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "data size " << data.size(  ) << ", remaining " << rest << endl;
+      cout << "data size " << data.size(  )
+	   << ", remaining " << rest << endl;
       while( rest > 0 ) {
         dataB.clear(  );
         tb.Daq_Read( dataB, Blocksize, rest );
         data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "data size " << data.size(  ) << ", remaining " << rest <<
-          endl;
+        cout << "data size " << data.size(  )
+	     << ", remaining " << rest << endl;
       }
     }
     catch( CRpcError & e ) {
@@ -8685,10 +8705,10 @@ CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
   }
 
   if( nReadouts.at( nReadouts.size(  ) - 1 ) < nTrig ) {
-    cout << "only " << nReadouts.at( nReadouts.size(  ) -
-                                     1 ) << " responses at " <<
-      nReadouts.size(  ) -
-      1 << ". choose different pixel, check CalDel, check Ia, or give up" <<
+    cout << "only "
+	 << nReadouts.at( nReadouts.size(  ) - 1 )
+	 << " responses at " << nReadouts.size(  ) - 1
+	 << ". choose different pixel, check CalDel, check Ia, or give up" <<
       endl;
     return 0;
   }
@@ -10188,13 +10208,14 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
       uint32_t rest;
       tb.Daq_Read( dataB, Blocksize, rest );
       data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "data size " << data.size(  ) << ", remaining " << rest << endl;
+      cout << "data size " << data.size(  )
+	   << ", remaining " << rest << endl;
       while( rest > 0 ) {
         dataB.clear(  );
         tb.Daq_Read( dataB, Blocksize, rest );
         data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "data size " << data.size(  ) << ", remaining " << rest <<
-          endl;
+        cout << "data size " << data.size(  )
+	     << ", remaining " << rest << endl;
       }
     }
     catch( CRpcError & e ) {
@@ -10263,7 +10284,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
   if( h23 )
     delete h23;
-  h23 = new TH2D( "ResposeMap",
+  h23 = new TH2D( "ResponseMap",
                   "Response map;col;row;max responses",
                   52, -0.5, 51.5, 80, -0.5, 79.5 );
 
@@ -10609,13 +10630,15 @@ CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
   try {
     uint32_t rest;
     tb.Daq_Read( data, Blocksize, rest );
-    cout << "data size " << data.size(  ) << ", remaining " << rest << endl;
+    cout << "data size " << data.size(  )
+	 << ", remaining " << rest << endl;
     while( rest > 0 ) {
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest );
       data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "data size " << data.size(  ) << ", remaining " << rest << endl;
+      cout << "data size " << data.size(  )
+	   << ", remaining " << rest << endl;
       dataB.clear(  );
     }
   }
@@ -10733,8 +10756,7 @@ CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
   h22->Write(  );
   h23->Write(  );
 
-  h21->SetStats( 0 );
- //h21->Draw("colz");
+  h23->SetStats( 0 );
   h23->Draw( "colz" );
   c1->Update(  );
   cout << "histos 21, 22, 23" << endl;
@@ -10743,7 +10765,10 @@ CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
 
     int dac1Mean = int ( h23->GetMean( 1 ) );
 
-    cout << "dac " << dac1 << " mean " << dac1Mean << endl;
+    int i1 = h23->FindBin( dac1Mean, 1 );
+
+    cout << "dac " << dac1 << " mean " << dac1Mean
+	 << " at bin " << i1 << endl;
 
    // find efficiency plateau of dac2 at dac1Mean:
 
@@ -10751,21 +10776,21 @@ CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
     int i0 = 0;
     int i9 = 0;
 
-    for( int j = 1; j < nstp1; ++j ) {
+    for( int j = 0; j < nstp1; ++j ) {
 
-      int cnt = h23->GetBinContent( dac1Mean, j );
+      int cnt = h23->GetBinContent( i1, j+1 ); // ROOT bins start at 1
 
       h_one->Fill( j, cnt );
 
-     //cout << " " << cnt;
-     //Log.printf( "%i %i\n", j, cnt );
+      //cout << " " << cnt;
+      //Log.printf( "%i %i\n", j, cnt );
 
       if( cnt > nm ) {
-        nm = cnt;
-        i0 = j; // begin of plateau
+	nm = cnt;
+	i0 = j; // begin of plateau
       }
       if( cnt >= nm ) {
-        i9 = j; // end of plateau
+	i9 = j; // end of plateau
       }
     }
 
