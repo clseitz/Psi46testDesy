@@ -11028,7 +11028,8 @@ CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
 
     int dac1Mean = int ( h23->GetMean( 1 ) );
 
-    int i1 = h23->FindBin( dac1Mean, 1 );
+    //int i1 = h23->FindBin( dac1Mean, 1 );
+    int i1 = h23->GetXaxis()->FindBin(dac1Mean);
 
     cout << "dac " << dac1 << " mean " << dac1Mean
 	 << " at bin " << i1 << endl;
