@@ -1,7 +1,11 @@
 
-# take data with random trigger, no clock stretch
-# arm 0:51 11
+# take ROC data with random trigger
 
 allon
-#pgloop 40000 (f = 40 MHz/period)
+
+stretch 1 8  99  # for psi46digV2.1
+
 takedata  4000 (f = 40 MHz/period)
+
+mask
+stretch 0 0 0
