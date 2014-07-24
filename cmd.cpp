@@ -10346,21 +10346,21 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
 
 //------------------------------------------------------------------------------
 CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
-// PH vs Vcal = gain calibration
-// N  vs Vcal = Scurves
-// cals N  vs VthrComp = bump bond test (give negative ntrig)
+// PH vs Vcal (dac 25) = gain calibration
+// N  vs Vcal (dac 25) = Scurves
+// cals N  vs VthrComp (dac 12) = bump bond test (give negative ntrig)
 {
   int dac;
   PAR_INT( dac, 1, 32 ); // only DACs, not registers
-
-  int nTrig;                    // size = 4160 * 256 * nTrig * 3 words = 32 MW for 10 trig
-  if( !PAR_IS_INT( nTrig, -1000, 10000 ) )
-    nTrig = 10;
 
   if( dacval[0][dac] == -1 ) {
     cout << "DAC " << dac << " not active" << endl;
     return false;
   }
+
+  int nTrig;
+  if( !PAR_IS_INT( nTrig, -1000, 10000 ) )
+    nTrig = 10;
 
   cout << "scan dac " << dacName[dac]
        << " at CtrlReg " << dacval[0][CtrlReg]
@@ -10369,7 +10369,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
        << endl;
 
   Log.section( "DACSCANROC", false );
-  Log.printf( " DAC %i\n", dac );
+  Log.printf( " DAC %i, nTrig %i\n", dac, nTrig );
 
   timeval tv;
   gettimeofday( &tv, NULL );
@@ -10517,6 +10517,13 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
   int ctl = dacval[0][CtrlReg];
   int cal = dacval[0][Vcal];
+
+  if( h11 )
+    delete h11;
+  h11 = new TH1D( "Responses",
+                  "Responses;max responses;pixels",
+                  mTrig + 1, -0.5, mTrig + 0.5 );
+
   if( h21 )
     delete h21;
   h21 = new TH2D( Form( "PH_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
@@ -10533,29 +10540,11 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
                         dacName[dac].c_str(  ) ), 4160, -0.5, 4160 - 0.5,
                   nstp, -0.5, nstp - 0.5 );
 
-  if( h11 )
-    delete h11;
-  h11 = new TH1D( "Responses",
-                  "Responses;max responses;pixels",
-                  mTrig + 1, -0.5, mTrig + 0.5 );
-
-  if( h12 )
-    delete h12;
-  h12 = new TH1D( "CalsVthrPlateauWidth",
-                  "Width of VthrComp plateau for cals;width of VthrComp plateau for cals [DAC];pixels",
-                  101, -0.5, 100.5 );
-
   if( h23 )
     delete h23;
   h23 = new TH2D( "ResponseMap",
-                  "Response map;col;row;max responses",
-                  52, -0.5, 51.5, 80, -0.5, 79.5 );
-
-  if( h24 )
-    delete h24;
-  h24 = new TH2D( "BBtestMap",
-                  "BBtest map;col;row;max responses",
-                  52, -0.5, 51.5, 80, -0.5, 79.5 );
+		  "Response map;col;row;max responses",
+		  52, -0.5, 51.5, 80, -0.5, 79.5 );
 
  // unpack data:
  // ~/psi/dtb/pixel-dtb-firmware/software/dtb_expert/trigger_loops.cpp
@@ -10640,7 +10629,19 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   h22->Write(  );
   h23->Write(  );
 
-  if( nTrig < 0 ) { // BB test
+  if( nTrig < 0 && dac == 12 ) { // BB test
+
+    if( h12 )
+      delete h12;
+    h12 = new TH1D( "CalsVthrPlateauWidth",
+		    "Width of VthrComp plateau for cals;width of VthrComp plateau for cals [DAC];pixels",
+		    101, -0.5, 100.5 );
+
+    if( h24 )
+      delete h24;
+    h24 = new TH2D( "BBtestMap",
+		    "BBtest map;col;row;max responses",
+		    52, -0.5, 51.5, 80, -0.5, 79.5 );
 
    // Localize the missing Bump from h22
 
