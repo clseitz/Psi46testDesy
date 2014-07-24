@@ -1,5 +1,5 @@
 
-# take data with random trigger, no clock stretch
+# take test pulse data
 
 arm 0:51 11
 allon
