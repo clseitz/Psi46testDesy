@@ -1074,17 +1074,8 @@ CMD_PROC( chip )
 
   string gainFileName;
 
-  if( Chip == 300 )
-    gainFileName = "/home/pitzl/psi/dtb/chip300/phcal-Ia25-trim30.dat";
   if( Chip == 400 )
-    gainFileName = "/home/pitzl/psi/dtb/tst221/c400-phroc-Ia25-trim30.dat";
- //string gainFileName = "/home/pitzl/psi/dtb/tst221/c400-phroc-Ia25-trim40.dat";
-  if( Chip == 401 )
-    gainFileName = "/home/pitzl/psi/dtb/tst219/phroc-c401-Ia25-trim30.dat";
-  if( Chip == 405 )
-    gainFileName = "/home/pitzl/psi/dtb/tst215/phroc-c405-trim30.dat";
-  if( Chip == 431 )
-    gainFileName = "/home/pitzl/psi/dtb/tst221/c431-phroc-Ia25-trim30.dat";
+    gainFileName = "c400-gaincal-Ia25-trim30.dat";
 
   if( gainFileName.length(  ) > 0 ) {
 
@@ -10394,6 +10385,15 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     }
   }
   tb.uDelay( 1000 );
+
+  int ctl = dacval[0][CtrlReg];
+  int cal = dacval[0][Vcal];
+
+  if( nTrig < 0 ) {
+    tb.SetDAC( CtrlReg, 4 ); // large Vcal
+    ctl = 4;
+  }
+
   tb.Flush(  );
 
   uint16_t flags = 0;           // normal CAL
@@ -10417,8 +10417,8 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
  // measure:
 
   cout << "pulsing 4160 pixels with " << mTrig << " triggers for "
-    << nstp << " DAC steps may take " << int ( 4160 * mTrig * nstp * 6e-6 ) +
-    1 << " s..." << endl;
+       << nstp << " DAC steps may take " << int ( 4160 * mTrig * nstp * 6e-6 ) + 1
+       << " s..." << endl;
 
  //tb.SetTimeout( 4 * mTrig * nstp * 6 * 2 ); // [ms]
 
@@ -10441,8 +10441,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
     try {
       done =
-        tb.LoopSingleRocAllPixelsDacScan( 0, mTrig, flags, dac, dacLower1,
-                                          dacUpper1 );
+	tb.LoopSingleRocAllPixelsDacScan( 0, mTrig, flags, dac, dacLower1, dacUpper1 );
     }
     catch( CRpcError & e ) {
       e.What(  );
@@ -10461,7 +10460,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     double dt = s2 - s1 + ( u2 - u1 ) * 1e-6;
     tloop += dt;
     cout << "LoopSingleRocAllPixelsDacScan takes " << dt << " s"
-      << " = " << tloop / 4160 / mTrig / nstp * 1e6 << " us / pix" << endl;
+	 << " = " << tloop / 4160 / mTrig / nstp * 1e6 << " us / pix" << endl;
     cout << ( done ? "done" : "not done" ) << endl;
 
     vector < uint16_t > dataB;
@@ -10474,10 +10473,10 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
       cout << "data size " << data.size(  )
 	   << ", remaining " << rest << endl;
       while( rest > 0 ) {
-        dataB.clear(  );
-        tb.Daq_Read( dataB, Blocksize, rest );
-        data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "data size " << data.size(  )
+	dataB.clear(  );
+	tb.Daq_Read( dataB, Blocksize, rest );
+	data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
+	cout << "data size " << data.size(  )
 	     << ", remaining " << rest << endl;
       }
     }
@@ -10500,6 +10499,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   } // while not done
 
   tb.SetDAC( dac, dacval[0][dac] ); // restore
+  tb.SetDAC( CtrlReg, dacval[0][CtrlReg] ); // restore
 
  // all off:
 
@@ -10515,30 +10515,41 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   tb.Flush(  );
 #endif
 
-  int ctl = dacval[0][CtrlReg];
-  int cal = dacval[0][Vcal];
-
   if( h11 )
     delete h11;
   h11 = new TH1D( "Responses",
-                  "Responses;max responses;pixels",
-                  mTrig + 1, -0.5, mTrig + 0.5 );
+		  "Responses;max responses;pixels",
+		  mTrig + 1, -0.5, mTrig + 0.5 );
 
   if( h21 )
     delete h21;
-  h21 = new TH2D( Form( "PH_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
-                  Form( "PH vs %s CR %i Vcal %i map;pixel;%s [DAC];PH [ADC]",
-                        dacName[dac].c_str(  ), ctl, cal,
-                        dacName[dac].c_str(  ) ), 4160, -0.5, 4160 - 0.5,
-                  nstp, -0.5, nstp - 0.5 );
+  if( nTrig < 0 ) // cals
+    h21 = new TH2D( Form( "CALS_DAC%02i_map", dac ),
+		    Form( "CALS vs %s map;pixel;%s [DAC];PH [ADC]",
+			  dacName[dac].c_str(  ),
+			  dacName[dac].c_str(  ) ),
+		    4160, -0.5, 4160 - 0.5, nstp, -0.5, nstp - 0.5 );
+  else
+    h21 = new TH2D( Form( "PH_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
+		    Form( "PH vs %s CR %i Vcal %i map;pixel;%s [DAC];PH [ADC]",
+			  dacName[dac].c_str(  ), ctl, cal,
+			  dacName[dac].c_str(  ) ),
+		    4160, -0.5, 4160 - 0.5, nstp, -0.5, nstp - 0.5 );
 
   if( h22 )
     delete h22;
-  h22 = new TH2D( Form( "N_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
-                  Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];readouts",
-                        dacName[dac].c_str(  ), ctl, cal,
-                        dacName[dac].c_str(  ) ), 4160, -0.5, 4160 - 0.5,
-                  nstp, -0.5, nstp - 0.5 );
+  if( nTrig < 0 ) // cals
+    h22 = new TH2D( Form( "cals N_DAC%02i_map", dac ),
+		    Form( "cals N vs %s map;pixel;%s [DAC];readouts",
+			  dacName[dac].c_str(  ),
+			  dacName[dac].c_str(  ) ),
+		    4160, -0.5, 4160 - 0.5, nstp, -0.5, nstp - 0.5 );
+  else
+    h22 = new TH2D( Form( "N_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
+		    Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];readouts",
+			  dacName[dac].c_str(  ), ctl, cal,
+			  dacName[dac].c_str(  ) ),
+		    4160, -0.5, 4160 - 0.5, nstp, -0.5, nstp - 0.5 );
 
   if( h23 )
     delete h23;
@@ -10568,51 +10579,46 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
       for( int32_t j = 0; j < nstp; ++j ) { // DAC steps
 
-        int cnt = 0;
-        int phsum = 0;
+	int cnt = 0;
+	int phsum = 0;
 
-        for( int k = 0; k < mTrig; ++k ) {
+	for( int k = 0; k < mTrig; ++k ) {
 
-          err = DecodePixel( data, pos, pix ); // analyzer
+	  err = DecodePixel( data, pos, pix ); // analyzer
 
-          if( err )
-            cout << "error " << err << " at trig " << k
-              << ", stp " << j
-              << ", pix " << col << " " << row << ", pos " << pos << endl;
-          if( err )
-            break;
+	  if( err )
+	    cout << "error " << err << " at trig " << k
+		 << ", stp " << j
+		 << ", pix " << col << " " << row << ", pos " << pos << endl;
+	  if( err )
+	    break;
 
-          if( pix.n > 0 ) {
-            if( pix.x == col && pix.y == row ) {
-              cnt++;
-              phsum += pix.p;
-            }
-          }
+	  if( pix.n > 0 ) {
+	    if( pix.x == col && pix.y == row ) {
+	      cnt++;
+	      phsum += pix.p;
+	    }
+	  }
 
-        } // trig
+	} // trig
 
-        if( err )
-          break;
+	if( err )
+	  break;
 
-        double ph = -1;
-        if( cnt > 0 ) {
-          ph = ( double ) phsum / cnt;
-        }
-       /* huge
-          cout << setw(4) << ((ph > -0.1 ) ? int(ph+0.5) : -1);
-          if( row%20 == 19 ) cout << endl << "      ";
-          Log.printf( "%i %f\n", cnt, ph );
-        */
-        uint32_t idc = dacLower1 + j;
-        h21->Fill( 80 * col + row, idc, ph );
-        h22->Fill( 80 * col + row, idc, cnt );
-        if( cnt > nmx )
-          nmx = cnt;
+	double ph = -1;
+	if( cnt > 0 ) {
+	  ph = ( double ) phsum / cnt;
+	}
+	uint32_t idc = dacLower1 + j;
+	h21->Fill( 80 * col + row, idc, ph );
+	h22->Fill( 80 * col + row, idc, cnt );
+	if( cnt > nmx )
+	  nmx = cnt;
 
       } // dac
 
       if( err )
-        break;
+	break;
 
       h11->Fill( nmx );
       h23->Fill( col, row, nmx );
@@ -10668,53 +10674,53 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
       int imax;
       imax = 0;
       for( int j = 1; j <= nbiny; ++j ) {
-        int cnt = h22->GetBinContent( ibin, j );
+	int cnt = h22->GetBinContent( ibin, j );
        // Find Maximum
-        if( cnt > imax )
-          imax = cnt;
+	if( cnt > imax )
+	  imax = cnt;
       }
 
       if( imax < mTrig / 2 ) {
-        ++nIneff;
-        cout << "Dead pixel at raw col: " << ibinCenter % 80
-          << " " << ibinCenter / 80 << endl;
+	++nIneff;
+	cout << "Dead pixel at raw col: " << ibinCenter % 80
+	     << " " << ibinCenter / 80 << endl;
       }
       else {
 
        // Search for the Plateau
 
-        int iEnd = 0;
-        int iBegin = 0;
+	int iEnd = 0;
+	int iBegin = 0;
 
-       // use the maximum response to localize the Plateau
-        for( int jbin = 0; jbin <= nbiny; jbin++ ) {
-          int cnt = h22->GetBinContent( ibin, jbin );
-         // Find Plateau
-          if( cnt >= imax / 2 ) {
-            iEnd = jbin; // end of plateau
-            if( iBegin == 0 )
-              iBegin = jbin; // begin of plateau
-          }
-        }
+	// use the maximum response to localize the Plateau
+
+	for( int jbin = 0; jbin <= nbiny; jbin++ ) {
+	  int cnt = h22->GetBinContent( ibin, jbin );
+	  // Find Plateau
+	  if( cnt >= imax / 2 ) {
+	    iEnd = jbin; // end of plateau
+	    if( iBegin == 0 )
+	      iBegin = jbin; // begin of plateau
+	  }
+	}
 
        // cout << "Bin: " << ibin << " Plateau Begins and End in  " << iBegin << " - " << iEnd << endl;
        // narrow plateau is from noise
 
-        h12->Fill( iEnd - iBegin );
+	h12->Fill( iEnd - iBegin );
 
-        if( iEnd - iBegin < 15 ) {
+	if( iEnd - iBegin < 15 ) {
 
-          nMissing++;
-          cout << "[Missing Bump at raw col:] " << ibinCenter %
-            80 << " " << ibinCenter / 80 << endl;
-          Log.printf( "[Missing Bump at raw col:] %i %i\n", ibin % 80,
-                      ibin / 80 );
-          h24->Fill( ibinCenter / 80, ibinCenter % 80, 0 );
-        }
-        else {
-          h24->Fill( ibinCenter / 80, ibinCenter % 80, imax );
-          nActive++;
-        } // plateau width
+	  nMissing++;
+	  cout << "[Missing Bump at raw col:] " << ibinCenter % 80
+	       << " " << ibinCenter / 80 << endl;
+	  Log.printf( "[Missing Bump at raw col:] %i %i\n", ibin % 80, ibin / 80 );
+	  h24->Fill( ibinCenter / 80, ibinCenter % 80, 0 );
+	}
+	else {
+	  h24->Fill( ibinCenter / 80, ibinCenter % 80, imax );
+	  nActive++;
+	} // plateau width
       } // active imax
     } // x-bins
 
@@ -10724,8 +10730,8 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 
     for( int ibin = 1; ibin <= h24->GetNbinsX(  ); ++ibin ) {
       for( int jbin = 1; jbin <= h24->GetNbinsY(  ); ++jbin ) {
-        int c_val = h24->GetBinContent( ibin, jbin );
-        Log.printf( " %i", c_val );
+	int c_val = h24->GetBinContent( ibin, jbin );
+	Log.printf( " %i", c_val );
        //cout << ibin << " " << jbin << " " << c_val << endl;
       } //row
       Log.printf( "\n" );
