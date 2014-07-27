@@ -8934,8 +8934,8 @@ CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
   long s0 = tv.tv_sec;          // seconds since 1.1.1970
   long u0 = tv.tv_usec;         // microseconds
 
-  tb.SetDAC( CtrlReg, 4 ); // large Vcal
-  tb.Flush(  );
+  //tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  //tb.Flush(  );
 
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // scan Vcal for one pixel
@@ -11216,222 +11216,181 @@ CMD_PROC( h )
 //------------------------------------------------------------------------------
 void cmd(  )                    // called once from psi46test
 {
-  CMD_REG( showtb, "showtb                        print DTB state" );
-  CMD_REG( showhv, "show hv                       status of iseg HV supply" );
-  CMD_REG( scan, "scan                          enumerate USB devices" );
-  CMD_REG( open,
-           "open <name>                   open connection to testboard" );
-  CMD_REG( close,
-           "close                         close connection to testboard" );
-  CMD_REG( welcome, "welcome                       blinks with LEDs" );
-  CMD_REG( setled, "setled <bits>                 set atb LEDs" );
-  CMD_REG( log, "log <text>                    writes text to log file" );
-  CMD_REG( upgrade, "upgrade <filename>            upgrade DTB" );
-  CMD_REG( rpcinfo, "rpcinfo                       lists DTB functions" );
-  CMD_REG( version,
-           "version                       shows DTB software version" );
-  CMD_REG( info, "info                          shows detailed DTB info" );
-  CMD_REG( boardid, "boardid                       get board id" );
-  CMD_REG( init, "init                          inits the testboard" );
-  CMD_REG( flush, "flush                         flushes usb buffer" );
-  CMD_REG( clear, "clear                         clears usb data buffer" );
+  CMD_REG( showtb,    "showtb                        print DTB state" );
+  CMD_REG( showhv,    "show hv                       status of iseg HV supply" );
+  CMD_REG( scan,      "scan                          enumerate USB devices" );
+  CMD_REG( open,      "open <name>                   open connection to testboard" );
+  CMD_REG( close,     "close                         close connection to testboard" );
+  CMD_REG( welcome,   "welcome                       blinks with LEDs" );
+  CMD_REG( setled,    "setled <bits>                 set atb LEDs" );
+  CMD_REG( log,       "log <text>                    writes text to log file" );
+  CMD_REG( upgrade,   "upgrade <filename>            upgrade DTB" );
+  CMD_REG( rpcinfo,   "rpcinfo                       lists DTB functions" );
+  CMD_REG( version,   "version                       shows DTB software version" );
+  CMD_REG( info,      "info                          shows detailed DTB info" );
+  CMD_REG( boardid,   "boardid                       get board id" );
+  CMD_REG( init,      "init                          inits the testboard" );
+  CMD_REG( flush,     "flush                         flushes usb buffer" );
+  CMD_REG( clear,     "clear                         clears usb data buffer" );
 
-  CMD_REG( udelay, "udelay <us>                   waits <us> microseconds" );
-  CMD_REG( mdelay, "mdelay <ms>                   waits <ms> milliseconds" );
+  CMD_REG( udelay,    "udelay <us>                   waits <us> microseconds" );
+  CMD_REG( mdelay,    "mdelay <ms>                   waits <ms> milliseconds" );
 
-  CMD_REG( d1, "d1 <signal>                   assign signal to D1 output" );
-  CMD_REG( d2, "d2 <signal>                   assign signal to D2 outout" );
-  CMD_REG( a1,
-           "a1 <signal>                   assign analog signal to A1 output" );
-  CMD_REG( a2,
-           "a2 <signal>                   assign analog signal to A2 outout" );
-  CMD_REG( probeadc,
-           "probeadc <signal>             assign analog signal to ADC" );
+  CMD_REG( d1,        "d1 <signal>                   assign signal to D1 output" );
+  CMD_REG( d2,        "d2 <signal>                   assign signal to D2 outout" );
+  CMD_REG( a1,        "a1 <signal>                   assign analog signal to A1 output" );
+  CMD_REG( a2,        "a2 <signal>                   assign analog signal to A2 outout" );
+  CMD_REG( probeadc,  "probeadc <signal>             assign analog signal to ADC" );
 
-  CMD_REG( clksrc, "clksrc <source>               Select clock source" );
-  CMD_REG( clkok,
-           "clkok                         Check if ext clock is present" );
-  CMD_REG( fsel, "fsel <freqdiv>                clock frequency select" );
-  CMD_REG( stretch, "stretch <src> <delay> <width> stretch clock" );
+  CMD_REG( clksrc,    "clksrc <source>               Select clock source" );
+  CMD_REG( clkok,     "clkok                         Check if ext clock is present" );
+  CMD_REG( fsel,      "fsel <freqdiv>                clock frequency select" );
+  CMD_REG( stretch,   "stretch <src> <delay> <width> stretch clock" );
 
-  CMD_REG( clk, "clk <delay>                   clk delay" );
-  CMD_REG( ctr, "ctr <delay>                   ctr delay" );
-  CMD_REG( sda, "sda <delay>                   sda delay" );
-  CMD_REG( tin, "tin <delay>                   tin delay" );
-  CMD_REG( clklvl, "clklvl <level>                clk signal level" );
-  CMD_REG( ctrlvl, "ctrlvl <level>                ctr signel level" );
-  CMD_REG( sdalvl, "sdalvl <level>                sda signel level" );
-  CMD_REG( tinlvl, "tinlvl <level>                tin signel level" );
-  CMD_REG( clkmode, "clkmode <mode>                clk mode" );
-  CMD_REG( ctrmode, "ctrmode <mode>                ctr mode" );
-  CMD_REG( sdamode, "sdamode <mode>                sda mode" );
-  CMD_REG( tinmode, "tinmode <mode>                tin mode" );
+  CMD_REG( clk,       "clk <delay>                   clk delay" );
+  CMD_REG( ctr,       "ctr <delay>                   ctr delay" );
+  CMD_REG( sda,       "sda <delay>                   sda delay" );
+  CMD_REG( tin,       "tin <delay>                   tin delay" );
+  CMD_REG( clklvl,    "clklvl <level>                clk signal level" );
+  CMD_REG( ctrlvl,    "ctrlvl <level>                ctr signel level" );
+  CMD_REG( sdalvl,    "sdalvl <level>                sda signel level" );
+  CMD_REG( tinlvl,    "tinlvl <level>                tin signel level" );
+  CMD_REG( clkmode,   "clkmode <mode>                clk mode" );
+  CMD_REG( ctrmode,   "ctrmode <mode>                ctr mode" );
+  CMD_REG( sdamode,   "sdamode <mode>                sda mode" );
+  CMD_REG( tinmode,   "tinmode <mode>                tin mode" );
 
   CMD_REG( sigoffset, "sigoffset <offset>            output signal offset" );
-  CMD_REG( lvds, "lvds                          LVDS inputs" );
-  CMD_REG( lcds, "lcds                          LCDS inputs" );
+  CMD_REG( lvds,      "lvds                          LVDS inputs" );
+  CMD_REG( lcds,      "lcds                          LCDS inputs" );
 
-  CMD_REG( pon, "pon                           switch ROC power on" );
-  CMD_REG( poff, "poff                          switch ROC power off" );
-  CMD_REG( va, "va <mV>                       set VA supply in mV" );
-  CMD_REG( vd, "vd <mV>                       set VD supply in mV" );
-  CMD_REG( ia, "ia <mA>                       set IA limit in mA" );
-  CMD_REG( id, "id <mA>                       set ID limit in mA" );
+  CMD_REG( pon,       "pon                           switch ROC power on" );
+  CMD_REG( poff,      "poff                          switch ROC power off" );
+  CMD_REG( va,        "va <mV>                       set VA supply in mV" );
+  CMD_REG( vd,        "vd <mV>                       set VD supply in mV" );
+  CMD_REG( ia,        "ia <mA>                       set IA limit in mA" );
+  CMD_REG( id,        "id <mA>                       set ID limit in mA" );
 
-  CMD_REG( getva, "getva                         set VA in V" );
-  CMD_REG( getvd, "getvd                         set VD in V" );
-  CMD_REG( getia, "getia                         set IA in mA" );
-  CMD_REG( getid, "getid                         set ID in mA" );
-  CMD_REG( optia,
-           "optia <ia>                    set Vana to desired ROC Ia [mA]" );
+  CMD_REG( getva,     "getva                         set VA in V" );
+  CMD_REG( getvd,     "getvd                         set VD in V" );
+  CMD_REG( getia,     "getia                         set IA in mA" );
+  CMD_REG( getid,     "getid                         set ID in mA" );
+  CMD_REG( optia,     "optia <ia>                    set Vana to desired ROC Ia [mA]" );
 
-  CMD_REG( hvon, "hvon                          switch HV on" );
-  CMD_REG( hvoff, "hvoff                         switch HV off" );
-  CMD_REG( vb, "vb <V>                        set -Vbias in V" );
+  CMD_REG( hvon,      "hvon                          switch HV on" );
+  CMD_REG( hvoff,     "hvoff                         switch HV off" );
+  CMD_REG( vb,        "vb <V>                        set -Vbias in V" );
 
-  CMD_REG( reson, "reson                         activate reset" );
-  CMD_REG( resoff, "resoff                        deactivate reset" );
-  CMD_REG( rocaddr, "rocaddr                       set ROC address" );
-  CMD_REG( rowinvert,
-           "rowinvert                     invert row address psi46dig" );
-  CMD_REG( chip, "chip num                      set chip number" );
+  CMD_REG( reson,     "reson                         activate reset" );
+  CMD_REG( resoff,    "resoff                        deactivate reset" );
+  CMD_REG( rocaddr,   "rocaddr                       set ROC address" );
+  CMD_REG( rowinvert, "rowinvert                     invert row address psi46dig" );
+  CMD_REG( chip,      "chip num                      set chip number" );
 
-  CMD_REG( pgset,
-           "pgset <addr> <bits> <delay>   set pattern generator entry" );
-  CMD_REG( pgstop, "pgstop                        stops pattern generator" );
-  CMD_REG( pgsingle, "pgsingle                      send single pattern" );
-  CMD_REG( pgtrig,
-           "pgtrig                        enable external pattern trigger" );
-  CMD_REG( pgloop,
-           "pgloop <period>               start patterngenerator in loop mode" );
-  CMD_REG( trigdel,
-           "trigdel <delay>               delay in trigger loop [BC]" );
+  CMD_REG( pgset,     "pgset <addr> <bits> <delay>   set pattern generator entry" );
+  CMD_REG( pgstop,    "pgstop                        stops pattern generator" );
+  CMD_REG( pgsingle,  "pgsingle                      send single pattern" );
+  CMD_REG( pgtrig,    "pgtrig                        enable external pattern trigger" );
+  CMD_REG( pgloop,    "pgloop <period>               start patterngenerator in loop mode" );
+  CMD_REG( trigdel,   "trigdel <delay>               delay in trigger loop [BC]" );
 
-  CMD_REG( upd, "upd <histo>                  re-draw ROOT histo in canvas" );
+  CMD_REG( upd,       "upd <histo>                  re-draw ROOT histo in canvas" );
 
-  CMD_REG( dopen,
-           "dopen <buffer size> [<ch>]    Open DAQ and allocate memory" );
-  CMD_REG( dsel,
-           "dsel <MHz>                    select deserializer 160 or 400 MHz" );
-  CMD_REG( dreset,
-           "dreset <reset>                DESER400 reset 1, 2, or 3" );
-  CMD_REG( dclose, "dclose [<channel>]            Close DAQ" );
-  CMD_REG( dstart, "dstart [<channel>]            Enable DAQ" );
-  CMD_REG( dstop, "dstop [<channel>]             Disable DAQ" );
-  CMD_REG( dsize,
-           "dsize [<channel>]             Show DAQ buffer fill state" );
-  CMD_REG( dread,
-           "dread                         Read Daq buffer and show as ROC data" );
-  CMD_REG( dreadm,
-           "dreadm [channel]              Read Daq buffer and show as module data" );
+  CMD_REG( dopen,     "dopen <buffer size> [<ch>]    Open DAQ and allocate memory" );
+  CMD_REG( dsel,      "dsel <MHz>                    select deserializer 160 or 400 MHz" );
+  CMD_REG( dreset,    "dreset <reset>                DESER400 reset 1, 2, or 3" );
+  CMD_REG( dclose,    "dclose [<channel>]            Close DAQ" );
+  CMD_REG( dstart,    "dstart [<channel>]            Enable DAQ" );
+  CMD_REG( dstop,     "dstop [<channel>]             Disable DAQ" );
+  CMD_REG( dsize,     "dsize [<channel>]             Show DAQ buffer fill state" );
+  CMD_REG( dread,     "dread                         Read Daq buffer and show as ROC data" );
+  CMD_REG( dreadm,    "dreadm [channel]              Read Daq buffer and show as module data" );
 
-  CMD_REG( showclk, "showclk                       show CLK signal" );
-  CMD_REG( showctr, "showctr                       show CTR signal" );
-  CMD_REG( showsda, "showsda                       show SDA signal" );
+  CMD_REG( showclk,   "showclk                       show CLK signal" );
+  CMD_REG( showctr,   "showctr                       show CTR signal" );
+  CMD_REG( showsda,   "showsda                       show SDA signal" );
 
-  CMD_REG( tbmdis, "tbmdis                        disable TBM" );
-  CMD_REG( tbmsel,
-           "tbmsel <hub> <port>           set hub and port address, port 6=all" );
-  CMD_REG( modsel,
-           "modsel <hub>                  set hub address for module" );
-  CMD_REG( tbmset, "tbmset <reg> <value>          set TBM register" );
+  CMD_REG( tbmdis,    "tbmdis                        disable TBM" );
+  CMD_REG( tbmsel,    "tbmsel <hub> <port>           set hub and port address, port 6=all" );
+  CMD_REG( modsel,    "modsel <hub>                  set hub address for module" );
+  CMD_REG( tbmset,    "tbmset <reg> <value>          set TBM register" );
 
-  CMD_REG( readback, "readback                      read out ROC data" );
+  CMD_REG( readback,  "readback                      read out ROC data" );
 
-  CMD_REG( dselmod,
-           "dselmod                       select deser400 for DAQ channel 0" );
-  CMD_REG( dmodres, "dmodres                       reset all deser400" );
-  CMD_REG( dselroca,
-           "dselroca <value>              select adc for channel 0" );
-  CMD_REG( dseloff, "dseloff                       deselect all" );
-  CMD_REG( deser160, "deser160                      allign deser160" );
-  CMD_REG( deser, "deser <value>                 controls deser160" );
+  CMD_REG( dselmod,   "dselmod                       select deser400 for DAQ channel 0" );
+  CMD_REG( dmodres,   "dmodres                       reset all deser400" );
+  CMD_REG( dselroca,  "dselroca <value>              select adc for channel 0" );
+  CMD_REG( dseloff,   "dseloff                       deselect all" );
+  CMD_REG( deser160,  "deser160                      allign deser160" );
+  CMD_REG( deser,     "deser <value>                 controls deser160" );
 
-  CMD_REG( select, "select <addr range>           set i2c address" );
-  CMD_REG( dac, "dac <address> <value>         set DAC" );
-  CMD_REG( vana, "vana <value>                  set Vana" );
-  CMD_REG( vtrim, "vtrim <value>                 set Vtrim" );
-  CMD_REG( vthr, "vthr <value>                  set VthrComp" );
-  CMD_REG( vcal, "vcal <value>                  set Vcal" );
-  CMD_REG( ctl, "ctl <value>                   set control register" );
-  CMD_REG( wbc, "wbc <value>                   set WBC" );
-  CMD_REG( show, "show [roc]                     print dacs" );
-  CMD_REG( show1, "show1 dac                     print one dac for all ROCs" );
-  CMD_REG( wdac,
-           "wdac [description]            write dacParameters_chip_desc.dat" );
-  CMD_REG( rddac,
-           "rddac [description]           read dacParameters_chip_desc.dat" );
-  CMD_REG( wtrim,
-           "wtrim [description]           write trimParameters_chip_desc.dat" );
-  CMD_REG( rdtrim,
-           "rdtrim [description]          read trimParameters_chip_desc.dat" );
+  CMD_REG( select,    "select <addr range>           set i2c address" );
+  CMD_REG( dac,       "dac <address> <value>         set DAC" );
+  CMD_REG( vana,      "vana <value>                  set Vana" );
+  CMD_REG( vtrim,     "vtrim <value>                 set Vtrim" );
+  CMD_REG( vthr,      "vthr <value>                  set VthrComp" );
+  CMD_REG( vcal,      "vcal <value>                  set Vcal" );
+  CMD_REG( ctl,       "ctl <value>                   set control register" );
+  CMD_REG( wbc,       "wbc <value>                   set WBC" );
+  CMD_REG( show,      "show [roc]                     print dacs" );
+  CMD_REG( show1,     "show1 dac                     print one dac for all ROCs" );
+  CMD_REG( wdac,      "wdac [description]            write dacParameters_chip_desc.dat" );
+  CMD_REG( rddac,     "rddac [description]           read dacParameters_chip_desc.dat" );
+  CMD_REG( wtrim,     "wtrim [description]           write trimParameters_chip_desc.dat" );
+  CMD_REG( rdtrim,    "rdtrim [description]          read trimParameters_chip_desc.dat" );
 
-  CMD_REG( cole, "cole <range>                  enable column" );
-  CMD_REG( cold, "cold <range>                  disable columns" );
-  CMD_REG( pixi, "pixi roc col row              show trim bits" );
-  CMD_REG( pixt, "pixt roc col row trim         set trim bits" );
-  CMD_REG( pixe, "pixe <range> <range> <value>  trim pixel" );
-  CMD_REG( pixd, "pixd <range> <range>          mask pixel" );
-  CMD_REG( cal, "cal <range> <range>           enable calibrate pixel" );
-  CMD_REG( arm, "arm <range> <range>           activate pixel" );
-  CMD_REG( cals, "cals <range> <range>          sensor calibrate pixel" );
-  CMD_REG( cald, "cald                          clear calibrate" );
-  CMD_REG( mask, "mask                          mask all pixel and cols" );
-  CMD_REG( fire, "fire col row [nTrig]          single pulse and read" );
-  CMD_REG( fire2, "fire col row [nTrig]          correlation" );
+  CMD_REG( cole,      "cole <range>                  enable column" );
+  CMD_REG( cold,      "cold <range>                  disable columns" );
+  CMD_REG( pixi,      "pixi col row                  show trim bits" );
+  CMD_REG( pixt,      "pixt col row trim             set trim bits" );
+  CMD_REG( pixe,      "pixe <range> <range> <value>  trim pixel" );
+  CMD_REG( pixd,      "pixd <range> <range>          mask pixel" );
+  CMD_REG( cal,       "cal <range> <range>           enable calibrate pixel" );
+  CMD_REG( arm,       "arm <range> <range>           activate pixel" );
+  CMD_REG( cals,      "cals <range> <range>          sensor calibrate pixel" );
+  CMD_REG( cald,      "cald                          clear calibrate" );
+  CMD_REG( mask,      "mask                          mask all pixel and cols" );
+  CMD_REG( fire,      "fire col row [nTrig]          single pulse and read" );
+  CMD_REG( fire2,     "fire col row [nTrig]          correlation" );
 
-  CMD_REG( daci, "daci roc dac                  current vs dac" );
-  CMD_REG( vanaroc,
-           "vanaroc                       ROC efficiency scan vs Vana" );
+  CMD_REG( daci,      "daci dac                      current vs dac" );
+  CMD_REG( vanaroc,   "vanaroc                       ROC efficiency scan vs Vana" );
   CMD_REG( vthrcompi, "vthrcompi                     Id vs VthrComp" );
-  CMD_REG( caldel, "caldel col row                CalDel efficiency scan" );
+  CMD_REG( caldel,    "caldel col row                CalDel efficiency scan" );
   CMD_REG( caldelmap, "caldelmap                     map of CalDel range" );
-  CMD_REG( caldelroc,
-           "caldelroc                     ROC CalDel efficiency scan" );
-  CMD_REG( modcaldel,
-           "modcaldel col row             CalDel efficiency scan for module" );
-  CMD_REG( modpixsc, "modpixsc col row ntrig        module pixel S-curve" );
-  CMD_REG( modsc, "modsc ntrig [step]            module S-curves MultiRoc" );
-  CMD_REG( modthrdac,
-           "modthrdac col row dac         Threshold vs DAC one pixel" );
-  CMD_REG( modvthrcomp,
-           "modvthrcomp target         set VthrComp on each ROC" );
-  CMD_REG( modtrim, "modtrim target                set Vtrim and trim bits" );
-  CMD_REG( modmap, "modmap nTrig                  module map" );
+  CMD_REG( caldelroc, "caldelroc                     ROC CalDel efficiency scan" );
+  CMD_REG( modcaldel, "modcaldel col row             CalDel efficiency scan for module" );
+  CMD_REG( modpixsc,  "modpixsc col row ntrig        module pixel S-curve" );
+  CMD_REG( modsc,     "modsc ntrig [step]            module S-curves MultiRoc" );
+  CMD_REG( modthrdac, "modthrdac col row dac         Threshold vs DAC one pixel" );
+  CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
+  CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
+  CMD_REG( modmap,    "modmap nTrig                  module map" );
 
-  CMD_REG( takedata,
-           "takedata period               readout 40 MHz/period (stop: s enter)" );
-  CMD_REG( onevst,
-           "onevst col row period         <PH> vs time (stop: s enter)" );
-  CMD_REG( modtd,
-           "modtd period                  module take data 40MHz/period (stop: s enter)" );
+  CMD_REG( takedata,  "takedata period               readout 40 MHz/period (stop: s enter)" );
+  CMD_REG( onevst,    "onevst col row period         <PH> vs time (stop: s enter)" );
+  CMD_REG( modtd,     "modtd period                  module take data 40MHz/period (stop: s enter)" );
 
-  CMD_REG( vthrcomp,
-           "vthrcomp target [guess]       set VthrComp to target Vcal" );
-  CMD_REG( trim, "trim target                   set Vtrim and trim bits" );
-  CMD_REG( trimbits,
-           "trimbits                      set trim bits for efficiency" );
-  CMD_REG( thrdac,
-           "thrdac col row dac            Threshold vs DAC one pixel" );
-  CMD_REG( thrmap, "thrmap guess                  threshold map trimmed" );
-  CMD_REG( thrmapsc, "thrmapsc stop (4=cals)        threshold map" );
+  CMD_REG( vthrcomp,  "vthrcomp target [guess]       set VthrComp to target Vcal" );
+  CMD_REG( trim,      "trim target                   set Vtrim and trim bits" );
+  CMD_REG( trimbits,  "trimbits                      set trim bits for efficiency" );
+  CMD_REG( thrdac,    "thrdac col row dac            Threshold vs DAC one pixel" );
+  CMD_REG( thrmap,    "thrmap guess                  threshold map trimmed" );
+  CMD_REG( thrmapsc,  "thrmapsc stop (4=cals)        threshold map" );
 
-  CMD_REG( effdac,
-           "effdac col row dac            Efficiency vs DAC one pixel" );
-  CMD_REG( phdac, "phdac col row dac             PH vs DAC one pixel" );
-  CMD_REG( gaindac, "gaindac                       calibrated PH vs Vcal" );
-  CMD_REG( calsdac, "calsdac col row dac [nTrig]   cals vs DAC one pixel" );
-  CMD_REG( dacdac, "dacdac col row dacx dacy      DAC DAC scan" );
+  CMD_REG( effdac,    "effdac col row dac            Efficiency vs DAC one pixel" );
+  CMD_REG( phdac,     "phdac col row dac             PH vs DAC one pixel" );
+  CMD_REG( gaindac,   "gaindac                       calibrated PH vs Vcal" );
+  CMD_REG( calsdac,   "calsdac col row dac [nTrig]   cals vs DAC one pixel" );
+  CMD_REG( dacdac,    "dacdac col row dacx dacy      DAC DAC scan" );
 
-  CMD_REG( dacscanroc, "dacscanroc dac [nTrig]       PH vs DAC, all pixels" );
+  CMD_REG( dacscanroc,"dacscanroc dac [nTrig]        PH vs DAC, all pixels" );
 
-  CMD_REG( tune, "tune col row                  tune gain and offset" );
-  CMD_REG( phmap, "phmap nTrig                   ROC PH map" );
-  CMD_REG( calsmap,
-           "calsmap nTrig                 CALS map = bump bond test" );
-  CMD_REG( effmap, "effmap nTrig                  pixel alive map" );
-  CMD_REG( bbtest,
-           "bbtest nTrig                  CALS map = bump bond test" );
+  CMD_REG( tune,      "tune col row                  tune gain and offset" );
+  CMD_REG( phmap,     "phmap nTrig                   ROC PH map" );
+  CMD_REG( calsmap,   "calsmap nTrig                 CALS map = bump bond test" );
+  CMD_REG( effmap,    "effmap nTrig                  pixel alive map" );
+  CMD_REG( bbtest,    "bbtest nTrig                  CALS map = bump bond test" );
 
   cmdHelp(  );
 
