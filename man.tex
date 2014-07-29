@@ -140,9 +140,8 @@ You should see something like
 
 \texttt{logging to d.log}
 
-(if you get an USB error here that the port cannot be opened on your
-computer, \texttt{exit} or \texttt{Ctrl-c} and try\texttt{ . initb.sh}
-on Linux)
+(If you get an USB error here that the port cannot be opened on your
+computer, \texttt{exit} or \texttt{Ctrl-c} follow the instructions in \ref{usbprob}.)
 
 \texttt{USB opened DTB\_WS6MP2}
 
@@ -200,6 +199,19 @@ to 1.26 and then upgrade dtb\_v2.xy.flash to the current version)
 
 \texttt{> exit}
 
+\subsection{USB errors when connecting to the DTB}
+\label{usbprob}
+Under Linux try \texttt{.initb.sh}.
+
+Under Mac try
+
+\texttt{ cd /System/Library/Extensions/IOUSBFamily.kext/Contents/PlugIns}
+
+\texttt{ sudo mv AppleUSBFTDI.kext AppleUSBFTDI.disabledsudo }
+
+\texttt{ touch /System/Library/Extensions}
+
+and reboot. This can cause problems when other devices are plugged in and you might have to reverse the change again.
 
 \section{commands}
 
