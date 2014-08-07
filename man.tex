@@ -32,7 +32,6 @@
 
 
 
-
 \makeatletter
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
@@ -511,10 +510,12 @@ above use the number of active ROCs (1 or more) to decide if a ROC
 (160\,MHz Deser160 readout) or a module (400\,MHz readout with TBM)
 is present. Module-specifi commands: 
 \begin{description}
-\item [\texttt{show1~dac}] show one \texttt{dac} value from all
-ROCs 
+\item [\texttt{sm}] start script for the module located in the \texttt{scripts/} folder
+\item [\texttt{vt}] script to measure the digital current as a function of \texttt{VthrComp}, sets \texttt{VthrComp} away from the noise level
+
+
 \item [\texttt{modcaldel~col~row}] scan and set \texttt{CalDel}
-for each ROC using one pixel 
+for each ROC using one pixel (needed after adjustment of \texttt{VthrComp})
 \item [\texttt{modpixsc~col~row~nTrig}] S-curve for one pixel
 per ROC 
 \item [\texttt{modsc~nTrig~{[}step{]}}] S-curve for each pixel,
@@ -526,6 +527,8 @@ for each ROC such that the softest pixel threshold is at \texttt{target}
 that the pixel threshold is at \texttt{target} \texttt{Vcal} DAC units 
 \item [\texttt{modmap~nTrig}] Take a module efficiency and pulse
 height map (PixelAlive) with \texttt{nTrig} triggers 
+\item [\texttt{show1~dac}] show one \texttt{dac} value from all
+ROCs 
 \item [\texttt{modtune}] Set PH gain and offset for each ROC such
 that all pixels fit into the ADC range 
 \item [\texttt{modtd~period}] take data with trigger rate 40\,MHz
