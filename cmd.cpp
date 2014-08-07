@@ -3841,6 +3841,9 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 {
   Log.section( "Id-vs-VthrComp", false );
 
+  int roc = 0;
+  PAR_INT( roc, 0, 15 ) ;
+
   int32_t dacstop = dacStop( VthrComp );
   int32_t nstp = dacstop + 1;
   vector < double >yvec( nstp, 0.0 );
@@ -3849,12 +3852,13 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 
   Log.printf( " DAC %i: %i:%i\n", VthrComp, 0, dacstop );
 
- // all on:
-
+  //select the roc
+  tb.roc_I2cAddr( roc );
+  // all on:
   for( int col = 0; col < 52; ++col ) {
     tb.roc_Col_Enable( col, true );
     for( int row = 0; row < 80; ++row ) {
-      int trim = modtrm[0][col][row];
+      int trim = modtrm[roc][col][row];
       tb.roc_Pix_Trim( col, row, trim );
     }
   }
@@ -3877,7 +3881,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
     h11->Fill( i, id );
 
     Log.printf( "%3i %5.1f\n", i, id );
-    printf( "%i %5.1f mA\n", i, id );
+    //printf( "%i %5.1f mA\n", i, id );
 
     yvec[i] = id;
     if( id > ymax ) {
@@ -3979,7 +3983,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
     val = 0;
   tb.SetDAC( VthrComp, val );
   tb.Flush(  );
-  dacval[0][VthrComp] = val;
+  dacval[roc][VthrComp] = val;
   Log.printf( "[SETDAC] %i  %i\n", VthrComp, val );
   Log.flush(  );
 
@@ -5289,15 +5293,24 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     int i10 = 0;
     int i50 = 0;
     int i90 = 0;
+    int nmx = 0;
+    for( int idc = 0; idc < nstp; ++idc )
+      if( cnt[roc][idc] > nmx )
+	nmx = cnt[roc][idc];
+    
     for( int idc = 0; idc < nstp; ++idc ) {
       int ni = cnt[roc][idc];
       cout << setw( 3 ) << ni;
-      if( ni <= 0.1 * nTrig )
-        i10 = idc; // -1.28155 sigma
-      if( ni <= 0.5 * nTrig )
+      
+      if( ni <= 0.1 * nmx)
+	i10 = idc; // -1.28155 sigma
+      if( ni <= 0.5 * nmx)
         i50 = idc;
-      if( ni <= 0.9 * nTrig )
-        i90 = idc; // +1.28155 sigma
+      if( ni <= 0.9 * nmx)
+	i90 = idc; // +1.28155 sigma
+      if( ni ==  nmx)
+	break;
+       cout<< " idc:"<< idc << " i10: "<< i10<< " i50: "<< i50<< " i90: "<< i90<<endl;
     }
     cout << endl;
     cout << "thr " << i50 << ", width " << i90 - i10 << endl;
@@ -5709,18 +5722,21 @@ CMD_PROC( modsc ) // S-curve for modules, all pix
         int i90 = 0;
         bool ldb = 0;
         if( col == 22 && row == 33 )
-          ldb = 1; // one example pix
+          ldb = 1; // one example pi
 
         for( int idc = 0; idc < nstp; ++idc ) {
           int ni = cnt[roc][col][row][idc];
           if( ldb )
             cout << setw( iw ) << ni;
-          if( ni <= 0.1 * nmx )
-            i10 = idc; // -1.28155 sigma
-          if( ni <= 0.5 * nmx )
-            i50 = idc;
-          if( ni <= 0.9 * nmx )
-            i90 = idc; // +1.28155 sigma
+	  if( ni <= 0.1 * nmx )
+	    i10 = idc; // -1.28155 sigma
+	  if( ni <= 0.5 * nmx)
+	    i50 = idc;
+	  if( ni <= 0.9 * nmx )
+	    i90 = idc; // +1.28155 sigma
+	  if( ni == nmx)
+	    break; 
+	  
         }
 
         if( ldb )
@@ -6211,7 +6227,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     iw = 4;
 
  // S-curves:
-  bool lex = 0; // example
+  bool lex = 1; // example
 
   for( int roc = 0; roc < 16; ++roc ) {
 
@@ -6232,7 +6248,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
         int i50 = 0;
         int i90 = 0;
         bool ldb = 0;
-        if( lex && col == 22 && row == 33 )
+        if( lex && col == 35 && row == 16 )
           ldb = 1; // one example pix
 
         for( int idc = 0; idc < nstp; ++idc ) {
@@ -6245,6 +6261,9 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
             i50 = idc;
           if( ni <= 0.9 * nmx )
             i90 = idc; // +1.28155 sigma
+          if( ni == nmx ){
+            break;
+	  }
         }
 
         if( ldb )
@@ -6581,6 +6600,7 @@ CMD_PROC( modtrim )
     << strt << " to " << stop
     << " in steps of " << step << " with " << nTrig << " triggers" << endl;
 
+
   ModThrMap( strt, stop, step, nTrig, xtlk, cals ); // fills modthr
 
   int nok = 0;
@@ -6612,7 +6632,7 @@ CMD_PROC( modtrim )
           colmax = col;
           rowmax = row;
         }
-        if( thr < vmin )
+        if( thr < vmin && thr > 0)
           vmin = thr;
       } // cols
 
@@ -6676,7 +6696,7 @@ CMD_PROC( modtrim )
 
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // iterate trim bits:
-
+  
   for( int roc = 0; roc < 16; ++roc ) {
     if( roclist[roc] == 0 )
       continue;
@@ -6725,7 +6745,7 @@ CMD_PROC( modtrim )
  //printThrMap( 0, roc, nok );
 
   cout << "SetTrimValues in FPGA" << endl;
-
+  
  // restore:
 
   for( int roc = 0; roc < 16; ++roc ) {
@@ -8634,6 +8654,7 @@ CMD_PROC( trim )
       cout << "min threshold below target on ROC " << roc
         << ": skipped (try lower VthrComp)" << endl;
       continue; // skip this ROC
+   
     }
 
     cout << "max thr " << vmax << " at " << colmax << " " << rowmax << endl;
@@ -11355,7 +11376,7 @@ void cmd(  )                    // called once from psi46test
 
   CMD_REG( daci,      "daci dac                      current vs dac" );
   CMD_REG( vanaroc,   "vanaroc                       ROC efficiency scan vs Vana" );
-  CMD_REG( vthrcompi, "vthrcompi                     Id vs VthrComp" );
+  CMD_REG( vthrcompi, "vthrcompi roc                 Id vs VthrComp for one ROC" );
   CMD_REG( caldel,    "caldel col row                CalDel efficiency scan" );
   CMD_REG( caldelmap, "caldelmap                     map of CalDel range" );
   CMD_REG( caldelroc, "caldelroc                     ROC CalDel efficiency scan" );
