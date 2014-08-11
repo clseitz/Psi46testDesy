@@ -42,7 +42,7 @@ trigdel 200  # delay in trigger loop [BC], 160 = 4 us
 select 0	  [set roclist, I2C]
 rocaddr 0	  [set ROC]
 
-dopen 10100100 0 [daq_open]
+dopen 40100100 0 [daq_open]
 
 --- power on --------------------------------
 pon
@@ -55,7 +55,7 @@ mdelay 500
 chip 402
 
 dac   1   10  Vdig  needed for large events
-dac   2   99  Vana  optia 25
+dac   2   117  Vana  optia 25
 dac   3   33  Vsf   linearity
 dac   4    6  Vcomp better multi-pulse eff (td52)
 	 
@@ -69,10 +69,10 @@ dac  12  100  VthrComp
 dac  13   30  VIBias_Bus
 dac  22   99  VIColOr
 
-dac  17  210  VoffsetRO
+dac  17  237  VoffsetRO
 
 dac  19   10  Vcomp_ADC
-dac  20   99  VIref_ADC
+dac  20   97  VIref_ADC
 
 dac  25  222  Vcal
 dac  26  106  CalDel

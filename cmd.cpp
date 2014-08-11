@@ -1074,18 +1074,13 @@ CMD_PROC( chip )
 
   string gainFileName;
 
-  if( Chip == 300 )
-    gainFileName = "/home/pitzl/psi/dtb/chip300/phcal-Ia25-trim30.dat";
-  if( Chip == 400 )
-    gainFileName = "/home/pitzl/psi/dtb/tst221/c400-phroc-Ia25-trim30.dat";
- //string gainFileName = "/home/pitzl/psi/dtb/tst221/c400-phroc-Ia25-trim40.dat";
   if( Chip == 401 )
-    gainFileName = "/home/pitzl/psi/dtb/tst219/phroc-c401-Ia25-trim30.dat";
+    gainFileName = "phroc-c401-Ia25-trim30.dat";
+  if( Chip == 402 )
+    gainFileName = "phroc-c402-trim30.dat";
   if( Chip == 405 )
-    gainFileName = "/home/pitzl/psi/dtb/tst215/phroc-c405-trim30.dat";
-  if( Chip == 431 )
-    gainFileName = "/home/pitzl/psi/dtb/tst221/c431-phroc-Ia25-trim30.dat";
-
+    gainFileName = "phroc-c405-trim30.dat";
+ 
   if( gainFileName.length(  ) > 0 ) {
 
     ifstream gainFile( gainFileName.c_str(  ) );
@@ -1206,8 +1201,8 @@ double PHtoVcal( double ph, uint16_t col, uint16_t row )
 
   if( vc > 999 )
     cout << "overflow " << vc << " at"
-      << setw( 3 ) << col
-      << setw( 3 ) << row << ", Ared " << Ared << ", a3 " << a3 << endl;
+	 << setw( 3 ) << col
+	 << setw( 3 ) << row << ", Ared " << Ared << ", a3 " << a3 << endl;
 
   if( dacval[0][CtrlReg] == 0 )
     return vc * p5[col][row]; // small Vcal
@@ -1985,7 +1980,8 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
   if( h11 )
     delete h11;
   h11 = new
-    TH1D( "pixelPH", "pixel PH;pixel PH [ADC];pixels", 255, -0.5, 254.5 ); // 255 is overflow
+    TH1D( "pixelPH", "pixel PH;pixel PH [ADC];pixels",
+	  255, -0.5, 254.5 ); // 255 is overflow
 
   if( h12 )
     delete h12;
@@ -7960,7 +7956,10 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
 
   if( h11 )
     delete h11;
-  h11 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ), Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ), 256, -0.5, 255.5 ); // 255 = overflow
+  h11 = new
+    TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ),
+	  Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ),
+	  255, -0.5, 254.5 ); // 255 = overflow
 
   if( h21 )
     delete h21;
@@ -8434,7 +8433,10 @@ CMD_PROC( vthrcomp )
 
   if( h10 )
     delete h10;
-  h10 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ), Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ), 256, -0.5, 255.5 ); // 255 = overflow
+  h10 = new
+    TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ),
+	  Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ),
+	  255, -0.5, 254.5 ); // 255 = overflow
 
   for( int col = 0; col < 52; ++col )
     for( int row = 0; row < 80; ++row )
@@ -8556,6 +8558,10 @@ CMD_PROC( trim )
   int target;
   PAR_INT( target, 0, 255 ); // Vcal [DAC] threshold target
 
+  int guess;
+  if( !PAR_IS_INT( guess, 0, 255 ) )
+    guess = 50;
+
   Log.section( "TRIM", true );
 
   timeval tv;
@@ -8584,8 +8590,6 @@ CMD_PROC( trim )
 
     tb.SetDAC( CtrlReg, 0 ); // this ROC, small Vcal
 
-    int guess = 50;
-
    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    // take threshold map, find hardest pixel
 
@@ -8604,7 +8608,10 @@ CMD_PROC( trim )
 
     if( h10 )
       delete h10;
-    h10 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 256, -0.5, 255.5 ); // 255 = overflow
+    h10 = new
+      TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+	    255, -0.5, 254.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -8724,7 +8731,10 @@ CMD_PROC( trim )
 
     if( h12 )
       delete h12;
-    h12 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 256, -0.5, 255.5 ); // 255 = overflow
+    h12 = new
+      TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
+	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
+	    255, -0.5, 254.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -8740,7 +8750,7 @@ CMD_PROC( trim )
 
     if( h13 )
       delete h13;
-    h13 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 256, -0.5, 255.5 ); // 255 = overflow
+    h13 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 255, -0.5, 254.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -8756,7 +8766,7 @@ CMD_PROC( trim )
 
     if( h14 )
       delete h14;
-    h14 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 256, -0.5, 255.5 ); // 255 = overflow
+    h14 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 255, -0.5, 254.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -8772,7 +8782,7 @@ CMD_PROC( trim )
 
     if( h15 )
       delete h15;
-    h15 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2_1", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 256, -0.5, 255.5 ); // 255 = overflow
+    h15 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2_1", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 255, -0.5, 254.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -8788,7 +8798,7 @@ CMD_PROC( trim )
 
     if( h16 )
       delete h16;
-    h16 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2_1_1", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1 1;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 256, -0.5, 255.5 ); // 255 = overflow
+    h16 = new TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i_4_2_1_1", vthr, vtrm, tbits ), Form( "Threshold distribution Vthr %i Vtrim %i bits %i 4 2 1 1;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ), 255, -0.5, 254.5 ); // 255 = overflow
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -8943,8 +8953,8 @@ CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
   long s0 = tv.tv_sec;          // seconds since 1.1.1970
   long u0 = tv.tv_usec;         // microseconds
 
-  tb.SetDAC( CtrlReg, 4 ); // large Vcal
-  tb.Flush(  );
+  //tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  //tb.Flush(  );
 
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // scan Vcal for one pixel
@@ -11401,7 +11411,7 @@ void cmd(  )                    // called once from psi46test
 
   CMD_REG( vthrcomp,
            "vthrcomp target [guess]       set VthrComp to target Vcal" );
-  CMD_REG( trim, "trim target                   set Vtrim and trim bits" );
+  CMD_REG( trim, "trim target [guess]           set Vtrim and trim bits" );
   CMD_REG( trimbits,
            "trimbits                      set trim bits for efficiency" );
   CMD_REG( thrdac,
