@@ -49,6 +49,11 @@ bin/psi46test: $(addprefix obj/,$(OBJS)) bin rpc_calls.cpp
 	$(CXX) -o $@ $(addprefix obj/,$(OBJS)) $(LDFLAGS)
 	@echo 'done: bin/psi46test'
 
+o2r: o2r.cc
+	g++ $(ROOTCFLAGS) o2r.cc \
+	-Wall -O2 -o o2r $(ROOTLIBS)
+	@echo 'done: o2r'
+
 clean:
 	rm -rf obj
 
