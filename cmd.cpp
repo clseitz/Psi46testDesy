@@ -1255,6 +1255,11 @@ CMD_PROC( upd ) // redraw ROOT canvas; only works for global histos
     h14->Draw(  );
     c1->Update(  );
   }
+    else if( plot == 15 ) {
+    gStyle->SetOptStat( 111111 );
+    h15->Draw(  );
+    c1->Update(  );
+    }
   else if( plot == 21 ) {
     double statY = gStyle->GetStatY(  );
     gStyle->SetStatY( 0.95 );
@@ -5713,6 +5718,107 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 }
 
 //------------------------------------------------------------------------------
+// utility function: loop over ROC 0 pixels, give triggers, count responses
+// user: enable all
+
+int GetEff( int &n01, int &n50, int &n99 )
+{
+  n01 = 0;
+  n50 = 0;
+  n99 = 0;
+
+  uint16_t nTrig = 10;
+  uint16_t flags = 0;           // normal CAL
+
+ //flags = 0x0002; // FLAG_USE_CALS;
+  if( flags > 0 )
+    cout << "CALS used..." << endl;
+
+  flags |= 0x0010; // FLAG_FORCE_MASK else noisy
+
+  try {
+    tb.LoopSingleRocAllPixelsCalibrate( 0, nTrig, flags );
+  }
+  catch( CRpcError & e ) {
+    e.What(  );
+    return 0;
+  }
+
+ // header = 1 word
+ // pixel = +2 words
+ // size = 4160 * nTrig * 3 = 124'800 words
+
+  tb.Daq_Stop(  );
+
+  vector < uint16_t > data;
+  data.reserve( tb.Daq_GetSize(  ) );
+
+  try {
+    uint32_t rest;
+    tb.Daq_Read( data, Blocksize, rest );
+    while( rest > 0 ) {
+      vector < uint16_t > dataB;
+      dataB.reserve( Blocksize );
+      tb.Daq_Read( dataB, Blocksize, rest );
+      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
+      dataB.clear(  );
+    }
+  }
+  catch( CRpcError & e ) {
+    e.What(  );
+    return 0;
+  }
+
+ // unpack data:
+
+  PixelReadoutData pix;
+
+  int pos = 0;
+  int err = 0;
+
+  for( int col = 0; col < 52; ++col ) {
+
+    for( int row = 0; row < 80; ++row ) {
+
+      int cnt = 0;
+
+      for( int k = 0; k < nTrig; ++k ) {
+
+        err = DecodePixel( data, pos, pix ); // analyzer
+
+        if( err )
+          cout << "error " << err << " at trig " << k
+            << ", pix " << col << " " << row << ", pos " << pos << endl;
+        if( err )
+          break;
+
+        if( pix.n > 0 )
+          if( pix.x == col && pix.y == row )
+            cnt++;
+
+      } // trig
+
+      if( err )
+        break;
+      if( cnt > 0 )
+        n01++;
+      if( cnt >= nTrig / 2 )
+        n50++;
+      if( cnt == nTrig )
+        n99++;
+
+    } // row
+
+    if( err )
+      break;
+
+  } // col
+
+  return 1;
+}
+
+
+//------------------------------------------------------------------------------
 CMD_PROC( modsc ) // S-curve for modules, all pix
 {
   int nTrig;
@@ -8358,7 +8464,7 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
     cout << setw( 2 ) << "ROC " << roc << endl;
 
     tb.roc_I2cAddr( roc );
-    tb.SetDAC( CtrlReg, 0 );
+    tb.SetDAC( CtrlReg, 0 ); // measure thresholds at ctl 0
 
     RocThrMap( roc, guess, step, nTrig, xtalk, cals ); // fills modthr
 
@@ -10119,107 +10225,7 @@ CMD_PROC( bbtest ) // bump bond test
 }
 
 //------------------------------------------------------------------------------
-// utility function: loop over ROC 0 pixels, give triggers, count responses
-// user: enable all
-
-int GetEff( int &n01, int &n50, int &n99 )
-{
-  n01 = 0;
-  n50 = 0;
-  n99 = 0;
-
-  uint16_t nTrig = 10;
-  uint16_t flags = 0;           // normal CAL
-
- //flags = 0x0002; // FLAG_USE_CALS;
-  if( flags > 0 )
-    cout << "CALS used..." << endl;
-
-  flags |= 0x0010; // FLAG_FORCE_MASK else noisy
-
-  try {
-    tb.LoopSingleRocAllPixelsCalibrate( 0, nTrig, flags );
-  }
-  catch( CRpcError & e ) {
-    e.What(  );
-    return 0;
-  }
-
- // header = 1 word
- // pixel = +2 words
- // size = 4160 * nTrig * 3 = 124'800 words
-
-  tb.Daq_Stop(  );
-
-  vector < uint16_t > data;
-  data.reserve( tb.Daq_GetSize(  ) );
-
-  try {
-    uint32_t rest;
-    tb.Daq_Read( data, Blocksize, rest );
-    while( rest > 0 ) {
-      vector < uint16_t > dataB;
-      dataB.reserve( Blocksize );
-      tb.Daq_Read( dataB, Blocksize, rest );
-      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      dataB.clear(  );
-    }
-  }
-  catch( CRpcError & e ) {
-    e.What(  );
-    return 0;
-  }
-
- // unpack data:
-
-  PixelReadoutData pix;
-
-  int pos = 0;
-  int err = 0;
-
-  for( int col = 0; col < 52; ++col ) {
-
-    for( int row = 0; row < 80; ++row ) {
-
-      int cnt = 0;
-
-      for( int k = 0; k < nTrig; ++k ) {
-
-        err = DecodePixel( data, pos, pix ); // analyzer
-
-        if( err )
-          cout << "error " << err << " at trig " << k
-            << ", pix " << col << " " << row << ", pos " << pos << endl;
-        if( err )
-          break;
-
-        if( pix.n > 0 )
-          if( pix.x == col && pix.y == row )
-            cnt++;
-
-      } // trig
-
-      if( err )
-        break;
-      if( cnt > 0 )
-        n01++;
-      if( cnt >= nTrig / 2 )
-        n50++;
-      if( cnt == nTrig )
-        n99++;
-
-    } // row
-
-    if( err )
-      break;
-
-  } // col
-
-  return 1;
-}
-
-//------------------------------------------------------------------------------
-CMD_PROC( caldelroc ) // scan and set CalDel using all pixel: 17 s
+void  CalDelRoc() // scan and set CalDel using all pixel: 17 s
 {
   Log.section( "CALDELROC", true );
 
@@ -10351,12 +10357,12 @@ CMD_PROC( caldelroc ) // scan and set CalDel using all pixel: 17 s
 
   h11->Write(  );
   h12->Write(  );
-  if( par.isInteractive(  ) ) {
+  
     h11->SetStats( 0 );
     h12->SetStats( 0 );
     h12->Draw(  );
     c1->Update(  );
-  }
+  
   cout << "histos 11, 12" << endl;
 
  // analyze:
@@ -10384,7 +10390,7 @@ CMD_PROC( caldelroc ) // scan and set CalDel using all pixel: 17 s
   if( nmax > 55 ) {
     int i2 = i0 + ( i9 - i0 ) / 4;
     tb.SetDAC( CalDel, i2 );
-    DO_FLUSH;
+    tb.Flush();
     dacval[0][CalDel] = i2;
     printf( "set CalDel to %i\n", i2 );
     Log.printf( "[SETDAC] %i  %i\n", CalDel, i2 );
@@ -10396,6 +10402,152 @@ CMD_PROC( caldelroc ) // scan and set CalDel using all pixel: 17 s
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
   cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC( caldelroc ) // scan and set CalDel using all pixel: 17 s
+{
+	CalDelRoc();
+	return true;
+}
+
+//------------------------------------------------------------------------------
+// Jamie Cameron, 11.10.14. Measure Thrmap RMS as a function of VthrComp.
+
+CMD_PROC( scanvthr )
+{
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec;          // seconds since 1.1.1970
+  long u0 = tv.tv_usec;         // microseconds
+
+  int vthrmin;
+  PAR_INT( vthrmin, 0, 254 );
+  int vthrmax;
+  PAR_INT( vthrmax, 1, 255 );
+  int vthrstp;
+  if( !PAR_IS_INT( vthrstp, 1, 255 ) )
+    vthrstp = 5;
+    
+  if(vthrmin > vthrmax) {
+    cout << "vthrmin > vthrmax, switching parameters." << endl;
+    int temp = vthrmax;
+    vthrmax = vthrmin;
+    vthrmin = temp;       
+  }
+      
+  int nstp = (vthrmax-vthrmin)/vthrstp + 1;
+  cout << "Number of steps " << nstp << endl;
+
+  double mid = 150 - 1.35*vthrmin; // empirical estimate of first guess. 
+  
+  const int roc = 0;
+  const int nTrig = 20;
+  const int step = 1;
+  const int xtalk = 0;
+  const int cals = 0;
+
+  tb.roc_I2cAddr( roc );
+  tb.SetDAC( CtrlReg, 0 ); // measure thresholds at ctl 0
+  tb.Flush(  );
+  
+  Log.section( "SCANVTHR", true );
+  
+  if( h13 )
+    delete h13;
+  h13 = new
+    TProfile( "vthr_scan_caldel",
+	      "Vthr scan caldel;VthrComp [DAC];CalDelRoc [DAC]",
+	      nstp, vthrmin - 0.5*vthrstp, vthrmax + 0.5*vthrstp );
+    if( h14 )
+    delete h14;
+  h14 = new
+    TProfile( "vthr_scan_thrmean",
+	      "Vthr scan thr mean;VthrComp [DAC];Threshold Mean [DAC]",
+	      nstp, vthrmin - 0.5*vthrstp, vthrmax + 0.5*vthrstp );
+    if( h15 )
+    delete h15;
+  h15 = new
+    TProfile( "vthr_scan_thrrms",
+	      "Vthr scan thr RMS;VthrComp [DAC];Threshold RMS [DAC]",
+	      nstp, vthrmin - 0.5*vthrstp, vthrmax + 0.5*vthrstp );
+  
+  for( int vthr = vthrmin; vthr <= vthrmax; vthr += vthrstp ) {
+
+    cout << "VthrComp " << vthr << endl;
+
+    tb.SetDAC( VthrComp, vthr );
+   	
+    // caldelroc:
+    cout << "CalDelRoc..." << endl;
+    CalDelRoc(); // fills histos 11, 12
+    
+      h13->Fill( vthr,  dacval[0][CalDel] );
+  
+    // take thrmap:
+    cout << "Thrmap with guess " << int(mid) << endl;
+    RocThrMap( roc, int(mid), step, nTrig, xtalk, cals ); // guess = previous mean
+  
+    int nok = 0;
+    int sum = 0;
+    int su2 = 0;
+
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row ) {
+	int thr = modthr[roc][col][row];
+        
+	// update RMS parameters:  
+	if( thr < 255 ) {
+	  sum += thr;
+	  su2 += thr * thr;
+	  nok++;
+	}
+      }  
+      
+    // calculate RMS:  
+      
+    cout << "nok " << nok << endl;
+      
+    if( nok > 0 ) {
+      mid = ( double ) sum / ( double ) nok;
+      double rms = sqrt( ( double ) su2 / ( double ) nok - mid * mid );
+      cout << "  mean thr " << mid << ", rms " << rms << endl;
+      Log.flush(  );
+	
+      Log.printf( "%i %f\n", vthr, mid );
+      h14->Fill( vthr, mid ); 
+           
+      Log.printf( "%i %f\n", vthr, rms );
+      h15->Fill( vthr, rms );
+            
+    }
+
+  } // vthr loop
+
+  tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
+  tb.SetDAC( VthrComp, dacval[roc][VthrComp] ); 
+  tb.SetDAC( Vcal, dacval[roc][Vcal] ); 
+  tb.Flush(  );
+  
+  // plot profile:
+  h13->Write(  );
+  
+  h14->Write(  );
+    
+  h15->Write(  );
+  h15->SetStats( 0 );
+  h15->Draw(  );
+  c1->Update(  );
+  
+  cout << "histos 13, 14, 15" << endl;
+
+  Log.flush(  );
+  
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec;          // seconds since 1.1.1970
+  long u9 = tv.tv_usec;         // microseconds
+  cout << "scan duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 }
@@ -11745,6 +11897,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( dreadm,    "dreadm [channel]              Read Daq buffer and show as module data" );
 
   CMD_REG( scanvb,    "scanvb vmax [vstp]            bias voltage scan" );
+  CMD_REG( scanvthr,  "scanvthr vthrmin vthrmax [vthrstp]    threshold RMS vs VthrComp" );
 
   CMD_REG( showclk,   "showclk                       show CLK signal" );
   CMD_REG( showctr,   "showctr                       show CTR signal" );
