@@ -908,38 +908,6 @@ CMD_PROC( getid ) // measure digital supply current
   return true;
 }
 
-vector < double >idv;
-
-//------------------------------------------------------------------------------
-CMD_PROC( getid2 ) // measure digital supply current
-{
-  int mode;
-  PAR_INT( mode, 0, 15 );
-
-  if( mode == 0 ) {
-    idv.clear(  );
-  }
-  if( mode == 1 ) {
-    double id = tb.GetID(  ) * 1E3;
-    printf( "ID = %1.1f mA\n", id );
-    idv.push_back( id );
-  }
-  else if( mode == 2 ) {
-    for( size_t i = 0; i < idv.size(  ); ++i )
-      cout << setw( 2 ) << i << "  " << idv.at( i ) << endl;
-    cout << endl;
-   // for ROOT:
-    cout << "Double_t id[" << idv.size(  ) << "] = {" << endl;
-    for( size_t i = 0; i < idv.size(  ); ++i ) {
-      if( i > 0 )
-        cout << ", ";
-      cout << idv.at( i );
-    }
-    cout << " };" << endl;
-  }
-  return true;
-}
-
 //------------------------------------------------------------------------------
 CMD_PROC( hvon )
 {
