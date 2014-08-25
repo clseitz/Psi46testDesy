@@ -4310,6 +4310,164 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
   return true;
 }
 
+/*CMD_PROC( modvthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
+// peak position depends on Vana
+{
+  Log.section( "Id-vs-VthrComp", false );
+
+  int roc = 0;
+  PAR_INT( roc, 0, 15 );
+
+  int32_t dacstop = dacStop( VthrComp );
+  int32_t nstp = dacstop + 1;
+  vector < double >yvec( nstp, 0.0 );
+  double ymax = 0;
+  int32_t imax = 0;
+
+  Log.printf( " DAC %i: %i:%i on ROC %i\n", VthrComp, 0, dacstop, roc );
+
+  //select the ROC:
+  tb.roc_I2cAddr( roc );
+
+  // all pix on:
+
+  for( int col = 0; col < 52; ++col ) {
+    tb.roc_Col_Enable( col, true );
+    for( int row = 0; row < 80; ++row ) {
+      int trim = modtrm[roc][col][row];
+      tb.roc_Pix_Trim( col, row, trim );
+    }
+  }
+  tb.Flush(  );
+
+  if( h11 )
+    delete h11;
+  h11 = new
+    TH1D( "ID_VthrComp",
+          "Digital current vs comparator threshold;VthrComp [DAC];ID [mA]",
+          256, -0.5, 255.5 );
+
+  for( int32_t i = 0; i <= dacstop; ++i ) {
+
+    tb.SetDAC( VthrComp, i );
+    tb.mDelay( 20 );
+
+    double id = tb.GetID(  ) * 1000.0; // [mA]
+
+    h11->Fill( i, id );
+
+    Log.printf( "%3i %5.1f\n", i, id );
+    if( roc == 0 ) printf( "%i %5.1f mA\n", i, id );
+
+    yvec[i] = id;
+    if( id > ymax ) {
+      ymax = id;
+      imax = i;
+    }
+  }
+
+ // all off:
+
+  for( int col = 0; col < 52; ++col ) {
+    tb.roc_Col_Enable( col, 0 );
+    for( int row = 0; row < 80; ++row ) {
+      tb.roc_Pix_Mask( col, row );
+    }
+  }
+  tb.roc_ClrCal(  );
+  tb.Flush(  );
+
+  h11->Write(  );
+  h11->SetStats( 0 );
+  h11->Draw(  );
+  c1->Update(  );
+  cout << "histos 11" << endl;
+
+  cout << "peak " << ymax << " mA" << " at " << imax << endl;
+
+  double maxd1 = 0;
+  double maxd2 = 0;
+  double maxd4 = 0;
+  double maxd7 = 0;
+  double maxd11 = 0;
+  double maxd16 = 0;
+  double maxd22 = 0;
+  double maxd29 = 0;
+  int maxi1 = 0;
+  int maxi2 = 0;
+  int maxi4 = 0;
+  int maxi7 = 0;
+  int maxi11 = 0;
+  int maxi16 = 0;
+  int maxi22 = 0;
+  int maxi29 = 0;
+  for( int i = 0; i <= dacstop - 29; ++i ) {
+    double ni = yvec[i];
+    double d1 = yvec[i + 1] - ni;
+    double d2 = yvec[i + 2] - ni;
+    double d4 = yvec[i + 4] - ni;
+    double d7 = yvec[i + 7] - ni;
+    double d11 = yvec[i + 11] - ni;
+    double d16 = yvec[i + 16] - ni;
+    double d22 = yvec[i + 22] - ni;
+    double d29 = yvec[i + 29] - ni;
+    if( d1 > maxd1 ) {
+      maxd1 = d1;
+      maxi1 = i;
+    }
+    if( d2 > maxd2 ) {
+      maxd2 = d2;
+      maxi2 = i;
+    }
+    if( d4 > maxd4 ) {
+      maxd4 = d4;
+      maxi4 = i;
+    }
+    if( d7 > maxd7 ) {
+      maxd7 = d7;
+      maxi7 = i;
+    }
+    if( d11 > maxd11 ) {
+      maxd11 = d11;
+      maxi11 = i;
+    }
+    if( d16 > maxd16 ) {
+      maxd16 = d16;
+      maxi16 = i;
+    }
+    if( d22 > maxd22 ) {
+      maxd22 = d22;
+      maxi22 = i;
+    }
+    if( d29 > maxd29 ) {
+      maxd29 = d29;
+      maxi29 = i;
+    }
+  }
+  cout << "max d1  " << maxd1 << " at " << maxi1 << endl;
+  cout << "max d2  " << maxd2 << " at " << maxi2 << endl;
+  cout << "max d4  " << maxd4 << " at " << maxi4 << endl;
+  cout << "max d7  " << maxd7 << " at " << maxi7 << endl;
+  cout << "max d11 " << maxd11 << " at " << maxi11 << endl;
+  cout << "max d16 " << maxd16 << " at " << maxi16 << endl;
+  cout << "max d22 " << maxd22 << " at " << maxi22 << endl;
+  cout << "max d29 " << maxd29 << " at " << maxi29 << endl;
+
+  int32_t val = maxi22 - 8;     // safety for digV2.1
+  val = maxi29 - 30; // safety for digV2
+  if( val < 0 )
+    val = 0;
+  tb.SetDAC( VthrComp, val );
+  tb.Flush(  );
+  dacval[roc][VthrComp] = val;
+  Log.printf( "[SETDAC] %i  %i\n", VthrComp, val );
+  Log.flush(  );
+
+  cout << "set VthrComp to " << val << endl;
+
+  return true;
+  }*/
+
 //------------------------------------------------------------------------------
 // utility function for Pixel PH and cnt
 bool GetPixData( int roc, int col, int row, int nTrig,
@@ -7027,7 +7185,7 @@ CMD_PROC( modtrim )
 
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // take threshold map, find hardest pixel
-
+  bool contTrim = true;
   int strt = 0;
   int stop = 255;               // Vcal scan range
   int step = 4;                 // coarse
@@ -7077,7 +7235,8 @@ CMD_PROC( modtrim )
 
     if( vmin < target ) {
       cout << "min threshold below target on ROC " << roc
-        << ": skipped (try lower VthrComp)" << endl;
+        << ": skipped (try lower VthrComp) will not trim module" << endl;
+      contTrim = false;
       continue; // skip this ROC
     }
 
@@ -7135,7 +7294,7 @@ CMD_PROC( modtrim )
 
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // iterate trim bits:
-
+  if(contTrim){
   for( int roc = 0; roc < 16; ++roc ) {
     if( roclist[roc] == 0 )
       continue;
@@ -7182,9 +7341,9 @@ CMD_PROC( modtrim )
   ModTrimStep( target, correction, step, nTrig, xtlk, cals ); // fills modtrm, fills modthr
 
  //printThrMap( 0, roc, nok );
-
+ 
   cout << "SetTrimValues in FPGA" << endl;
-
+  
   // restore:
 
   for( int roc = 0; roc < 16; ++roc ) {
@@ -7204,7 +7363,8 @@ CMD_PROC( modtrim )
       }
     tb.SetTrimValues( roc, trimvalues );
   }
-  tb.Flush(  );
+  }
+ tb.Flush(  );
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
