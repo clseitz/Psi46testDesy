@@ -58,6 +58,8 @@ mdelay 100
 
 select 0:15  # all ROCs active
 
+chip 350  # must be after select
+
 dac   1    8  Vdig 
 dac   2  140  Vana
 dac   3  130  Vsf

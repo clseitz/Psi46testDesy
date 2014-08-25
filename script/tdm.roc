@@ -13,7 +13,7 @@ flush
 # stretch 1 8 999 # does not work for modules
 
 allon
-
-modtd 4000  # trigger f = 40 MHz / period
+flush
+modtd 400  # trigger f = 40 MHz / period
 
 mask
