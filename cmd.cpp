@@ -12272,7 +12272,6 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( dreadm,    "dreadm [channel]              Read Daq buffer and show as module data" );
 
   CMD_REG( scanvb,    "scanvb vmax [vstp]            bias voltage scan" );
-  CMD_REG( scanvthr,  "scanvthr vthrmin vthrmax [vthrstp]    threshold RMS vs VthrComp" );
 
   CMD_REG( showclk,   "showclk                       show CLK signal" );
   CMD_REG( showctr,   "showctr                       show CTR signal" );
@@ -12347,6 +12346,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( thrdac,    "thrdac col row dac            Threshold vs DAC one pixel" );
   CMD_REG( thrmap,    "thrmap guess                  threshold map trimmed" );
   CMD_REG( thrmapsc,  "thrmapsc stop (4=cals)        threshold map" );
+  CMD_REG( scanvthr,  "scanvthr vthrmin vthrmax [vthrstp]    threshold RMS vs VthrComp" );
 
   CMD_REG( effdac,    "effdac col row dac            Efficiency vs DAC one pixel" );
   CMD_REG( phdac,     "phdac col row dac             PH vs DAC one pixel" );
