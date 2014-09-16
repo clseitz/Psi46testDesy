@@ -9,16 +9,16 @@ resoff
 
 vd 2500 mV
 va 1800 mV
-id  100 mA
+id  610 mA # for mod.roc 10.07
 ia  100 mA
 
 #fsel 1 # 0 = 40 MHz, 1 = 20 MHz
 
 - timing phase [ns]
-clk 20  (FEC 30 cm cable)
-ctr 20  (CLK +  0)
-sda 31  (CLK + 11)
-tin 21  (CLK +  1)
+clk 22  (FEC 30 cm cable)
+ctr 22  (CLK +  0)
+sda 33  (CLK + 11)
+tin 23  (CLK +  1)
 
 deser 5
 
@@ -31,7 +31,7 @@ tinlvl 15
 --- pattern generator: set redout timing --------------------
 pgstop
 pgset 0 b101000  16  pg_resr pg_sync
-pgset 1 b000100  66  pg_cal, set WBC = pg_cal - 6
+pgset 1 b000100  45  pg_cal, set WBC = pg_cal - 6
 pgset 2 b000010  20  pg_trg  
 pgset 3 b000001   0  pg_tok, end of pgset
 
@@ -60,8 +60,8 @@ hvon
 
 chip 350
 
-dac   1    6  Vdig  FEC 30 cm cable
-dac   2  200  Vana  35 mA for effmap
+dac   1   15  Vdig  FEC 30 cm cable
+dac   2  160  Vana  for 30 mA
 dac   3  130  Vsf   linearity
 dac   4   12  Vcomp
 
@@ -69,25 +69,25 @@ dac   7   11  VwllPr  for fast Cal at 10 nTrig
 dac   9   11  VwllPr
 dac  10  252  VhldDel
 
-dac  11    1  Vtrim    [trim below Vcal 50 is noise]
-dac  12   40  VthrComp [noisy after trim at VthrComp 50]
+dac  11    1  Vtrim
+dac  12   88  VthrComp for cals
 
 dac  13    1  VIBias_Bus
 dac  14   14  Vbias_sf
 dac  22   20  VIColOr
 
-dac  15   66  VoffsetOp
+dac  15  137  VoffsetOp
 dac  17  140  VoffsetRO
 dac  18   55  VIon
 
 dac  19   40  Vcomp_ADC
-dac  20   76  VIref_ADC
+dac  20   61  VIref_ADC
 
 dac  25  222  Vcal
 dac  26  134  CalDel
 
 dac 253    4  CtrlReg
-dac 254   60  WBC
+dac 254   39  WBC (159 to get 79 pixel/DC, but not 80 = erase)
 
 flush
 
