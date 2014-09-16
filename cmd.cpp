@@ -622,16 +622,14 @@ CMD_PROC( sda ) // I2C data delay
 }
 
 //------------------------------------------------------------------------------
-/*
-  CMD_PROC(rda)
-  {
+CMD_PROC(rda)
+{
   int ns;
-  PAR_INT(ns,0,400);
-  tb.SetDelay(DELAYSIG_RDA, ns);
-  DO_FLUSH
+  PAR_INT( ns, 0, 32 );
+  tb.Sig_SetRdaToutDelay( ns ); // 3.5
+  DO_FLUSH;
   return true;
-  }
-*/
+}
 
 //------------------------------------------------------------------------------
 CMD_PROC( ctr ) // cal-trig-reset delay
@@ -913,7 +911,7 @@ CMD_PROC( getid ) // measure digital supply current
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
       nrocs++;
-  if( nrocs == 1 && id > 60 ) { // 60 mA current limit
+  if( nrocs == 1 && id > 600 ) { // current limit [mA]
     ierror = 1;
     cout << "Error: digital current too high" << endl;
     Log.printf( "ERROR\n" );
@@ -1225,7 +1223,7 @@ double PHtoVcal( double ph, uint16_t roc, uint16_t col, uint16_t row )
 	 << setw( 3 ) << col
 	 << setw( 3 ) << row << ", Ared " << Ared << ", a3 " << a3 << endl;
 
-  if( dacval[0][CtrlReg] == 0 )
+  if( dacval[roc][CtrlReg] == 0 )
     return vc * p5[roc][col][row]; // small Vcal
 
   return vc; // large Vcal
@@ -2958,7 +2956,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 	    h13->Fill( vc );
 	    h21->Fill( xm, ym );
 	    h22->Fill( xm, ym, vc );
-	    if( npxev == 1 ) outFile << nev; // non-empty event
+	    if( npxev == 1 ) outFile << nev[ch]; // non-empty event
 	    outFile << " " << xm << " " << ym << " " << ph;
 	  } // valid px
           break;
@@ -3453,6 +3451,40 @@ CMD_PROC( tbmset )
   PAR_INT( value, 0, 255 );
   tb.tbm_Set( reg, value );
   DO_FLUSH;
+  //cout << "tbm_Set reg " << reg << " (" << int(reg) << ") with " << value << endl;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(tbmget)
+{
+  int reg;
+  PAR_INT( reg, 0, 255 );
+
+  cout << "tbm_Get reg " << reg << " (" << int(reg) << ")" << endl;
+  unsigned char value;
+  if( tb.tbm_Get( reg, value ) ) {
+    printf( " reg 0x%02X = %3i (0x%02X)\n", reg, (int)value, (int)value);
+  }
+  else
+    puts( " error\n" );
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(tbmgetraw)
+{
+  int reg;
+  PAR_INT(reg,0,255);
+
+  uint32_t value;
+  if( tb.tbm_GetRaw(reg,value) ) {
+    printf( "value = 0x%02X (Hub=%2i; Port=%i; Reg=0x%02X; inv=0x%X; stop=%c)\n",
+	   value & 0xff, (value>>19)&0x1f, (value>>16)&0x07,
+	   (value>>8)&0xff, (value>>25)&0x1f, (value&0x1000)?'1':'0' );
+  }
+  else
+    puts( "error\n" );
   return true;
 }
 
@@ -5860,6 +5892,8 @@ int GetEff( int &n01, int &n50, int &n99 )
 
 //------------------------------------------------------------------------------
 CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
+// S-curve: dacscanmod 25 16 2 99 takes 124 s
+// dacscanmod dac [[-]ntrig] [step] [stop]
 {
   int dac;
   PAR_INT( dac, 1, 32 ); // only DACs, not registers
@@ -5875,6 +5909,10 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   int step = 1;
   if( !PAR_IS_INT( step, 1, 255 ) )
     step = 1;
+
+  int stop;
+  if( !PAR_IS_INT( stop, 1, 255 ) )
+    stop = dacStop( dac );
 
   timeval tv;
   gettimeofday( &tv, NULL );
@@ -5938,7 +5976,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   // flags |= 0x0010; // FLAG_FORCE_MASK is FPGA default
 
   uint8_t dacstrt = dacStrt( dac );
-  uint8_t dacstop = dacStop( dac );
+  uint8_t dacstop = stop;
 
   int nstp = ( dacstop - dacstrt ) / step + 1;
 
@@ -7426,6 +7464,14 @@ CMD_PROC( phdac ) // phdac col row dac (PH vs dac)
 
   int nstp = nReadouts.size(  );
 
+  if( h10 )
+    delete h10;
+  h10 = new
+    TH1D( Form( "N_dac%02i_%02i_%02i", dac, col, row ),
+          Form( "responses vs %s col %i row %i;%s [DAC];<PH> [ADC]",
+                dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
+          nstp, -0.5, nstp - 0.5 );
+
   if( h11 )
     delete h11;
   h11 = new
@@ -7488,6 +7534,7 @@ CMD_PROC( phdac ) // phdac col row dac (PH vs dac)
     Log.printf( " %i", ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 );
     if( ph > -0.5 && ph < phmin )
       phmin = ph;
+    h10->Fill( i, nReadouts.at( i ) );
     if( nReadouts.at( i ) > 0 ) {
       h11->Fill( i, ph );
       h13->Fill( i, PHrms.at( i ) );
@@ -7501,13 +7548,14 @@ CMD_PROC( phdac ) // phdac col row dac (PH vs dac)
   cout << "min PH " << phmin << endl;
   Log.flush(  );
 
+  h10->Write(  );
   h11->Write(  );
   h12->Write(  );
   h13->Write(  );
   h11->SetStats( 0 );
   h11->Draw(  );
   c1->Update(  );
-  cout << "histos 11, 12, 13" << endl;
+  cout << "histos 10, 11, 12, 13" << endl;
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
@@ -7655,7 +7703,7 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] (efficiency vs dac)
   h11 = new
     TH1D( Form( "eff_dac%02i_roc%02i_col%02i_row%02i_stp%02i",
 		dac, roc, col, row, stp ),
-          Form( "Eff vs %s ROC %i col %i row %i;%s [DAC] step %i;responses",
+          Form( "Responses vs %s ROC %i col %i row %i;%s [DAC] step %i;responses",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ), stp ),
 	  nstp, -0.5, ( nstp - 0.5 ) * stp );
 
@@ -8321,6 +8369,22 @@ CMD_PROC( modmap ) // pixelAlive for modules
                         dacval[0][Vcal], dacval[0][CtrlReg] ),
                   nTrig + 1, -0.5, nTrig + 0.5 );
 
+  if( h12 )
+    delete h12;
+  h12 = new TH1D( Form( "Mod_PH_spectrum_Vcal%i_CR%i",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  Form( "PH at Vcal %i, CtrlReg %i;PH [ADC];pixels",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  256, -0.5, 255.5 );
+
+  if( h13 )
+    delete h13;
+  h13 = new TH1D( Form( "Mod_Vcal_spectrum_Vcal%i_CR%i",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  Form( "Vcal at Vcal %i, CtrlReg %i;PH [Vcal DAC];pixels",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  256, -0.5, 255.5 );
+
   if( h21 )
     delete h21;
   h21 = new TH2D( "ModuleHitMap",
@@ -8398,6 +8462,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
         raw = ( raw << 12 ) + d;
 	//DecodePixel(raw);
         ph = ( raw & 0x0f ) + ( ( raw >> 1 ) & 0xf0 );
+	h12->Fill( ph );
         raw >>= 9;
         c = ( raw >> 12 ) & 7;
         c = c * 6 + ( ( raw >> 9 ) & 7 );
@@ -8411,6 +8476,8 @@ CMD_PROC( modmap ) // pixelAlive for modules
 	       << x << setw( 3 ) << y << setw( 4 ) << ph;
         PX[kroc]++;
         { // start a scope to make compiler happy
+	  double vc = PHtoVcal( ph, kroc, x, y );
+	  h13->Fill( vc );
           int l = kroc % 8;     // 0..7
           int m = kroc / 8;     // 0..1
           int xm = 52 * l + x;  // 0..415  rocs 0 1 2 3 4 5 6 7
@@ -8481,13 +8548,15 @@ CMD_PROC( modmap ) // pixelAlive for modules
       h11->Fill( h21->GetBinContent( ibin, jbin ) );
 
   h11->Write(  );
+  h12->Write(  );
+  h13->Write(  );
   h21->Write(  );
   h22->Write(  );
   h21->SetMinimum( 0 );
   h21->SetMaximum( nTrig );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 11, 21, 22" << endl;
+  cout << "histos 11, 12, 13, 21, 22" << endl;
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
@@ -11470,7 +11539,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 			  dacName[dac].c_str(  ), ctl, cal,
 			  dacName[dac].c_str(  ) ),
 		    4160, -0.5, 4160-0.5,
-		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step );
+		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step ); // 23.8.2014 * step
 
   if( h22 )
     delete h22;
@@ -11487,7 +11556,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 			  dacName[dac].c_str(  ), ctl, cal,
 			  dacName[dac].c_str(  ) ),
 		    4160, -0.5, 4160-0.5,
-		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step );
+		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step ); // 23.8.2014 * step
 
   if( h23 )
     delete h23;
@@ -12215,6 +12284,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( ctr,       "ctr <delay>                   ctr delay" );
   CMD_REG( sda,       "sda <delay>                   sda delay" );
   CMD_REG( tin,       "tin <delay>                   tin delay" );
+  CMD_REG( rda,       "rda <delay>                   tin delay" );
   CMD_REG( clklvl,    "clklvl <level>                clk signal level" );
   CMD_REG( ctrlvl,    "ctrlvl <level>                ctr signel level" );
   CMD_REG( sdalvl,    "sdalvl <level>                sda signel level" );
@@ -12281,6 +12351,8 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( tbmsel,    "tbmsel <hub> <port>           set hub and port address, port 6=all" );
   CMD_REG( modsel,    "modsel <hub>                  set hub address for module" );
   CMD_REG( tbmset,    "tbmset <reg> <value>          set TBM register" );
+  CMD_REG( tbmget,    "tbmget <reg>                  read TBM register" );
+  CMD_REG( tbmgetraw, "tbmgetraw <reg>               read TBM register" );
 
   CMD_REG( readback,  "readback                      read out ROC data" );
 
@@ -12292,7 +12364,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( deser,     "deser value                   controls deser160" );
 
   CMD_REG( select,    "select addr:range             set i2c address" );
-  CMD_REG( dac,       "dac address value             set DAC" );
+  CMD_REG( dac,       "dac address value [roc]       set DAC" );
   CMD_REG( vana,      "vana value                    set Vana" );
   CMD_REG( vtrim,     "vtrim value                   set Vtrim" );
   CMD_REG( vthr,      "vthr value                    set VthrComp" );
@@ -12328,7 +12400,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( caldelroc, "caldelroc                     ROC CalDel efficiency scan" );
   CMD_REG( modcaldel, "modcaldel col row             CalDel efficiency scan for module" );
   CMD_REG( modpixsc,  "modpixsc col row ntrig        module pixel S-curve" );
-  CMD_REG( dacscanmod,"dacscanmod dac ntrig [step]   module dac scan" );
+  CMD_REG( dacscanmod,"dacscanmod dac [ntrig] [step] [stop] module dac scan" );
   CMD_REG( modthrdac, "modthrdac col row dac         Threshold vs DAC one pixel" );
   CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );

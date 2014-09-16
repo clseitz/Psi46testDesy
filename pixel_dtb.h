@@ -1,7 +1,7 @@
 
 // header for rpc_calls.h
 // Beat Meier, PSI, 15.7.2013
-// Daniel Pitzl, DESY, 21.7.2014 for FW 3.1
+// Daniel Pitzl, DESY, 11.9.2014 for DTB SW 3.5
 
 #pragma once
 
@@ -339,6 +339,12 @@ class CTestboard
   RPC_EXPORT uint16_t _GetID(  );
   RPC_EXPORT uint16_t _GetIA(  );
 
+  // 3.5:
+
+  RPC_EXPORT uint16_t _GetVD_Reg(  );
+  RPC_EXPORT uint16_t _GetVDAC_Reg(  );
+  RPC_EXPORT uint16_t _GetVD_Cap(  );
+
   void SetVA( double V )
   {
     _SetVA( uint16_t( V * 1000 ) );
@@ -467,6 +473,7 @@ class CTestboard
 
   // -- enable/disable a double column
   RPC_EXPORT void roc_Col_Enable( uint8_t col, bool on );
+  RPC_EXPORT void roc_AllCol_Enable( bool on ); // 3.4
 
   // -- mask all pixels of a column and the coresponding double column
   RPC_EXPORT void roc_Col_Mask( uint8_t col );
