@@ -8096,6 +8096,181 @@ bool GetRocData( int nTrig, vector < int16_t > &nReadouts,
 
   return 1;
 }
+//------------------------------------------------------------------------------
+// utility function for ROC PH and eff map inverse -masked 
+bool GetRocDataMasked( int nTrig, vector < int16_t > &nReadouts,
+                 vector < double >&PHavg, vector < double >&PHrms )
+{
+  uint16_t flags = 0;
+  if( nTrig < 0 )
+    flags = 0x0002; // FLAG_USE_CALS
+
+  flags |= 0x0010; // FLAG_FORCE_MASK else noisy
+
+  uint16_t mTrig = abs( nTrig );
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Open( Blocksize );
+#endif
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.uDelay( 100 );
+  tb.Daq_Start(  );
+  tb.uDelay( 100 );
+
+  // all on:
+
+  for( int col = 0; col < 52; ++col ) {
+    tb.roc_Col_Enable( col, 1 );
+    // and then mask
+    //tb.roc_Col_Mask( col );
+    
+    /*
+      for( int row = 0; row < 80; ++row ) {
+      int trim = modtrm[0][col][row];
+      tb.roc_Pix_Trim( col, row, trim ); // done on FPGA in TriggerLoops
+      }
+    */
+  }
+  tb.uDelay( 1000 );
+  tb.Flush(  );
+
+  // now mask all pixels and save initial trim values 
+
+  vector < uint8_t > trimvalues( 4160 );
+  vector < uint8_t > trimvaluesSave( 4160 );
+
+  for(int iroc=0;iroc<16;iroc++){ 
+    if ( roclist[iroc] ){
+      for( int col = 0; col < 52; ++col ) {
+	for( int row = 0; row < 80; ++row ) {
+	  int trimSave = modtrm[iroc][col][row];
+	  //tb.roc_Pix_Trim( col, row, trim );
+	  int i = 80 * col + row;
+	  trimvalues[i] = 128;
+	  trimvaluesSave[i] = trimSave;
+	} // row
+      } // col
+      tb.SetTrimValues( iroc, trimvalues ); // load into FPGA
+    }
+  }
+  cout << "  GetRocData mTrig " << mTrig << ", flags " << flags << endl;
+
+  try {
+    tb.LoopSingleRocAllPixelsCalibrate( 0, mTrig, flags );
+  }
+  catch( CRpcError & e ) {
+    e.What(  );
+    return 0;
+  }
+
+  tb.Daq_Stop(  );
+
+  // header = 1 word
+  // pixel = +2 words
+  // size = 4160 * nTrig * 3 = 124'800 words
+
+  vector < uint16_t > data;
+  data.reserve( tb.Daq_GetSize(  ) );
+  cout << "  DAQ size " << tb.Daq_GetSize(  ) << endl;
+
+  try {
+    uint32_t rest;
+    tb.Daq_Read( data, Blocksize, rest ); // 32768 gives zero
+    cout << "  data size " << data.size(  )
+	 << ", remaining " << rest << endl;
+    while( rest > 0 ) {
+      vector < uint16_t > dataB;
+      dataB.reserve( Blocksize );
+      tb.Daq_Read( dataB, Blocksize, rest );
+      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
+      cout << "  data size " << data.size(  )
+	   << ", remaining " << rest << endl;
+      dataB.clear(  );
+    }
+  }
+  catch( CRpcError & e ) {
+    e.What(  );
+    return 0;
+  }
+
+  // all off:
+
+  for( int col = 0; col < 52; col += 2 ) // DC
+    tb.roc_Col_Enable( col, 0 );
+  tb.roc_Chip_Mask(  );
+  tb.roc_ClrCal(  );
+  tb.Flush(  );
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Close(  );
+  //tb.Daq_DeselectAll();
+  tb.Flush(  );
+#endif
+
+  // unpack data:
+
+  PixelReadoutData pix;
+
+  int pos = 0;
+  int err = 0;
+
+  for( int col = 0; col < 52; ++col ) {
+
+    for( int row = 0; row < 80; ++row ) {
+
+      int cnt = 0;
+      int phsum = 0;
+      int phsu2 = 0;
+
+      for( int k = 0; k < mTrig; ++k ) {
+
+        err = DecodePixel( data, pos, pix ); // analyzer
+
+        if( err )
+          cout << "  error " << err << " at trig " << k
+	       << ", pix " << col << " " << row << ", pos " << pos << endl;
+        if( err )
+          break;
+
+        if( pix.n > 0 )
+          if( pix.x == col && pix.y == row ) {
+            cnt++;
+            phsum += pix.p;
+            phsu2 += pix.p * pix.p;
+          }
+      } // trig
+
+      if( err )
+        break;
+
+      nReadouts.push_back( cnt ); // 0 = no response
+      double ph = -1.0;
+      double rms = -0.1;
+      if( cnt > 0 ) {
+        ph = ( double ) phsum / cnt;
+        rms = sqrt( ( double ) phsu2 / cnt - ph * ph );
+      }
+      PHavg.push_back( ph );
+      PHrms.push_back( rms );
+
+    } // row
+
+    if( err )
+      break;
+
+  } // col
+
+  // now restore all trim-bits to original value
+  // now mask all pixels and save initial trim values 
+  
+  for(int iroc=0;iroc<16;iroc++){ 
+    if ( roclist[iroc] ){
+      tb.SetTrimValues( iroc, trimvaluesSave ); // load into FPGA
+    }
+  }
+
+  return 1;
+}
 
 //------------------------------------------------------------------------------
 CMD_PROC( effmap )
@@ -8202,6 +8377,118 @@ CMD_PROC( effmap )
   cout << " >0% pixels: " << nok << endl;
   cout << ">50% pixels: " << nActive << endl;
   cout << "100% pixels: " << nPerfect << endl;
+
+  Log.flush(  );
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec;          // seconds since 1.1.1970
+  long u9 = tv.tv_usec;         // microseconds
+  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC( effmask )
+{
+  if( ierror ) return false;
+
+  int nTrig;                    // DAQ size 1'248'000 at nTrig = 100 if fully efficient
+  PAR_INT( nTrig, 1, 65000 );
+
+  const int vctl = dacval[0][CtrlReg];
+  const int vcal = dacval[0][Vcal];
+
+  Log.section( "EFFMASK", false );
+  Log.printf( " nTrig %i Vcal %i CtrlReg %i\n", nTrig, vcal, vctl );
+  cout << "effmap with " << nTrig << " triggers"
+       << " at Vcal " << vcal << ", CtrlReg " << vctl << endl;
+
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec;          // seconds since 1.1.1970
+  long u0 = tv.tv_usec;         // microseconds
+
+  // measure:
+
+  vector < int16_t > nReadouts; // size 0
+  vector < double >PHavg;
+  vector < double >PHrms;
+  nReadouts.reserve( 4160 ); // size 0, capacity 4160
+  PHavg.reserve( 4160 );
+  PHrms.reserve( 4160 );
+
+  cout << "waiting for FPGA..." << endl;
+
+  GetRocDataMasked( nTrig, nReadouts, PHavg, PHrms );
+
+  gettimeofday( &tv, NULL );
+  long s2 = tv.tv_sec;          // seconds since 1.1.1970
+  long u2 = tv.tv_usec;         // microseconds
+  double dt = s2 - s0 + ( u2 - u0 ) * 1e-6;
+
+  cout << "LoopSingleRocAllPixelsCalibrate takes " << dt << " s"
+       << " = " << dt / 4160 / nTrig * 1e6 << " us / pix" << endl;
+
+  if( h21 )
+    delete h21;
+  h21 = new TH2D( Form( "MaskMap_Vcal%i_CR%i", vcal, vctl ),
+                  Form( "Mask map at Vcal %i, CtrlReg %i;col;row;responses",
+                        vcal, vctl ), 52, -0.5, 51.5, 80, -0.5, 79.5 );
+
+  size_t j = 0;
+
+  int nError;
+  int nOk;
+
+  nError = 0;
+  nOk = 0;
+
+  for( int col = 0; col < 52; ++col ) {
+
+    for( int row = 0; row < 80; ++row ) {
+
+      int cnt = nReadouts.at( j );
+
+      h11->Fill( cnt );
+      if (cnt > 0 ){
+	h21->Fill( col, row, cnt );
+	nError++;
+      }
+      else{
+	h21->Fill( col, row, 1 );
+	nOk++;
+      }
+
+      if( cnt >= 0 )
+        cout << "pixel " << setw( 2 ) << col << setw( 3 ) << row
+	     << " responses " << cnt << endl;
+      Log.printf( " %i", cnt );
+
+      ++j;
+      if( j == nReadouts.size(  ) )
+        break;
+
+    } // row
+
+    Log.printf( "\n" );
+    if( j == nReadouts.size(  ) )
+      break;
+
+  } // col
+
+  h21->Write(  );
+  h21->SetStats( 0 );
+  h21->SetMinimum( 0 );
+  h21->SetMaximum( 2 );
+  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->Draw( "colz" );
+  c1->Update(  );
+  cout << "histo 21" << endl;
+
+  cout << endl;
+  cout << " Pixels Masked and Responding: " << nError << endl;
+  cout << " Pixels Masked and not Responding: " << nOk << endl;
 
   Log.flush(  );
 
@@ -12432,6 +12719,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( phmap,     "phmap nTrig                   ROC PH map" );
   CMD_REG( calsmap,   "calsmap nTrig                 CALS map = bump bond test" );
   CMD_REG( effmap,    "effmap nTrig                  pixel alive map" );
+  CMD_REG( effmask,   "effmask nTrig                 pixel alive map - all pixels are masked-" );
   CMD_REG( bbtest,    "bbtest nTrig                  CALS map = bump bond test" );
 
   cmdHelp(  );
