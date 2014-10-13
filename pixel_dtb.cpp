@@ -49,7 +49,7 @@ bool CTestboard::FindDTB( string & usbId )
   catch( int e ) {
     switch ( e ) {
     case 1:
-      printf( "Cannot access the USB driver\n" );
+      printf( "pixel_dtb cannot access the USB driver\n" );
       return false;
     default:
       return false;
