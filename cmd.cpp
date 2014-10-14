@@ -2763,8 +2763,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   int n = 1;                    // pixels
   h21 = new TH2D( "ModuleHitMap",
                   "Module hit map;col;row;hits",
-                  8 * 52 / n, -0.5 * n, 8 * 52 - 0.5 * n,
-                  2 * 80 / n, -0.5 * n, 2 * 80 - 0.5 * n );
+                  8*52 / n, -0.5 * n, 8*52 - 0.5 * n,
+                  2*80 / n, -0.5 * n, 2*80 - 0.5 * n );
   gStyle->SetOptStat( 10 ); // entries
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
 
@@ -2772,8 +2772,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     delete h22;
   h22 = new TH2D( "ModulePHmap",
                   "Module PH map;col;row;sum PH [ADC]",
-                  8 * 52 / n, -0.5 * n, 8 * 52 - 0.5 * n,
-                  2 * 80 / n, -0.5 * n, 2 * 80 - 0.5 * n );
+                  8*52 / n, -0.5 * n, 8*52 - 0.5 * n,
+                  2*80 / n, -0.5 * n, 2*80 - 0.5 * n );
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, 0 );
@@ -6961,6 +6961,78 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 } // ModThrMap
 
 //------------------------------------------------------------------------------
+// 
+CMD_PROC( modthrmap )
+{
+  Log.section( "MODTHRMAP", true );
+
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec;          // seconds since 1.1.1970
+  long u0 = tv.tv_usec;         // microseconds
+
+  int strt = 0;
+  int stop = 127;               // Vcal scan range
+  int step = 1;                 // fine
+
+  const int nTrig = 10;
+  const int xtlk = 0;
+  const int cals = 0;
+
+  cout << "measuring Vcal threshold map in range "
+       << strt << " to " << stop
+       << " in steps of " << step << " with " << nTrig << " triggers" << endl;
+
+  ModThrMap( strt, stop, step, nTrig, xtlk, cals ); // fills modthr
+
+  if( h11 )
+    delete h11;
+  gStyle->SetOptStat( 1110 );
+  h11 = new
+    TH1D( Form( "mod_thr_dist" ),
+	  Form( "Module threshold distribution;threshold [small Vcal DAC];pixels" ),
+	  255, -0.5, 254.5 ); // 255 = overflow
+
+  if( h21 )
+    delete h21;
+  h21 = new TH2D( "ModuleThresholdMap",
+                  "Module threshold map;col;row;threshold [small Vcal DAC]",
+                  8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
+  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+
+  for( int roc = 0; roc < 16; ++roc ) {
+    if( roclist[roc] == 0 )
+      continue;
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row ) {
+	int l = roc % 8;   // 0..7
+	int xm = 52 * l + col; // 0..415  rocs 0 1 2 3 4 5 6 7
+	int ym = row; // 0..79
+	if( roc > 7 ) {
+	  xm = 415 - xm; // rocs 8 9 A B C D E F
+	  ym = 159 - row; // 80..159
+	}
+	h11->Fill( modthr[roc][col][row] );
+	h21->Fill( xm, ym, modthr[roc][col][row] );
+      }
+  } // rocs
+
+  h11->Write(  );
+  h21->Write(  );
+  h11->Draw(  );
+  c1->Update(  );
+  cout << "histos 11, 21" << endl;
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec;          // seconds since 1.1.1970
+  long u9 = tv.tv_usec;         // microseconds
+  cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return true;
+
+} // modthrmap
+
+//------------------------------------------------------------------------------
 // Daniel Pitzl, DESY, 8.7.2014: set global threshold per ROC. works. adjust CalDel
 CMD_PROC( modvthrcomp )
 {
@@ -7428,7 +7500,7 @@ CMD_PROC( modtrim )
 } // modtrim
 
 //------------------------------------------------------------------------------
-CMD_PROC( phdac ) // phdac col row dac (PH vs dac)
+CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
 {
   if( ierror ) return false;
 
@@ -7436,17 +7508,24 @@ CMD_PROC( phdac ) // phdac col row dac (PH vs dac)
   PAR_INT( col, 0, 51 );
   PAR_INT( row, 0, 79 );
   PAR_INT( dac, 1, 32 ); // only DACs, not registers
+  int stp;
+  if( !PAR_IS_INT( stp, 1, 255 ) )
+    stp = 1;
   int nTrig;
   if( !PAR_IS_INT( nTrig, 1, 65500 ) )
     nTrig = 10;
+  int roc = 0;
+  if( !PAR_IS_INT( roc, 0, 15 ) )
+    roc = 0;
 
-  if( dacval[0][dac] == -1 ) {
+  if( dacval[roc][dac] == -1 ) {
     cout << "DAC " << dac << " not active" << endl;
     return false;
   }
 
   Log.section( "PHDAC", false );
-  Log.printf( " pixel %i %i DAC %i\n", col, row, dac );
+  Log.printf( " ROC %i pixel %i %i DAC %i step %i ntrig %i \n",
+	      roc, col, row, dac, stp, nTrig );
 
   timeval tv;
   gettimeofday( &tv, NULL );
@@ -7460,43 +7539,43 @@ CMD_PROC( phdac ) // phdac col row dac (PH vs dac)
   PHavg.reserve( 256 );
   PHrms.reserve( 256 );
 
-  DacScanPix( 0, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
+  DacScanPix( roc, col, row, dac, stp, nTrig, nReadouts, PHavg, PHrms );
 
   int nstp = nReadouts.size(  );
 
   if( h10 )
     delete h10;
   h10 = new
-    TH1D( Form( "N_dac%02i_%02i_%02i", dac, col, row ),
-          Form( "responses vs %s col %i row %i;%s [DAC];<PH> [ADC]",
-                dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
+    TH1D( Form( "N_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
+          Form( "responses vs %s ROC %i col %i row %i;%s [DAC];<PH> [ADC]",
+                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
           nstp, -0.5, nstp - 0.5 );
 
   if( h11 )
     delete h11;
   h11 = new
-    TH1D( Form( "ph_dac%02i_%02i_%02i", dac, col, row ),
-          Form( "PH vs %s col %i row %i;%s [DAC];<PH> [ADC]",
-                dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
+    TH1D( Form( "ph_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
+          Form( "PH vs %s ROC %i col %i row %i;%s [DAC];<PH> [ADC]",
+                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
           nstp, -0.5, nstp - 0.5 );
 
   if( h12 )
     delete h12;
   h12 = new
-    TH1D( Form( "vcal_dac%02i_%02i_%02i", dac, col, row ),
+    TH1D( Form( "vcal_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
           Form( dacval[0][CtrlReg] == 0 ?
-                "Vcal vs %s col %i row %i;%s [DAC];calibrated PH [small Vcal DAC]"
+                "Vcal vs %s ROC %i col %i row %i;%s [DAC];calibrated PH [small Vcal DAC]"
                 :
-                "Vcal vs %s col %i row %i;%s [DAC];calibrated PH [large Vcal DAC]",
-                dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
+                "Vcal vs %s ROC %i col %i row %i;%s [DAC];calibrated PH [large Vcal DAC]",
+                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
           nstp, -0.5, nstp - 0.5 );
 
   if( h13 )
     delete h13;
   h13 = new
-    TH1D( Form( "rms_dac%02i_%02i_%02i", dac, col, row ),
-          Form( "RMS vs %s col %i row %i;%s [DAC];PH RMS [ADC]",
-                dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
+    TH1D( Form( "rms_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
+          Form( "RMS vs %s ROC %i col %i row %i;%s [DAC];PH RMS [ADC]",
+                dacName[dac].c_str(  ), row, col, row, dacName[dac].c_str(  ) ),
           nstp, -0.5, nstp - 0.5 );
 
   // tb.CalibrateDacScan runs on the FPGA
@@ -7563,7 +7642,8 @@ CMD_PROC( phdac ) // phdac col row dac (PH vs dac)
   cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // phdac
 
 //------------------------------------------------------------------------------
 CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
@@ -7656,14 +7736,13 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
   cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // calsdac
 
 //------------------------------------------------------------------------------
-CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] (efficiency vs dac)
+CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
 {
-  int roc = 0;
   int col, row, dac;
-  //PAR_INT( roc, 0, 15 );
   PAR_INT( col, 0, 51 );
   PAR_INT( row, 0, 79 );
   PAR_INT( dac, 1, 32 ); // only DACs, not registers
@@ -7673,14 +7752,18 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] (efficiency vs dac)
   int nTrig;
   if( !PAR_IS_INT( nTrig, 1, 65500 ) )
     nTrig = 100;
+  int roc = 0;
+  if( !PAR_IS_INT( roc, 0, 15 ) )
+    roc = 0;
 
-  if( dacval[0][dac] == -1 ) {
+  if( dacval[roc][dac] == -1 ) {
     cout << "DAC " << dac << " not active" << endl;
     return false;
   }
 
   Log.section( "EFFDAC", false );
-  Log.printf( " pixel %i %i DAC %i\n", col, row, dac );
+  Log.printf( " ROC %i pixel %i %i DAC %i step %i ntrig %i \n",
+	      roc, col, row, dac, stp, nTrig );
 
   timeval tv;
   gettimeofday( &tv, NULL );
@@ -7734,7 +7817,8 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] (efficiency vs dac)
   cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // effdac
 
 //------------------------------------------------------------------------------
 CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
@@ -7855,7 +7939,8 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
   cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // thrdac
 
 //------------------------------------------------------------------------------
 CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
@@ -8676,7 +8761,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
     delete h21;
   h21 = new TH2D( "ModuleHitMap",
                   "Module hit map;col;row;hits",
-                  8 * 52, -0.5, 8 * 52 - 0.5, 2 * 80, -0.5, 2 * 80 - 0.5 );
+                  8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
   gStyle->SetOptStat( 10 ); // entries
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
 
@@ -8940,8 +9025,6 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
   const int xtalk = 0;
   const int cals = 0;
 
-  int npx[16] = { 0 };
-
   const int vthr = dacval[0][VthrComp];
   const int vtrm = dacval[0][Vtrim];
 
@@ -8959,39 +9042,27 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
                   ( "Threshold map at Vthr %i, Vtrim %i;col;row;threshold [small Vcal DAC]",
                     vthr, vtrm ), 52, -0.5, 51.5, 80, -0.5, 79.5 );
 
-  // loop over ROCs:
+  int roc = 0;
 
-  for( size_t roc = 0; roc < 16; ++roc ) {
+  tb.roc_I2cAddr( roc );
+  tb.SetDAC( CtrlReg, 0 ); // measure thresholds at ctl 0
 
-    if( roclist[roc] == 0 )
-      continue;
+  RocThrMap( roc, guess, step, nTrig, xtalk, cals ); // fills modthr
 
-    cout << setw( 2 ) << "ROC " << roc << endl;
+  tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
+  tb.Flush(  );
 
-    tb.roc_I2cAddr( roc );
-    tb.SetDAC( CtrlReg, 0 ); // measure thresholds at ctl 0
+  int nok = 0;
+  printThrMap( 1, roc, nok );
 
-    RocThrMap( roc, guess, step, nTrig, xtalk, cals ); // fills modthr
-
-    tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
-    tb.Flush(  );
-
-    int nok = 0;
-    printThrMap( 1, roc, nok );
-    npx[roc] = nok;
-
-    for( int col = 0; col < 52; ++col )
-      for( int row = 0; row < 80; ++row ) {
-        h11->Fill( modthr[roc][col][row] );
-        h21->Fill( col, row, modthr[roc][col][row] );
-      }
-  } // rocs
+  for( int col = 0; col < 52; ++col )
+    for( int row = 0; row < 80; ++row ) {
+      h11->Fill( modthr[roc][col][row] );
+      h21->Fill( col, row, modthr[roc][col][row] );
+    }
 
   cout << endl;
-  for( int roc = 0; roc < 16; ++roc )
-    if( roclist[roc] )
-      cout << "ROC " << setw( 2 ) << roc << " valid thr " << npx[roc]
-	   << endl;
+  cout << " valid thr " << nok << endl;
 
   h11->Write(  );
   h21->Write(  );
@@ -12692,6 +12763,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
+  CMD_REG( modthrmap, "modthrmap                     module threshold map" );
 
   CMD_REG( takedata,  "takedata period               readout 40 MHz/period (stop: s enter)" );
   CMD_REG( tdscan,    "tdscan vmin vmax              take data vs VthrComp" );
@@ -12707,8 +12779,8 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( thrmapsc,  "thrmapsc stop (4=cals)        threshold map" );
   CMD_REG( scanvthr,  "scanvthr vthrmin vthrmax [vthrstp]    threshold RMS vs VthrComp" );
 
-  CMD_REG( effdac,    "effdac col row dac            Efficiency vs DAC one pixel" );
-  CMD_REG( phdac,     "phdac col row dac             PH vs DAC one pixel" );
+  CMD_REG( effdac,    "effdac col row dac [stp] [trg] [roc]  Efficiency vs DAC one pixel" );
+  CMD_REG( phdac,     "phdac  col row dac [stp] [trg] [roc]  PH vs DAC one pixel" );
   CMD_REG( gaindac,   "gaindac                       calibrated PH vs Vcal" );
   CMD_REG( calsdac,   "calsdac col row dac [nTrig]   cals vs DAC one pixel" );
   CMD_REG( dacdac,    "dacdac col row dacx dacy [cals] DAC DAC scan" );
