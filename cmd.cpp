@@ -3591,6 +3591,61 @@ CMD_PROC( vana )
 }
 
 //------------------------------------------------------------------------------
+CMD_PROC( modsetvana )
+{
+
+  int inittarget;
+  PAR_INT( inittarget, 0, 100 );
+  double target = double(inittarget);
+
+  int nrocs = 0;
+  for (int iroc=0; iroc<16; iroc++) {
+    if (roclist[iroc]) nrocs++;
+    tb.roc_I2cAddr(iroc);
+    tb.roc_SetDAC(Vana, 0);
+  }
+  tb.mDelay(500);
+  double IAoff = tb.GetIA() * 1000;
+
+  for (int iroc=0; iroc<16; iroc++){
+    if (!roclist[iroc]) continue;
+    tb.roc_I2cAddr(iroc);
+    tb.mDelay(300);
+    double initIA = tb.GetIA() * 1000;
+    double IA = tb.GetIA() * 1000;
+    double deltaIA = IA-initIA;
+    int value = 100;
+    int step = 10;
+    while ( (deltaIA < target || deltaIA > target+0.8) && value!=0) {
+      tb.roc_SetDAC(Vana, value);
+      dacval[iroc][Vana] = value;
+      if (fabs(deltaIA-target) > 2.0) tb.mDelay(100);
+      else tb.mDelay(300);
+      IA = tb.GetIA() * 1000;
+      deltaIA = IA-initIA;
+      if (deltaIA < target || deltaIA > target+0.8) {
+        if (fabs(deltaIA-target) <  10.0) step = 5;
+        if (fabs(deltaIA-target) <  2.0) step = 1;
+        if (deltaIA < target) value += step;
+        if (deltaIA > target) value -= step;
+      }  else {
+        cout << "Vana set to " << value << " (" << deltaIA << " mA) for ROC " << iroc << "." << endl;
+      }
+      if (value>=255 || value<=0) {
+        cout << "Error! No good Vana found for roc " << iroc << "." <<  endl;
+        value=0;
+        tb.roc_SetDAC(Vana, value);
+        dacval[iroc][Vana] = value;
+      }
+    }
+  }
+
+  double IA = tb.GetIA() * 1000;
+  printf( "IA %4.1f mA for %i ROCs = %4.1f mA per ROC\n", IA, nrocs, (IA-IAoff) / nrocs );
+  return true;
+} //modsetvana
+
+//------------------------------------------------------------------------------
 CMD_PROC( vtrim )
 {
   int value;
@@ -11504,6 +11559,8 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
 
 } // vanaroc
 
+
+
 //------------------------------------------------------------------------------
 CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
 {
@@ -12679,6 +12736,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( select,    "select addr:range             set i2c address" );
   CMD_REG( dac,       "dac address value [roc]       set DAC" );
   CMD_REG( vana,      "vana value                    set Vana" );
+  CMD_REG( modsetvana, "modsetvana target            Tune Vana to pull target mA per ROC" );
   CMD_REG( vtrim,     "vtrim value                   set Vtrim" );
   CMD_REG( vthr,      "vthr value                    set VthrComp" );
   CMD_REG( vcal,      "vcal value                    set Vcal" );
