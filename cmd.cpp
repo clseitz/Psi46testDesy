@@ -3719,6 +3719,93 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
 }
 
 //------------------------------------------------------------------------------
+CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
+{
+  if( ierror ) return false;
+  int val[16];
+  double iaroc[16];
+
+  int target;
+  PAR_INT( target, 10, 80 );
+  double IAini = tb.GetIA() * 1000;
+
+  int nrocs = 0;
+  for (int iroc=0; iroc<16; iroc++) {
+    if (roclist[iroc]) nrocs++;
+    val[iroc] = dacval[iroc][Vana];
+    tb.roc_I2cAddr(iroc);
+    tb.roc_SetDAC(Vana, 0);
+  }
+  tb.mDelay(300);
+  //1 roc optimized each time, reduce offset current by one
+  double corr =  ( double( nrocs ) - 1.0) / double( nrocs );
+  double IAoff = tb.GetIA() * 1000 * corr;
+
+  Log.section( "OPTIA", false );
+  Log.printf( " Ia %i mA\n", target );
+
+
+  const double slope = 6;       // 255 DACs / 40 mA
+  const double eps = 0.25;
+  for (int iroc = 0; iroc < 16; iroc++ ){
+    if ( !roclist[iroc] ) continue;    
+    tb.roc_I2cAddr( iroc );
+    tb.roc_SetDAC( Vana, val[iroc] );
+    tb.mDelay( 300 );
+    double ia = tb.GetIA(  ) * 1E3 - IAoff; // [mA]
+    double diff = target + 0.1 - ia; // besser zuviel als zuwenig
+    int iter = 0;
+    tb.roc_I2cAddr(iroc);
+    //initial values
+    cout << "ROC "<< iroc<<endl;
+    cout << iter << ". " << val[iroc] << "  " << ia << "  " << diff << endl;
+    //safe initial settings in case values are alrady goo
+    dacval[iroc][Vana] = val[iroc];
+    iaroc[iroc] = ia;
+    while( fabs( diff ) > eps && iter < 11 && val[iroc] > 0 && val[iroc] < 255 ) {
+    
+    
+      int stp = int ( fabs( slope * diff ) );
+      if( stp == 0 )
+	stp = 1;
+      if( diff < 0 )
+	stp = -stp;
+      val[iroc] += stp;
+      if( val[iroc] < 0 )
+	val[iroc] = 0;
+      else if( val[iroc] > 255 )
+	val[iroc] = 255;
+      tb.SetDAC( Vana, val[iroc] );
+      tb.mDelay( 200 );
+      ia = tb.GetIA(  ) * 1E3 -  IAoff; // contains flush
+      dacval[iroc][Vana] = val[iroc];
+      Log.printf( "[SETDAC] %i  %i\n", Vana, val[iroc] );
+      diff = target + 0.1 - ia;
+      iaroc[iroc] = ia;
+      iter++;      
+      cout << iter << ". " << val[iroc] << "  " << ia << "  " << diff << endl;            
+      
+    }
+    Log.flush(  );
+    tb.SetDAC( Vana, 0 );
+    tb.mDelay( 200 );
+    cout << "set Vana back to 0 for next ROC (save Vana = " << val[iroc] << " ia " << iaroc[iroc]  <<  ") "<<endl;
+
+  }
+  double sumia=0;
+  for (int iroc=0; iroc<16; iroc++){
+    if (!roclist[iroc]) continue;
+    tb.roc_I2cAddr(iroc);
+    tb.SetDAC( Vana,  dacval[iroc][Vana]);
+    tb.mDelay( 200 );    
+    cout << "ROC " << iroc << " set Vana to " << val[iroc] << " ia " << iaroc[iroc]  << endl;
+    sumia = sumia + iaroc[iroc];
+  }
+  cout<<"sum of all rocs " << sumia << " with average " << sumia / nrocs << " per roc"<<endl;
+  return true;
+}
+
+//------------------------------------------------------------------------------
 CMD_PROC( show )
 {
   int rocmin, rocmax;
@@ -12694,6 +12781,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( getia,     "getia                         set IA in mA" );
   CMD_REG( getid,     "getid                         set ID in mA" );
   CMD_REG( optia,     "optia <ia>                    set Vana to desired ROC Ia [mA]" );
+  CMD_REG( optiamod,  "optiamod <ia>                 set Vana to desired ROC Ia [mA] for module" );
 
   CMD_REG( hvon,      "hvon                          switch HV on" );
   CMD_REG( hvoff,     "hvoff                         switch HV off" );

@@ -40,7 +40,7 @@ void help(  )
   printf( "usage: psi46test a.log\n" );
 }
 
-#ifdef ROOT
+#ifdef withROOT
 //------------------------------------------------------------------------------
 MyMainFrame::MyMainFrame( const TGWindow * p, UInt_t w, UInt_t h )
 :TGMainFrame( p, w, h )
@@ -210,7 +210,7 @@ int main( int argc, char *argv[] )
 
     Log.flush(  );
 
-#ifdef ROOT
+#ifdef withROOT
     TFile *histoFile = new TFile( "Test.root", "RECREATE" );
 
     cout << "ROOT application..." << endl;

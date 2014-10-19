@@ -7,6 +7,7 @@ OBJS = cmd.o command.o pixel_dtb.o protocol.o settings.o psi46test.o datastream.
 # plot.o
 
 ROOTCFLAGS = $(shell $(ROOTSYS)/bin/root-config --cflags)
+ROOTLIBS  = $(shell $(ROOTSYS)/bin/root-config --libs)
 ROOTGLIBS  = $(shell $(ROOTSYS)/bin/root-config --glibs) # with Gui
 
 UNAME := $(shell uname)
@@ -20,7 +21,7 @@ endif
 
 ifeq ($(UNAME), Linux)
 CXXFLAGS = -g -Os -Wall $(ROOTCFLAGS) -I/usr/local/include -I/usr/X11/include
-LDFLAGS = -lftd2xx -lreadline -L/usr/local/lib -L/usr/X11/lib -lX11 -pthread -lrt $(ROOTGLIBS)
+LDFLAGS = -lftd2xx -lreadline -L/usr/local/lib -L/usr/X11/lib -lX11 -pthread -lrt $(ROOTLIBS)
 endif
 
 
