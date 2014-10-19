@@ -831,7 +831,7 @@ CMD_PROC( va )
   int value;
   PAR_INT( value, 0, 3000 );
   tb._SetVA( value );
-  dacval[0][VA] = value;
+  dacval[0][VAx] = value;
   Log.printf( "[SETVA] %i\n", value );
   DO_FLUSH;
   return true;
@@ -843,7 +843,7 @@ CMD_PROC( vd )
   int value;
   PAR_INT( value, 0, 3000 );
   tb._SetVD( value );
-  dacval[0][VD] = value;
+  dacval[0][VDx] = value;
   Log.printf( "[SETVD] %i\n", value );
   DO_FLUSH;
   return true;
@@ -4036,9 +4036,9 @@ CMD_PROC( rdtrim ) // read trim bits from file
 //------------------------------------------------------------------------------
 int32_t dacStrt( int32_t num )  // min DAC range
 {
-  if( num == VD )
+  if(      num == VDx )
     return 1500; // ROC looses settings at lower voltage
-  else if( num == VA )
+  else if( num == VAx )
     return 500; // [mV]
   else
     return 0;
@@ -4047,7 +4047,7 @@ int32_t dacStrt( int32_t num )  // min DAC range
 //------------------------------------------------------------------------------
 int32_t dacStop( int32_t num )  // max DAC value
 {
-  if( num < 1 )
+  if(      num < 1 )
     return 0;
   else if( num > 255 )
     return 0;
@@ -4055,9 +4055,9 @@ int32_t dacStop( int32_t num )  // max DAC value
     return 15; // 4-bit
   else if( num == CtrlReg )
     return 4;
-  else if( num == VD )
+  else if( num == VDx )
     return 3000;
-  else if( num == VA )
+  else if( num == VAx )
     return 2000;
   else
     return 255; // 8-bit
@@ -4066,9 +4066,9 @@ int32_t dacStop( int32_t num )  // max DAC value
 //------------------------------------------------------------------------------
 int32_t dacStep( int32_t num )
 {
-  if( num == VD )
+  if(      num == VDx )
     return 10;
-  else if( num == VA )
+  else if( num == VAx )
     return 10;
   else
     return 1; // 8-bit

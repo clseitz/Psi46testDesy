@@ -53,11 +53,12 @@
 
 // DP: DTB supply voltages
 
-//#define VD 31  // gives error with ROOT 6
-///home/pitzl/ROOT/root/include/TInterpreter.h:233:38: note: in expansion of macro ‘VD’
+#define VDx         31
+
+/// ROOT 6 include/TInterpreter.h uses VD:
 //    virtual TEnum*   CreateEnum(void *VD, TClass *cl) const = 0;
 
-#define VA          32
+#define VAx         32
 
 #define	CtrlReg    253
 #define	WBC        254
