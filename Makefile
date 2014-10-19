@@ -16,8 +16,10 @@ CXXFLAGS = -g -Os -Wall $(ROOTCFLAGS) -I/usr/local/include -I/usr/X11/include
 LDFLAGS = -lftd2xx -lreadline -L/usr/local/lib -L/usr/X11/lib -lX11 $(ROOTGLIBS)
 endif
 
+# root g++ flags = -pthread -std=c++11 -Wno-deprecated-declarations -m64 -I/home/pitzl/ROOT/root/include
+
 ifeq ($(UNAME), Linux)
-CXXFLAGS = -g -Os -Wall $(ROOTCFLAGS) -I/usr/local/include -I/usr/X11/include -pthread
+CXXFLAGS = -g -Os -Wall $(ROOTCFLAGS) -I/usr/local/include -I/usr/X11/include
 LDFLAGS = -lftd2xx -lreadline -L/usr/local/lib -L/usr/X11/lib -lX11 -pthread -lrt $(ROOTGLIBS)
 endif
 
@@ -26,7 +28,7 @@ endif
 
 obj/%.o : %.cpp
 	@mkdir -p obj/linux
-	@echo 'root C flags = ' $(ROOTCFLAGS)
+	@echo 'root' $(CXX) 'flags =' $(ROOTCFLAGS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 #obj/%.d : %.cpp obj
