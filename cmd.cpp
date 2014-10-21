@@ -2857,7 +2857,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
         size = data1.size(  );
       uint32_t raw = 0;
       uint32_t hdr = 0;
-      int32_t iroc = nrocsa * ch - 1; // will start at 8
+      uint32_t nrocs = nrocsa - 1;
+      int32_t iroc = nrocs * ch - 1; // will start at 8
       int32_t kroc = enabledrocslist[0];        // will start at 0
       unsigned int npxev = 0;
 
@@ -3507,11 +3508,13 @@ CMD_PROC( select ) // define active ROCs
   //   roclist[i] = 1;
   // for( ; i < 16; ++i )
   //   roclist[i] = 0;
-
+  enabledrocslist.clear();
+  nrocsa = 0;
+  nrocsb = 0;
   int rocmin=-1;
   for (int i=0; i < 16; i++) {
-    roclist[i] = (enabledrocs>>(15-i)) & 1;
-    if (enabledrocs>>(15-i) & 1) enabledrocslist.push_back(i);
+    roclist[i] = (enabledrocs>>i) & 1;
+    if (enabledrocs>>i & 1) enabledrocslist.push_back(i);
     if (roclist[i]==1 && rocmin==-1) rocmin=i;
     if (i<8) nrocsa++;
     else nrocsb++;
@@ -8715,9 +8718,11 @@ CMD_PROC( modmap ) // pixelAlive for modules
 
   for( int iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
     int roc = enabledrocslist[iroc];
-    if( roclist[roc] == 0 )
+    if( roclist[roc] == 0 ){
+      //should never be true?!
+      cout << "Skipping ROC: " << roclist[roc];
       continue;
-    if( roclist[roc] == 0 ) cout << "Skipping ROC: " << roclist[roc];
+    }
     tb.roc_I2cAddr( roc );
     rocAddress.push_back( roc );
     vector < uint8_t > trimvalues( 4160 );
@@ -8893,9 +8898,14 @@ CMD_PROC( modmap ) // pixelAlive for modules
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
+    int32_t nrocs = nrocsa - 1;
+    cout<<" nrocsa "<<nrocsa<<endl;
+    int32_t iroc = nrocs * tbmch - 1; // will start at 0 or 8
     int32_t kroc = enabledrocslist[iroc];
-
+    cout<<"size "<<enabledrocslist.size()<<endl;
+    for( int i = 0; i < enabledrocslist.size(); i++){
+      cout<<"bla "<<enabledrocslist[i]<<endl;
+    }
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
     for( size_t i = 0; i < data[tbmch].size(  ); ++i ) {
@@ -8920,12 +8930,12 @@ CMD_PROC( modmap ) // pixelAlive for modules
 	//DecodeTbmHeader(hdr);
         if( ldb )
           cout << "event " << setw( 6 ) << event;
-        iroc = nrocsa * tbmch - 1; // new event, will start at 0 or 8
+        iroc = nrocs * tbmch - 1; // new event, will start at 0 or 8
         break;
 
 	// ROC header data:
       case 4:
-        iroc++; // start at 0 or 8
+	iroc++;
         kroc = enabledrocslist[iroc];
         if( ldb ) {
           if( kroc > 0 )
@@ -8933,9 +8943,10 @@ CMD_PROC( modmap ) // pixelAlive for modules
           cout << "ROC " << setw( 2 ) << kroc;
         }
         if( kroc > 15 ) {
-          cout << "Error kroc " << kroc << endl;
+          cout << "Error kroc " << kroc << " iroc " << iroc << endl;
           kroc = 15;
         }
+
         break;
 
 	// pixel data:

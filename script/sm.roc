@@ -56,8 +56,7 @@ mdelay 100
 
 -- digV2 ROCs: DCF problem
 
---select 0:15  # all ROCs active
-select b1111111111111111  # all ROCs active, new bit pattern format from custom modules with disabeld rocs
+select b1111111111111111  # all ROCs on
 
 chip 350  # must be after select
 

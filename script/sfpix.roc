@@ -56,8 +56,8 @@ tbmset $FE $00    Temperature                     00
 mdelay 100
 
 --select 0:15  # all ROCs active
---select b1111111111111111
-select b1011111101010111 # turn of ROC 1, 8 (should be fine but doesn't respon), 10, 12
+--select b1111111111111111 #turn on all
+select b1110101111111101 # turn of ROC 1, 10, 12
 
 chip 450  # digV2p1, must be after select
 
