@@ -4966,7 +4966,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
       nrocs++;
-
+  cout<<"nrocs "<<nrocs<<endl;
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, tbmch );
 #endif
@@ -5158,8 +5158,9 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t iroc = nrocsa * tbmch - 1; // will start at 8
-    int32_t kroc = enabledrocslist[0];
+    int32_t nroc = nrocsa - 1;
+    int32_t iroc = nroc * tbmch - 1; // will start at 8
+    int32_t kroc = enabledrocslist[iroc];
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
     for( size_t i = 0; i < data.size(  ); ++i ) {
@@ -5184,7 +5185,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 	//DecodeTbmHeader(hdr);
         if( ldbm )
           cout << "event " << setw( 6 ) << event;
-        iroc = nrocsa * tbmch - 1; // will start at 8
+        iroc = nroc * tbmch - 1; // will start at 8
         break;
 
 	// ROC header data:
@@ -5470,8 +5471,8 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
   //int m0[16];
   //int m9[16];
 
-  for( size_t roc = 0; roc < 16; ++roc ) {
-
+  for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
+    int roc = enabledrocslist[iroc];
     if( roclist[roc] == 0 )
       continue;
 
@@ -5548,11 +5549,12 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
 
   } // rocs
   cout << endl;
-  for( int roc = 0; roc < 16; ++roc )
+  for( int iroc = 0; iroc < enabledrocslist.size(); ++iroc ){
+    int roc = enabledrocslist[iroc];
     cout << setw( 2 ) << roc << " CalDel " << setw( 3 ) << dacval[roc][CalDel]
 	 << " plateau height " << mm[roc]
 	 << endl;
-
+  }
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
