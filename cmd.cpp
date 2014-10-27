@@ -8886,12 +8886,19 @@ CMD_PROC( modmap ) // pixelAlive for modules
                   "Module PH map;col;row;sum PH [ADC]",
                   8 * 52, -0.5, 8 * 52 - 0.5, 2 * 80, -0.5, 2 * 80 - 0.5 );
 
+  //try to match pixel address
+  // loop cols
+  //   loop rows
+  //     activate this pix on all ROCs
+  //     loop dacs
+  //       loop trig
+
   // TBM channels:
 
   bool ldb = 0;
-
+  long countLoop = -1;    
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
-
+    countLoop = -1;    
     cout << "DAQ size channel " << tbmch
 	 << " = " << data[tbmch].size(  ) << " words " << endl;
 
@@ -8903,22 +8910,20 @@ CMD_PROC( modmap ) // pixelAlive for modules
     int32_t iroc = nrocs * tbmch - 1; // will start at 0 or 8
     int32_t kroc = enabledrocslist[iroc];
     cout<<"size "<<enabledrocslist.size()<<endl;
-    for( int i = 0; i < enabledrocslist.size(); i++){
-      cout<<"bla "<<enabledrocslist[i]<<endl;
-    }
+
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
     for( size_t i = 0; i < data[tbmch].size(  ); ++i ) {
 
       int d = data[tbmch].at( i ) & 0xfff; // 12 bits data
       int v = ( data[tbmch].at( i ) >> 12 ) & 0xe; // 3 flag bits
-
+      
       uint32_t ph = 0;
       int c = 0;
       int r = 0;
       int x = 0;
       int y = 0;
-
+      bool addressmatch = true;
       switch ( v ) {
 
 	// TBM header:
@@ -8928,9 +8933,10 @@ CMD_PROC( modmap ) // pixelAlive for modules
       case 8:
         hdr = ( hdr << 8 ) + d;
 	//DecodeTbmHeader(hdr);
-        if( ldb )
-          cout << "event " << setw( 6 ) << event;
+	if( ldb )
+          cout << "event " << setw( 6 ) << event << endl;
         iroc = nrocs * tbmch - 1; // new event, will start at 0 or 8
+	countLoop++;
         break;
 
 	// ROC header data:
@@ -8939,8 +8945,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
         kroc = enabledrocslist[iroc];
         if( ldb ) {
           if( kroc > 0 )
-            cout << endl;
-          cout << "ROC " << setw( 2 ) << kroc;
+          cout << "ROC " << setw( 2 ) << kroc << " iroc " << iroc << endl;
         }
         if( kroc > 15 ) {
           cout << "Error kroc " << kroc << " iroc " << iroc << endl;
@@ -8966,22 +8971,38 @@ CMD_PROC( modmap ) // pixelAlive for modules
         r = r * 6 + ( raw & 7 );
         y = 80 - r / 2;
         x = 2 * c + ( r & 1 );
-        if( ldb )
-          cout << setw( 3 ) << kroc << setw( 3 )
-	       << x << setw( 3 ) << y << setw( 4 ) << ph;
-        PX[kroc]++;
-        { // start a scope to make compiler happy
-	  double vc = PHtoVcal( ph, kroc, x, y );
-	  h13->Fill( vc );
-          int l = kroc % 8;     // 0..7
-          int m = kroc / 8;     // 0..1
-          int xm = 52 * l + x;  // 0..415  rocs 0 1 2 3 4 5 6 7
-          if( m == 1 )
-            xm = 415 - xm; // rocs 8 9 A B C D E F
-          int ym = 159 * m + ( 1 - 2 * m ) * y; // 0..159
-          h21->Fill( xm, ym );
-          h22->Fill( xm, ym, ph );
-        }
+	//        if( ldb )
+         
+	{
+	  long xi = (countLoop / nTrig ) ; 
+	  int row = ( xi ) % 80;
+	  int col = (xi - row) / 80;
+
+	  if ( col!= x  or row!=y ) {
+	    addressmatch = false;
+	    if (ldb)
+	      {cout << " pixel address mismatch " << endl;
+		cout << "from data " << " x " << x << " y " << y << " ph " << ph << endl;
+		cout << "from loop " << " col " << col << " row " << row << endl;
+	      }
+	  }
+	  
+	}
+	if(addressmatch){
+	  PX[kroc]++;
+	  { // start a scope to make compiler happy
+	    double vc = PHtoVcal( ph, kroc, x, y );
+	    h13->Fill( vc );
+	    int l = kroc % 8;     // 0..7
+	    int m = kroc / 8;     // 0..1
+	    int xm = 52 * l + x;  // 0..415  rocs 0 1 2 3 4 5 6 7
+	    if( m == 1 )
+	      xm = 415 - xm; // rocs 8 9 A B C D E F
+	    int ym = 159 * m + ( 1 - 2 * m ) * y; // 0..159
+	    h21->Fill( xm, ym );
+	    h22->Fill( xm, ym, ph );
+	  }
+	}
         break;
 
 	// TBM trailer:
