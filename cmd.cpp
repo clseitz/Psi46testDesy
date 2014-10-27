@@ -4966,7 +4966,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
       nrocs++;
-  cout<<"nrocs "<<nrocs<<endl;
+  
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, tbmch );
 #endif
@@ -6877,8 +6877,9 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
-    int32_t kroc = enabledrocslist[0];
+    int32_t nrocs = nrocsa - 1;
+    int32_t iroc = nrocs * tbmch - 1; // will start at 0 or 8
+    int32_t kroc = enabledrocslist[iroc];
     uint8_t idc = 0;            // 0..255
 
     // nDAC * nTrig * ( TBM header, 8 * ( ROC header, one pixel ), TBM trailer )
@@ -6905,7 +6906,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 	//DecodeTbmHeader(hdr);
         if( ldb )
           cout << "event " << setw( 6 ) << nev;
-        iroc = nrocsa * tbmch - 1; // will start at 0 or 8
+        iroc = nrocs * tbmch - 1; // will start at 0 or 8
         idc = ( nev / nTrig ) % nstp; // 0..nstp-1
         break;
 
@@ -7086,7 +7087,7 @@ CMD_PROC( modthrmap )
 
   int strt = 0;
   int stop = 127;               // Vcal scan range
-  int step = 1;                 // fine
+  int step = 2;                 // fine
 
   const int nTrig = 10;
   const int xtlk = 0;
@@ -7437,6 +7438,8 @@ CMD_PROC( modtrim )
 
   int nok = 0;
   for( size_t roc = 0; roc < 16; ++roc ) {
+    if( roclist[roc] == 0 )
+      continue;
     printThrMap( 0, roc, nok );
   }
 
