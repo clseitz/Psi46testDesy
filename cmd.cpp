@@ -2894,7 +2894,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
           }
           iroc = -1; // will start at 0
           if( ch == 1 )
-            iroc = nrocsa; // will start at 8
+            iroc = nrocs; // will start at 8
 	  /*
             if( nev[ch] > 0 && trl == 0 )
             cout << "TBM error: header without previous trailer in event "
@@ -5722,7 +5722,8 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
+    int32_t nroc = nrocsa - 1;
+    int32_t iroc = nroc * tbmch - 1; // will start at 0 or 8
     int32_t kroc = enabledrocslist[0];
     uint8_t idc = 0;
 
@@ -5750,7 +5751,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 	//DecodeTbmHeader(hdr);
         if( ldb )
           cout << "event " << setw( 6 ) << nev;
-        iroc = nrocsa * tbmch - 1; // new event, will start at 0 or 8
+        iroc = nroc * tbmch - 1; // new event, will start at 0 or 8
         idc = nev / nTrig; // 0..255
         break;
 
@@ -6244,7 +6245,8 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t iroc = nrocsa * tbmch -1; // will start at 0 or 8
+    int32_t nrocs = nrocsa - 1;
+    int32_t iroc = nrocs * tbmch -1; // will start at 0 or 8
     int32_t kroc = enabledrocslist[iroc];
     uint8_t idc = 0;
 
@@ -6272,7 +6274,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 	//DecodeTbmHeader(hdr);
         if( ldb )
           cout << "event " << setw( 6 ) << nev;
-        iroc = nrocsa * tbmch - 1; // new event, will start at 0 or 8
+        iroc = nrocs * tbmch - 1; // new event, will start at 0 or 8
         idc = ( nev / mTrig ) % nstp; // 0..nstp-1
         break;
 
@@ -7202,7 +7204,7 @@ CMD_PROC( modvthrcomp )
       for( int col = 0; col < 52; ++col ) {
 
         int thr = modthr[roc][col][row];
-        if( thr < vmin ) {
+        if( thr < vmin && thr != 0 ) {
           vmin = thr;
           colmin = col;
           rowmin = row;
@@ -7502,7 +7504,7 @@ CMD_PROC( modtrim )
       int thr = ThrPix( roc, colmax, rowmax, dac, step, nTrig );
 
       cout << setw( 3 ) << itrim << "  " << setw( 3 ) << thr << endl;
-      if( thr < target )
+      if( thr < target or thr > 240)
         break;
 
     } // itrim
