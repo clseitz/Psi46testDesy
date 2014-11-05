@@ -7036,6 +7036,40 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 
 } // ModThrMap
 
+CMD_PROC( modthrmap )
+{
+
+  Log.section( "MODVTHRCOMP", true );
+
+  int strt;
+  int stop;
+  int step;
+  int nTrig;
+  int xtlk = 0;
+  int cals = 0;
+
+  PAR_INT(strt, 0, 255);
+  PAR_INT(stop, 0, 255);
+  PAR_INT(step, 0, 255);
+  PAR_INT(nTrig, 0, 255);
+
+  cout << "measuring Vcal threshold map in range "
+       << strt << " to " << stop
+       << " in steps of " << step << " with " << nTrig << " triggers" << endl;
+
+  ModThrMap(strt, stop, step, nTrig, xtlk, cals); // fills modthr
+
+  int nok = 0;
+  for(size_t roc = 0; roc < 16; ++roc) {
+    if(roclist[roc]==0) continue;
+    printThrMap(0, roc, nok);
+    cout << endl;
+  }
+
+  return true;
+
+} //modthrmap
+
 //------------------------------------------------------------------------------
 // Daniel Pitzl, DESY, 8.7.2014: set global threshold per ROC. works. adjust CalDel
 CMD_PROC( modvthrcomp )
@@ -12773,7 +12807,8 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( modpixsc,  "modpixsc col row ntrig        module pixel S-curve" );
   CMD_REG( dacscanmod,"dacscanmod dac [ntrig] [step] [stop] module dac scan" );
   CMD_REG( modthrdac, "modthrdac col row dac         Threshold vs DAC one pixel" );
-  CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
+  CMD_REG( modthrmap, "modthrmap strt stop step nTrig set VthrComp on each ROC" );
+  CMD_REG( modvthrcomp,"modvthrcomp target           set VthrComp on each ROC" );
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
 
