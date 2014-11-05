@@ -2857,8 +2857,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
         size = data1.size(  );
       uint32_t raw = 0;
       uint32_t hdr = 0;
-      uint32_t nrocs = nrocsa - 1;
-      int32_t iroc = nrocs * ch - 1; // will start at 8
+
+      int32_t iroc = nrocsa * ch - 1; // will start at 8
       int32_t kroc = enabledrocslist[0];        // will start at 0
       unsigned int npxev = 0;
 
@@ -2894,7 +2894,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
           }
           iroc = -1; // will start at 0
           if( ch == 1 )
-            iroc = nrocs; // will start at 8
+            iroc = nrocsa - 1; // will start at 8
 	  /*
             if( nev[ch] > 0 && trl == 0 )
             cout << "TBM error: header without previous trailer in event "
@@ -3514,10 +3514,13 @@ CMD_PROC( select ) // define active ROCs
   int rocmin=-1;
   for (int i=0; i < 16; i++) {
     roclist[i] = (enabledrocs>>i) & 1;
-    if (enabledrocs>>i & 1) enabledrocslist.push_back(i);
+    if (enabledrocs>>i & 1) {
+      enabledrocslist.push_back(i);
+      if (i<8) nrocsa++;
+      else nrocsb++;
+    }
     if (roclist[i]==1 && rocmin==-1) rocmin=i;
-    if (i<8) nrocsa++;
-    else nrocsb++;
+    
   }
   tb.Daq_Deser400_OldFormat( true ); // 3.0 for TBM08
 
@@ -5158,9 +5161,8 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t nroc = nrocsa - 1;
-    int32_t iroc = nroc * tbmch - 1; // will start at 8
-    int32_t kroc = enabledrocslist[iroc];
+    int32_t iroc = nrocsa * tbmch - 1; // will start at 8
+    int32_t kroc = 0;//enabledrocslist[iroc];
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
     for( size_t i = 0; i < data.size(  ); ++i ) {
@@ -5185,7 +5187,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 	//DecodeTbmHeader(hdr);
         if( ldbm )
           cout << "event " << setw( 6 ) << event;
-        iroc = nroc * tbmch - 1; // will start at 8
+        iroc = nrocsa * tbmch - 1; // will start at 8
         break;
 
 	// ROC header data:
@@ -5722,9 +5724,9 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t nroc = nrocsa - 1;
-    int32_t iroc = nroc * tbmch - 1; // will start at 0 or 8
-    int32_t kroc = enabledrocslist[0];
+
+    int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
+    int32_t kroc = 0;
     uint8_t idc = 0;
 
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
@@ -5751,7 +5753,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 	//DecodeTbmHeader(hdr);
         if( ldb )
           cout << "event " << setw( 6 ) << nev;
-        iroc = nroc * tbmch - 1; // new event, will start at 0 or 8
+        iroc = nrocsa * tbmch - 1; // new event, will start at 0 or 8
         idc = nev / nTrig; // 0..255
         break;
 
@@ -6879,8 +6881,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t nrocs = nrocsa - 1;
-    int32_t iroc = nrocs * tbmch - 1; // will start at 0 or 8
+    int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
     int32_t kroc = enabledrocslist[iroc];
     uint8_t idc = 0;            // 0..255
 
@@ -6908,7 +6909,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 	//DecodeTbmHeader(hdr);
         if( ldb )
           cout << "event " << setw( 6 ) << nev;
-        iroc = nrocs * tbmch - 1; // will start at 0 or 8
+        iroc = nrocsa * tbmch - 1; // will start at 0 or 8
         idc = ( nev / nTrig ) % nstp; // 0..nstp-1
         break;
 
@@ -8912,11 +8913,9 @@ CMD_PROC( modmap ) // pixelAlive for modules
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t nrocs = nrocsa - 1;
-    cout<<" nrocsa "<<nrocsa<<endl;
-    int32_t iroc = nrocs * tbmch - 1; // will start at 0 or 8
-    int32_t kroc = enabledrocslist[iroc];
-    cout<<"size "<<enabledrocslist.size()<<endl;
+    int32_t nrocs = 8;
+    int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
+    int32_t kroc = 0;
 
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
@@ -8942,7 +8941,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
 	//DecodeTbmHeader(hdr);
 	if( ldb )
           cout << "event " << setw( 6 ) << event << endl;
-        iroc = nrocs * tbmch - 1; // new event, will start at 0 or 8
+        iroc = nrocsa * tbmch-1; // new event, will start at 0 or 8
 	countLoop++;
         break;
 
@@ -8951,7 +8950,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
 	iroc++;
         kroc = enabledrocslist[iroc];
         if( ldb ) {
-          if( kroc > 0 )
+          if( kroc >= 0 )
           cout << "ROC " << setw( 2 ) << kroc << " iroc " << iroc << endl;
         }
         if( kroc > 15 ) {
