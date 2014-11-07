@@ -3599,6 +3599,61 @@ CMD_PROC( vana )
 }
 
 //------------------------------------------------------------------------------
+CMD_PROC( modsetvana )
+{
+
+  int inittarget;
+  PAR_INT( inittarget, 0, 100 );
+  double target = double(inittarget);
+
+  int nrocs = 0;
+  for (int iroc=0; iroc<16; iroc++) {
+    if (roclist[iroc]) nrocs++;
+    tb.roc_I2cAddr(iroc);
+    tb.roc_SetDAC(Vana, 0);
+  }
+  tb.mDelay(500);
+  double IAoff = tb.GetIA() * 1000;
+
+  for (int iroc=0; iroc<16; iroc++){
+    if (!roclist[iroc]) continue;
+    tb.roc_I2cAddr(iroc);
+    tb.mDelay(300);
+    double initIA = tb.GetIA() * 1000;
+    double IA = tb.GetIA() * 1000;
+    double deltaIA = IA-initIA;
+    int value = 100;
+    int step = 10;
+    while ( (deltaIA < target || deltaIA > target+0.8) && value!=0) {
+      tb.roc_SetDAC(Vana, value);
+      dacval[iroc][Vana] = value;
+      if (fabs(deltaIA-target) > 2.0) tb.mDelay(100);
+      else tb.mDelay(300);
+      IA = tb.GetIA() * 1000;
+      deltaIA = IA-initIA;
+      if (deltaIA < target || deltaIA > target+0.8) {
+        if (fabs(deltaIA-target) <  10.0) step = 5;
+        if (fabs(deltaIA-target) <  2.0) step = 1;
+        if (deltaIA < target) value += step;
+        if (deltaIA > target) value -= step;
+      }  else {
+        cout << "Vana set to " << value << " (" << deltaIA << " mA) for ROC " << iroc << "." << endl;
+      }
+      if (value>=255 || value<=0) {
+        cout << "Error! No good Vana found for roc " << iroc << "." <<  endl;
+        value=0;
+        tb.roc_SetDAC(Vana, value);
+        dacval[iroc][Vana] = value;
+      }
+    }
+  }
+
+  double IA = tb.GetIA() * 1000;
+  printf( "IA %4.1f mA for %i ROCs = %4.1f mA per ROC\n", IA, nrocs, (IA-IAoff) / nrocs );
+  return true;
+} //modsetvana
+
+//------------------------------------------------------------------------------
 CMD_PROC( vtrim )
 {
   int value;
@@ -7110,77 +7165,39 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 
 } // ModThrMap
 
-//------------------------------------------------------------------------------
-// 
 CMD_PROC( modthrmap )
 {
-  Log.section( "MODTHRMAP", true );
 
-  timeval tv;
-  gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  Log.section( "MODVTHRCOMP", true );
 
-  int strt = 0;
-  int stop = 127;               // Vcal scan range
-  int step = 2;                 // fine
+  int strt;
+  int stop;
+  int step;
+  int nTrig;
+  int xtlk = 0;
+  int cals = 0;
 
-  const int nTrig = 10;
-  const int xtlk = 0;
-  const int cals = 0;
+  PAR_INT(strt, 0, 255);
+  PAR_INT(stop, 0, 255);
+  PAR_INT(step, 0, 255);
+  PAR_INT(nTrig, 0, 255);
 
   cout << "measuring Vcal threshold map in range "
        << strt << " to " << stop
        << " in steps of " << step << " with " << nTrig << " triggers" << endl;
 
-  ModThrMap( strt, stop, step, nTrig, xtlk, cals ); // fills modthr
+  ModThrMap(strt, stop, step, nTrig, xtlk, cals); // fills modthr
 
-  if( h11 )
-    delete h11;
-  gStyle->SetOptStat( 1110 );
-  h11 = new
-    TH1D( Form( "mod_thr_dist" ),
-	  Form( "Module threshold distribution;threshold [small Vcal DAC];pixels" ),
-	  255, -0.5, 254.5 ); // 255 = overflow
-
-  if( h21 )
-    delete h21;
-  h21 = new TH2D( "ModuleThresholdMap",
-                  "Module threshold map;col;row;threshold [small Vcal DAC]",
-                  8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
-
-  for( int roc = 0; roc < 16; ++roc ) {
-    if( roclist[roc] == 0 )
-      continue;
-    for( int col = 0; col < 52; ++col )
-      for( int row = 0; row < 80; ++row ) {
-	int l = roc % 8;   // 0..7
-	int xm = 52 * l + col; // 0..415  rocs 0 1 2 3 4 5 6 7
-	int ym = row; // 0..79
-	if( roc > 7 ) {
-	  xm = 415 - xm; // rocs 8 9 A B C D E F
-	  ym = 159 - row; // 80..159
-	}
-	h11->Fill( modthr[roc][col][row] );
-	h21->Fill( xm, ym, modthr[roc][col][row] );
-      }
-  } // rocs
-
-  h11->Write(  );
-  h21->Write(  );
-  h11->Draw(  );
-  c1->Update(  );
-  cout << "histos 11, 21" << endl;
-
-  gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  int nok = 0;
+  for(size_t roc = 0; roc < 16; ++roc) {
+    if(roclist[roc]==0) continue;
+    printThrMap(0, roc, nok);
+    cout << endl;
+  }
 
   return true;
 
-} // modthrmap
+} //modthrmap
 
 //------------------------------------------------------------------------------
 // Daniel Pitzl, DESY, 8.7.2014: set global threshold per ROC. works. adjust CalDel
@@ -11736,6 +11753,8 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
 
 } // vanaroc
 
+
+
 //------------------------------------------------------------------------------
 CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
 {
@@ -12912,6 +12931,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( select,    "select addr:range             set i2c address" );
   CMD_REG( dac,       "dac address value [roc]       set DAC" );
   CMD_REG( vana,      "vana value                    set Vana" );
+  CMD_REG( modsetvana, "modsetvana target            Tune Vana to pull target mA per ROC" );
   CMD_REG( vtrim,     "vtrim value                   set Vtrim" );
   CMD_REG( vthr,      "vthr value                    set VthrComp" );
   CMD_REG( vcal,      "vcal value                    set Vcal" );
@@ -12948,7 +12968,8 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( modpixsc,  "modpixsc col row ntrig        module pixel S-curve" );
   CMD_REG( dacscanmod,"dacscanmod dac [ntrig] [step] [stop] module dac scan" );
   CMD_REG( modthrdac, "modthrdac col row dac         Threshold vs DAC one pixel" );
-  CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
+  CMD_REG( modthrmap, "modthrmap strt stop step nTrig set VthrComp on each ROC" );
+  CMD_REG( modvthrcomp,"modvthrcomp target           set VthrComp on each ROC" );
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
   CMD_REG( modthrmap, "modthrmap                     module threshold map" );
