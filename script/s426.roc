@@ -40,7 +40,7 @@ trigdel 200  # delay in trigger loop [BC], 160 = 4 us
 # d1 7 (reset on D1, see pixel_dtb.h)
 # d1 9 (sync  on D1, see pixel_dtb.h)
 
-select 0	  [set roclist, I2C]
+select 1	  [set roclist, I2C]
 rocaddr 0	  [set ROC]
 
 dopen 10100100 0 [daq_open]

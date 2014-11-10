@@ -2,7 +2,7 @@
 #ifndef PSI46TEST_H
 #define PSI46TEST_H
 
-#define ROOT
+#define withROOT
 
 #include <TGFrame.h>
 #include <TRootEmbeddedCanvas.h>
@@ -34,7 +34,7 @@ extern CProtocol Log;           // log file
 
 void cmd(  );
 
-#ifdef ROOT
+#ifdef withROOT
 
 class MyMainFrame:public TGMainFrame {
 
