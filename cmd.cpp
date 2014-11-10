@@ -3670,10 +3670,12 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
 
   int val = dacval[0][Vana];
   double ia = tb.GetIA(  ) * 1E3; // [mA]
-  double diff = target + 0.1 - ia; // besser zuviel als zuwenig
 
-  const double slope = 6;       // 255 DACs / 40 mA
-  const double eps = 0.25;
+  const double slope = 6; // 255 DACs / 40 mA
+  //const double eps = 0.25; // convergence, for ATB
+  const double eps = 0.5; // convergence, for DTB
+
+  double diff = target + 0.5*eps - ia; // besser zuviel als zuwenig
 
   int iter = 0;
   cout << iter << ". " << val << "  " << ia << "  " << diff << endl;
@@ -3695,7 +3697,7 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
     ia = tb.GetIA(  ) * 1E3; // contains flush
     dacval[0][Vana] = val;
     Log.printf( "[SETDAC] %i  %i\n", Vana, val );
-    diff = target + 0.1 - ia;
+    diff = target + 0.5*eps - ia;
     iter++;
     cout << iter << ". " << val << "  " << ia << "  " << diff << endl;
   }
