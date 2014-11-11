@@ -57,6 +57,7 @@ mdelay 100
 
 --select 0:15  # all ROCs active
 --select b1111111111111111 #turn on all
+--select b0000000000000001 #turn off all exepct 1
 select b1110101111111101 # turn of ROC 1, 10, 12
 
 chip 450  # digV2p1, must be after select

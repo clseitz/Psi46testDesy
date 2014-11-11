@@ -30,8 +30,7 @@ pgset 3 b000001   0  pg_tok, end of pgset
 
 trigdel 200  # delay in trigger loop [BC], 200 = 5 us
 
-select b1  # active ROC bit pattern
-#select b1000000000000000  # active ROC bit pattern
+select 1	  [set roclist, I2C]
 rocaddr 0	  [set ROC]
 
 dopen 40100100 [daq_open]
