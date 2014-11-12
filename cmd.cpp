@@ -3927,10 +3927,13 @@ CMD_PROC( rddac ) // read DACs from file
   string dacname;
   int vdac;
   int roc = -1;
+  int croc = -1;
+
   while( !dacFile.eof(  ) ) {
     dacFile >> idac >> dacname >> vdac;
     if( idac == 1 ) {
-      roc++;
+      croc++;
+      roc = enabledrocslist[croc];
       cout << "ROC " << roc << endl;
       tb.roc_I2cAddr( roc );
     }
@@ -6250,7 +6253,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     uint32_t hdr = 0;
     uint32_t trl = 0;
     int32_t iroc = nrocsa * tbmch -1; // will start at 0 or 8
-    int32_t kroc = enabledrocslist[0];
+    int32_t kroc = 0;//enabledrocslist[0];
     uint8_t idc = 0;
 
     // nDAC * nTrig * ( TBM header, 8 * ( ROC header, one pixel ), TBM trailer )
