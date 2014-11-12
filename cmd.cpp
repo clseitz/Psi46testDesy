@@ -2479,7 +2479,7 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
   h22->Write(  );
   cout << "histos 10, 11, 12, 13, 21, 22" << endl;
 
-  h13->Draw(  );
+  h13->Draw( "hist" );
   c1->Update(  );
 
   gettimeofday( &tv, NULL );
@@ -2592,7 +2592,7 @@ CMD_PROC( onevst ) // pulse one pixel vs time
 	   << ",  got " << got
 	   << ",  rest " << rst << ",  pix " << npx << ",  ph " << phavg << endl;
 
-      h11->Draw(  );
+      h11->Draw( "hist" );
       c1->Update(  );
 
       nsum = 0;
@@ -2670,7 +2670,7 @@ CMD_PROC( onevst ) // pulse one pixel vs time
   tb.Flush(  );
 
   h11->Write(  );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -3130,7 +3130,7 @@ CMD_PROC( scanvb ) // bias voltage scan
 
   h11->Write(  );
   h11->SetStats( 0 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -4368,7 +4368,7 @@ CMD_PROC( daci ) // currents vs dac
   h11->Write(  );
   h12->Write(  );
   h11->SetStats( 0 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11, 12" << endl;
 
@@ -4448,7 +4448,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 
   h11->Write(  );
   h11->SetStats( 0 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -4785,7 +4785,7 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
 
   h11->Write(  );
   h11->SetStats( 111111 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -5344,7 +5344,7 @@ CMD_PROC( caldel ) // scan and set CalDel using one pixel
 
   h11->Write(  );
   h11->SetStats( 0 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -7191,7 +7191,7 @@ CMD_PROC( modthrmap )
 
   h11->Write(  );
   h21->Write(  );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11, 21" << endl;
 
@@ -7813,7 +7813,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
   h12->Write(  );
   h13->Write(  );
   h11->SetStats( 0 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 10, 11, 12, 13" << endl;
 
@@ -7913,7 +7913,7 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
   h11->Write(  );
   h12->Write(  );
   h12->SetStats( 0 );
-  h12->Draw(  );
+  h12->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11, 12" << endl;
 
@@ -8009,7 +8009,7 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
 
   h11->Write(  );
   h11->SetStats( 0 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -8119,7 +8119,7 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
     endl;
 
   h11->Write(  );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -8224,7 +8224,7 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
     endl;
 
   h11->Write(  );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -9308,7 +9308,7 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
 
   gStyle->SetOptStat( 111111 );
   gStyle->SetStatY( 0.60 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11, 21" << endl;
 
@@ -9608,7 +9608,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
   h13->Write(  );
   gStyle->SetOptStat( 111111 );
   gStyle->SetStatY( 0.60 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11, 12, 13" << endl;
 
@@ -9835,7 +9835,7 @@ CMD_PROC( vthrcomp5 )
 
   } // vthr
 
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   h11->Write(  );
 
@@ -9933,7 +9933,7 @@ CMD_PROC( vthrcomp )
     for( int row = 0; row < 80; ++row )
       h10->Fill( modthr[roc][col][row] );
 
-  h10->Draw(  );
+  h10->Draw( "hist" );
   c1->Update(  );
   h10->Write(  );
 
@@ -10006,7 +10006,7 @@ CMD_PROC( vthrcomp )
 
   } // vthr
 
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   h11->Write(  );
 
@@ -10112,7 +10112,7 @@ CMD_PROC( trim )
       for( int row = 0; row < 80; ++row )
         h10->Fill( modthr[roc][col][row] );
 
-    h10->Draw(  );
+    h10->Draw( "hist" );
     c1->Update(  );
     h10->Write(  );
 
@@ -10193,7 +10193,7 @@ CMD_PROC( trim )
         break;
     } // vtrm
 
-    h11->Draw(  );
+    h11->Draw( "hist" );
     c1->Update(  );
     h11->Write(  );
 
@@ -10237,7 +10237,7 @@ CMD_PROC( trim )
       for( int row = 0; row < 80; ++row )
         h12->Fill( modthr[roc][col][row] );
 
-    h12->Draw(  );
+    h12->Draw( "hist" );
     c1->Update(  );
     h12->Write(  );
 
@@ -10256,7 +10256,7 @@ CMD_PROC( trim )
       for( int row = 0; row < 80; ++row )
         h13->Fill( modthr[roc][col][row] );
 
-    h13->Draw(  );
+    h13->Draw( "hist" );
     c1->Update(  );
     h13->Write(  );
 
@@ -10275,7 +10275,7 @@ CMD_PROC( trim )
       for( int row = 0; row < 80; ++row )
         h14->Fill( modthr[roc][col][row] );
 
-    h14->Draw(  );
+    h14->Draw( "hist" );
     c1->Update(  );
     h14->Write(  );
 
@@ -10294,7 +10294,7 @@ CMD_PROC( trim )
       for( int row = 0; row < 80; ++row )
         h15->Fill( modthr[roc][col][row] );
 
-    h15->Draw(  );
+    h15->Draw( "hist" );
     c1->Update(  );
     h15->Write(  );
 
@@ -10313,7 +10313,7 @@ CMD_PROC( trim )
       for( int row = 0; row < 80; ++row )
         h16->Fill( modthr[roc][col][row] );
 
-    h16->Draw(  );
+    h16->Draw( "hist" );
     c1->Update(  );
     h16->Write(  );
 
@@ -10978,7 +10978,7 @@ CMD_PROC( phmap ) // check gain tuning and calibration
 
   gStyle->SetOptStat( 111111 );
   gStyle->SetStatY( 0.60 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   h12->SetLineColor( 2 );
   h12->SetMarkerColor( 2 );
   h12->Draw( "same" );
@@ -11078,7 +11078,7 @@ CMD_PROC( calsmap ) // test PH map through sensor
   h11->Write(  );
   gStyle->SetOptStat( 111111 );
   gStyle->SetStatY( 0.60 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11" << endl;
 
@@ -11393,7 +11393,7 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
 
   h11->SetStats( 0 );
   h12->SetStats( 0 );
-  h12->Draw(  );
+  h12->Draw( "hist" );
   c1->Update(  );
 
   cout << "histos 11, 12" << endl;
@@ -11571,7 +11571,7 @@ CMD_PROC( scanvthr )
 
   h15->Write(  );
   h15->SetStats( 0 );
-  h15->Draw(  );
+  h15->Draw( "hist" );
   c1->Update(  );
 
   cout << "histos 13, 14, 15" << endl;
@@ -11764,7 +11764,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
     h11->SetStats( 0 );
     h12->SetStats( 0 );
     h13->SetStats( 0 );
-    h12->Draw(  );
+    h12->Draw( "hist" );
     c1->Update(  );
   }
   cout << "histos 11, 12, 13" << endl;
@@ -11928,7 +11928,7 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
   h14->Write(  );
   h11->Write(  );
   h11->SetStats( 0 );
-  h11->Draw(  );
+  h11->Draw( "hist" );
   c1->Update(  );
   cout << "histos 11, 14" << endl;
 
