@@ -3692,10 +3692,14 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
 
   int val = dacval[0][Vana];
   double ia = tb.GetIA(  ) * 1E3; // [mA]
-  double diff = target + 0.1 - ia; // besser zuviel als zuwenig
 
   const double slope = 6;       // 255 DACs / 40 mA
-  const double eps = 0.25;
+  //const double eps = 0.2; // convergence, for ATB
+  const double eps = 0.4; // convergence, for DTB
+
+  double tia = target + 0.5*eps; // besser zuviel als zuwenig
+
+  double diff = ia - tia;
 
   int iter = 0;
   cout << iter << ". " << val << "  " << ia << "  " << diff << endl;
@@ -3705,7 +3709,7 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
     int stp = int ( fabs( slope * diff ) );
     if( stp == 0 )
       stp = 1;
-    if( diff < 0 )
+    if( diff > 0 )
       stp = -stp;
     val += stp;
     if( val < 0 )
@@ -3717,7 +3721,7 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
     ia = tb.GetIA(  ) * 1E3; // contains flush
     dacval[0][Vana] = val;
     Log.printf( "[SETDAC] %i  %i\n", Vana, val );
-    diff = target + 0.1 - ia;
+    diff = ia - tia;
     iter++;
     cout << iter << ". " << val << "  " << ia << "  " << diff << endl;
   }
@@ -13078,7 +13082,34 @@ void cmd(  )                    // called once from psi46test
   gStyle->SetStatX( 0.99 );
   gStyle->SetStatY( 0.60 );
 
-  gStyle->SetPalette( 1 ); // rainbow colors
+  //gStyle->SetPalette( 1 ); // rainbow colors, red on top
+
+  // ROOT View colors Color Wheel:
+
+  int pal[20];
+
+  pal[ 0] = 1;
+  pal[ 1] = 922; // gray
+  pal[ 2] = 803; // brown
+  pal[ 3] = 634; // dark red
+  pal[ 4] = 632; // red
+  pal[ 5] = 810; // orange
+  pal[ 6] = 625;
+  pal[ 7] = 895; // dark pink
+  pal[ 8] = 614;
+  pal[ 9] = 609;
+  pal[10] = 616; // magenta
+  pal[11] = 593;
+  pal[12] = 600; // blue
+  pal[13] = 428;
+  pal[14] = 423;
+  pal[15] = 400; // yellow
+  pal[16] = 391;
+  pal[17] = 830;
+  pal[18] = 416; // green
+  pal[19] = 418; // dark green on top
+
+  gStyle->SetPalette( 20, pal );
 
   gStyle->SetHistMinimumZero(  ); // no zero suppression
 
