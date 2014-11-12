@@ -1246,32 +1246,32 @@ CMD_PROC( upd ) // redraw ROOT canvas; only works for global histos
   }
   else if( plot == 10 ) {
     gStyle->SetOptStat( 111111 );
-    h10->Draw(  );
+    h10->Draw( "hist" );
     c1->Update(  );
   }
   else if( plot == 11 ) {
     gStyle->SetOptStat( 111111 );
-    h11->Draw(  );
+    h11->Draw( "hist" );
     c1->Update(  );
   }
   else if( plot == 12 ) {
     gStyle->SetOptStat( 111111 );
-    h12->Draw(  );
+    h12->Draw( "hist" );
     c1->Update(  );
   }
   else if( plot == 13 ) {
     gStyle->SetOptStat( 111111 );
-    h13->Draw(  );
+    h13->Draw( "hist" );
     c1->Update(  );
   }
   else if( plot == 14 ) {
     gStyle->SetOptStat( 111111 );
-    h14->Draw(  );
+    h14->Draw( "hist" );
     c1->Update(  );
   }
   else if( plot == 15 ) {
     gStyle->SetOptStat( 111111 );
-    h15->Draw(  );
+    h15->Draw( "hist" );
     c1->Update(  );
   }
   else if( plot == 21 ) {
@@ -2019,6 +2019,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
   h11 = new
     TH1D( "pixelPH", "pixel PH;pixel PH [ADC];pixels",
 	  255, -0.5, 254.5 ); // 255 is overflow
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
@@ -2028,6 +2029,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
           "pixel charge;pixel charge [small Vcal DAC];pixels" :
           "pixel charge;pixel charge [large Vcal DAC];pixels",
           256, -0.5, 255.5 );
+  h12->Sumw2();
 
   if( h21 )
     delete h21;
@@ -2301,6 +2303,7 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
   h11 = new
     TH1D( "pixelPH", "pixel PH;pixel PH [ADC];pixels",
 	  255, -0.5, 254.5 ); // 255 is overflow
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
@@ -2310,6 +2313,7 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
           "pixel charge;pixel charge [small Vcal DAC];pixels" :
           "pixel charge;pixel charge [large Vcal DAC];pixels",
           256, -0.5, 255.5 );
+  h12->Sumw2();
 
   if( h13 )
     delete h13;
@@ -2525,6 +2529,7 @@ CMD_PROC( onevst ) // pulse one pixel vs time
   h11 = new
     TProfile( "PH_vs_time",
               "PH vs time;time [s];<PH> [ADC]", 300, 0, 300, 0, 255 );
+  h11->Sumw2();
 
   tb.roc_Col_Enable( col, true );
   int trim = modtrm[0][col][row];
@@ -2748,12 +2753,14 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   h11 = new
     TH1D( "pixels",
           "pixels per trigger;pixel hits;triggers", 65, -0.5, 64.5 );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
   h12 = new
     TH1D( "ADC",
           "PH ADC spectrum;PH [ADC];hits", 255, -0.5, 255.5 );
+  h12->Sumw2();
 
   if( h13 )
     delete h13;
@@ -3077,6 +3084,7 @@ CMD_PROC( scanvb ) // bias voltage scan
     TProfile( "bias_scan",
 	      "bias scan;bias voltage [V];sensor bias current [uA]",
 	      nstp, 0 - 0.5*vstp, vmax + 0.5*vstp );
+  h11->Sumw2();
 
   double wait = 2; // [s]
 
@@ -3739,7 +3747,6 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
 
   int target;
   PAR_INT( target, 10, 80 );
-  double IAini = tb.GetIA() * 1000;
 
   int nrocs = 0;
   for (int iroc=0; iroc<16; iroc++) {
@@ -4328,6 +4335,7 @@ CMD_PROC( daci ) // currents vs dac
           Form( "Digital current vs %s;%s [DAC];ID [mA]",
                 dacName[dac].c_str(  ), dacName[dac].c_str(  ) ),
 	  nstp, dacstrt - 0.5, dacstop + 0.5 );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
@@ -4336,6 +4344,7 @@ CMD_PROC( daci ) // currents vs dac
           Form( "Analog current vs %s;%s [DAC];IA [mA]",
                 dacName[dac].c_str(  ), dacName[dac].c_str(  ) ),
 	  nstp, dacstrt - 0.5, dacstop + 0.5 );
+  h12->Sumw2();
 
   for( int32_t i = dacstrt; i <= dacstop; i += dacstep ) {
 
@@ -4405,6 +4414,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
     TH1D( "ID_VthrComp",
           "Digital current vs comparator threshold;VthrComp [DAC];ID [mA]",
           256, -0.5, 255.5 );
+  h11->Sumw2();
 
   for( int32_t i = 0; i <= dacstop; ++i ) {
 
@@ -4711,6 +4721,7 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
     TH1D( "ph_distribution",
           Form( "ph col %i row %i;PH [ADC];triggers", col, row ),
           256, -0.5, 255.5 );
+  h11->Sumw2();
 
   bool extra = 0;
 
@@ -5306,6 +5317,7 @@ CMD_PROC( caldel ) // scan and set CalDel using one pixel
           Form( "CalDel scan col %i row %i WBC %i;CalDel [DAC];responses",
                 col, row, wbc ),
 	  nstp, -0.5, nstp - 0.5 );
+  h11->Sumw2();
 
   // analyze:
 
@@ -6382,6 +6394,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     TH1D( "maxResponseDist",
           "maximum response distribution;maximum responses;pixels",
           mTrig + 1, -0.5, mTrig + 0.5 );
+  h11->Sumw2();
 
   if( h14 )
     delete h14;
@@ -7150,6 +7163,7 @@ CMD_PROC( modthrmap )
     TH1D( Form( "mod_thr_dist" ),
 	  Form( "Module threshold distribution;threshold [small Vcal DAC];pixels" ),
 	  255, -0.5, 254.5 ); // 255 = overflow
+  h11->Sumw2();
 
   if( h21 )
     delete h21;
@@ -7721,6 +7735,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
           Form( "PH vs %s ROC %i col %i row %i;%s [DAC];<PH> [ADC]",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
@@ -7732,6 +7747,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
                 "Vcal vs %s ROC %i col %i row %i;%s [DAC];calibrated PH [large Vcal DAC]",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
+  h12->Sumw2();
 
   if( h13 )
     delete h13;
@@ -7860,6 +7876,7 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
           Form( "CALS vs  %s col %i row %i;%s [DAC];<CALS> [ADC]",
                 dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
@@ -7868,6 +7885,7 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
           Form( "CALS responses vs  %s col %i row %i;%s [DAC];responses",
                 dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
+  h12->Sumw2();
 
   // print:
 
@@ -7958,6 +7976,7 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
           Form( "Responses vs %s ROC %i col %i row %i;%s [DAC] step %i;responses",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ), stp ),
 	  nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
+  h11->Sumw2();
 
   // print and plot:
 
@@ -8051,6 +8070,7 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
           ( "thr vs %s col %i row %i bits %i;%s [DAC];threshold [small Vcal DAC]",
             dacName[dac].c_str(  ), col, row, trim, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*dacstep, dacStop(dac) + 0.5*dacstep );
+  h11->Sumw2();
 
 #ifndef DAQOPENCLOSE
   tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
@@ -8174,6 +8194,7 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
           ( "thr vs %s col %i row %i bits %i;%s [DAC];threshold [small Vcal DAC]",
             dacName[dac].c_str(  ), col, row, trim, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*dacstep, dacStop(dac) + 0.5*dacstep );
+  h11->Sumw2();
 
   int tmin = 255;
   int imin = 0;
@@ -8587,6 +8608,7 @@ CMD_PROC( effmap )
   h11 = new TH1D( Form( "Responses_Vcal%i_CR%i", vcal, vctl ),
                   Form( "Responses at Vcal %i, CtrlReg %i;responses;pixels",
                         vcal, vctl ), nTrig + 1, -0.5, nTrig + 0.5 );
+  h11->Sumw2();
 
   if( h21 )
     delete h21;
@@ -8927,6 +8949,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
                   Form( "Responses at Vcal %i, CtrlReg %i;responses;pixels",
                         dacval[0][Vcal], dacval[0][CtrlReg] ),
                   nTrig + 1, -0.5, nTrig + 0.5 );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
@@ -8935,6 +8958,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
                   Form( "PH at Vcal %i, CtrlReg %i;PH [ADC];pixels",
                         dacval[0][Vcal], dacval[0][CtrlReg] ),
                   256, -0.5, 255.5 );
+  h12->Sumw2();
 
   if( h13 )
     delete h13;
@@ -8977,7 +9001,6 @@ CMD_PROC( modmap ) // pixelAlive for modules
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
-    int32_t nrocs = 8;
     int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
     int32_t kroc = 0;
     cout << "nrocsa " << nrocsa << " nrocsb " << nrocsb << endl;
@@ -9249,6 +9272,7 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
     TH1D( Form( "thr_dist_Vthr%i_Vtrm%i", vthr, vtrm ),
 	  Form( "Threshold distribution Vthr %i Vtrim %i;threshold [small Vcal DAC];pixels", vthr, vtrm ),
 	  255, -0.5, 254.5 ); // 255 = overflow
+  h11->Sumw2();
 
   if( h21 )
     delete h21;
@@ -9472,6 +9496,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     TH1D( "thr_dist",
           "Threshold distribution;threshold [small Vcal DAC];pixels",
           256, -0.5, 255.5 );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
@@ -9479,6 +9504,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     TH1D( "noisedist",
           "Noise distribution;width of threshold curve [small Vcal DAC];pixels",
           51, -0.5, 50.5 );
+  h12->Sumw2();
 
   if( h13 )
     delete h13;
@@ -9767,6 +9793,7 @@ CMD_PROC( vthrcomp5 )
 	  Form
 	  ( "Threshold vs VthrComp pix %i %i target %i;VthrComp [DAC];threshold [small Vcal DAC]",
 	    colmin, rowmin, target ), 200, 0, 200 );
+  h11->Sumw2();
 
   // VthrComp has negative slope: higher = softer
 
@@ -9937,6 +9964,7 @@ CMD_PROC( vthrcomp )
 	  Form
 	  ( "Threshold vs VthrComp pix %i %i target %i;VthrComp [DAC];threshold [small Vcal DAC]",
 	    colmin, rowmin, target ), 200, 0, 200 );
+  h11->Sumw2();
 
   // VthrComp has negative slope: higher = softer
 
@@ -10137,6 +10165,7 @@ CMD_PROC( trim )
             Form
             ( "Threshold vs Vtrim pix %i %i;Vtrim [DAC];threshold [small Vcal DAC]",
               colmax, rowmax ), 128, 0, 256 );
+  h11->Sumw2();
 
 #ifndef DAQOPENCLOSE
     tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
@@ -10202,6 +10231,7 @@ CMD_PROC( trim )
       TH1D( Form( "thr_dist_Vthr%i_Vtrm%i_bits%i", vthr, vtrm, tbits ),
 	    Form( "Threshold distribution Vthr %i Vtrim %i bits %i;threshold [small Vcal DAC];pixels", vthr, vtrm, tbits ),
 	    255, -0.5, 254.5 ); // 255 = overflow
+  h12->Sumw2();
 
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row )
@@ -10840,6 +10870,7 @@ CMD_PROC( phmap ) // check gain tuning and calibration
     TH1D( Form( "ph_dist_Vcal%i_CR%i", vcal, vctl ),
           Form( "PH distribution at Vcal %i, CtrlReg %i;<PH> [ADC];pixels",
                 vcal, vctl ), 256, -0.5, 255.5 );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
@@ -10850,6 +10881,7 @@ CMD_PROC( phmap ) // check gain tuning and calibration
                 :
                 "PH Vcal distribution at Vcal %i, CtrlReg %i;calibrated PH [large Vcal DAC];pixels",
                 vcal, vctl ), 256, 0, 256 );
+  h12->Sumw2();
 
   if( h13 )
     delete h13;
@@ -11008,6 +11040,7 @@ CMD_PROC( calsmap ) // test PH map through sensor
   if( h11 )
     delete h11;
   h11 = new TH1D( "phroc", "PH distribution;<PH> [ADC];pixels", 256, 0, 256 );
+  h11->Sumw2();
 
   int nok = 0;
   double sum = 0;
@@ -11118,6 +11151,7 @@ CMD_PROC( bbtest ) // bump bond test
   h11 = new
     TH1D( "calsPH",
           "Cals PH distribution;Cals PH [ADC];pixels", 256, 0, 256 );
+  h11->Sumw2();
 
   if( h21 )
     delete h21;
@@ -11244,14 +11278,16 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
   if( h11 )
     delete h11;
   h11 = new
-    TH1D( "caldel_act", "CalDel ROC scan;CalDel [DAC];active pixels", 128, -1,
-          255 );
+    TH1D( "caldel_act", "CalDel ROC scan;CalDel [DAC];active pixels",
+	  128, -1, 255 );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
   h12 = new
-    TH1D( "caldel_per", "CalDel ROC scan;CalDel [DAC];perfect pixels", 128,
-          -1, 255 );
+    TH1D( "caldel_per", "CalDel ROC scan;CalDel [DAC];perfect pixels",
+	  128, -1, 255 );
+  h12->Sumw2();
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
@@ -11581,20 +11617,22 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
   if( h11 )
     delete h11;
   h11 = new
-    TProfile( "active_vs_vana", "Vana ROC scan;Vana [DAC];active pixels", 256,
-              -0.5, 255.5, -1, 9999 );
+    TProfile( "active_vs_vana", "Vana ROC scan;Vana [DAC];active pixels",
+	      256, -0.5, 255.5, -1, 9999 );
+  h11->Sumw2();
 
   if( h12 )
     delete h12;
   h12 = new
     TProfile( "perfect_vs_vana", "Vana ROC scan;Vana [DAC];perfect pixels",
               256, -0.5, 255.5, -1, 9999 );
+  h12->Sumw2();
 
   if( h13 )
     delete h13;
   h13 = new
-    TProfile( "perfect_vs_ia", "efficiency vs Ia;IA [mA];perfect pixels", 800,
-              0, 80, -1, 9999 );
+    TProfile( "perfect_vs_ia", "efficiency vs Ia;IA [mA];perfect pixels",
+	      800, 0, 80, -1, 9999 );
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
@@ -11785,6 +11823,7 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
           "mean Vcal PH vs Vcal;Vcal [DAC];calibrated PH [small Vcal DAC]" :
           "mean Vcal PH vs Vcal;Vcal [DAC];calibrated PH [large Vcal DAC]",
           256, -0.5, 255.5 );
+  h11->Sumw2();
 
   if( h14 )
     delete h14;
@@ -12094,6 +12133,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   h11 = new TH1D( "Responses",
 		  "Responses;max responses;pixels",
 		  mTrig + 1, -0.5, mTrig + 0.5 );
+  h11->Sumw2();
 
   dacUpper1 = dacLower1 + (nstp-1)*step; // 255 or 254 (23.8.2014)
 
@@ -12222,6 +12262,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     h12 = new TH1D( "CalsVthrPlateauWidth",
 		    "Width of VthrComp plateau for cals;width of VthrComp plateau for cals [DAC];pixels",
 		    151, -0.5, 150.5 );
+    h12->Sumw2();
 
     if( h24 )
       delete h24;
