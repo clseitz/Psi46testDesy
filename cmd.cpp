@@ -2868,7 +2868,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
       uint32_t hdr = 0;
 
       int32_t iroc = nrocsa * ch - 1; // will start at 8
-      int32_t kroc = enabledrocslist[0];        // will start at 0
+      int32_t kroc = enabledrocslist[0]; // will start at 0
       unsigned int npxev = 0;
 
       for( int ii = 0; ii < size; ++ii ) {
@@ -3029,7 +3029,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   cout << "histos 11, 12, 13, 21, 22" << endl;
 
   cout << endl;
-  for( int iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
+  for( size_t iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
     int roc = enabledrocslist[iroc];
     cout << "ROC " << setw( 2 ) << roc << ", hits " << PX[roc] << endl;
   }
@@ -3749,8 +3749,8 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
   PAR_INT( target, 10, 80 );
 
   int nrocs = 0;
-  for (int iroc=0; iroc<16; iroc++) {
-    if (roclist[iroc]) nrocs++;
+  for( int iroc = 0; iroc < 16; ++iroc ) {
+    if( roclist[iroc] ) ++nrocs;
     val[iroc] = dacval[iroc][Vana];
     tb.roc_I2cAddr(iroc);
     tb.roc_SetDAC(Vana, 0);
@@ -3766,8 +3766,8 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
 
   const double slope = 6;       // 255 DACs / 40 mA
   const double eps = 0.25;
-  for (int iroc = 0; iroc < 16; iroc++ ){
-    if ( !roclist[iroc] ) continue;    
+  for( int iroc = 0; iroc < 16; ++iroc ) {
+    if( !roclist[iroc] ) continue;    
     tb.roc_I2cAddr( iroc );
     tb.roc_SetDAC( Vana, val[iroc] );
     tb.mDelay( 300 );
@@ -3801,7 +3801,7 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
       Log.printf( "[SETDAC] %i  %i\n", Vana, val[iroc] );
       diff = target + 0.1 - ia;
       iaroc[iroc] = ia;
-      iter++;      
+      ++iter;      
       cout << iter << ". " << val[iroc] << "  " << ia << "  " << diff << endl;            
       
     }
@@ -3811,9 +3811,9 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
     cout << "set Vana back to 0 for next ROC (save Vana = " << val[iroc] << " ia " << iaroc[iroc]  <<  ") "<<endl;
 
   }
-  double sumia=0;
-  for (int iroc=0; iroc<16; iroc++){
-    if (!roclist[iroc]) continue;
+  double sumia = 0;
+  for( int iroc = 0; iroc < 16; ++iroc ) {
+    if( !roclist[iroc] ) continue;
     tb.roc_I2cAddr(iroc);
     tb.SetDAC( Vana,  dacval[iroc][Vana]);
     tb.mDelay( 200 );    
@@ -5573,7 +5573,7 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
 
   } // rocs
   cout << endl;
-  for( int iroc = 0; iroc < enabledrocslist.size(); ++iroc ){
+  for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ){
     int roc = enabledrocslist[iroc];
     cout << setw( 2 ) << roc << " CalDel " << setw( 3 ) << dacval[roc][CalDel]
 	 << " plateau height " << mm[roc]
@@ -8428,8 +8428,8 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > &nReadouts,
   vector < uint8_t > trimvalues( 4160 );
   vector < uint8_t > trimvaluesSave( 4160 );
 
-  for(int iroc=0;iroc<16;iroc++){
-    if ( roclist[iroc] ){
+  for( int iroc = 0; iroc < 16; ++iroc ) {
+    if( roclist[iroc] ) {
       for( int col = 0; col < 52; ++col ) {
 	for( int row = 0; row < 80; ++row ) {
 	  int trimSave = modtrm[iroc][col][row];
@@ -8552,11 +8552,9 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > &nReadouts,
   // now restore all trim-bits to original value
   // now mask all pixels and save initial trim values
 
-  for(int iroc=0;iroc<16;iroc++){
-    if ( roclist[iroc] ){
+  for( int iroc = 0; iroc < 16; ++iroc )
+    if( roclist[iroc] )
       tb.SetTrimValues( iroc, trimvaluesSave ); // load into FPGA
-    }
-  }
 
   return 1;
 }
@@ -8657,7 +8655,8 @@ CMD_PROC( effmap )
   h21->Write(  );
   h21->SetStats( 0 );
   h21->SetMinimum( 0 );
-  h21->SetMaximum( int ( nTrig / 20 ) * 20 + 20 );
+  //h21->SetMaximum( int ( nTrig / 20 ) * 20 + 20 );
+  h21->SetMaximum( nTrig );
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
   c1->Update(  );
@@ -8810,7 +8809,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
 
   vector < uint8_t > rocAddress;
 
-  for( int iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
+  for( size_t iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
     int roc = enabledrocslist[iroc];
     if( roclist[roc] == 0 ){
       //should never be true?!
@@ -9127,7 +9126,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
 
   // all off:
 
-  for( int iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
+  for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
     int roc = enabledrocslist[iroc];
     if( roclist[roc] == 0 )
       continue;
@@ -9149,7 +9148,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
   Log.flush(  );
 
   cout << endl;
-  for ( int iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
+  for ( size_t iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
     int roc = enabledrocslist[iroc];
     cout << "ROC " << setw( 2 ) << roc << ", hits " << PX[roc] << endl;
   }
