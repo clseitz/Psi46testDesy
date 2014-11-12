@@ -1,9 +1,9 @@
 
-//  test board and ROC commands
+// test board, ROC, and Module commands
 
-//  Beat Meier, PSI, 31.8.2007 for Chip/Wafer tester
-
-//  Daniel Pitzl, DESY, 18.3.2014
+// Beat Meier, PSI, 31.8.2007 for Chip/Wafer tester
+// Daniel Pitzl, DESY, 18.3.2014
+// Claudia Seitz, DESY, 2014
 
 #include <cstdlib> // abs
 #include <math.h>
@@ -4322,16 +4322,16 @@ CMD_PROC( daci ) // currents vs dac
   h11 = new
     TH1D( Form( "ID_DAC%02i", dac ),
           Form( "Digital current vs %s;%s [DAC];ID [mA]",
-                dacName[dac].c_str(  ), dacName[dac].c_str(  ) ), nstp,
-          dacstrt - 0.5, dacstop + 0.5 );
+                dacName[dac].c_str(  ), dacName[dac].c_str(  ) ),
+	  nstp, dacstrt - 0.5, dacstop + 0.5 );
 
   if( h12 )
     delete h12;
   h12 = new
     TH1D( Form( "IA_DAC%02i", dac ),
           Form( "Analog current vs %s;%s [DAC];IA [mA]",
-                dacName[dac].c_str(  ), dacName[dac].c_str(  ) ), nstp,
-          dacstrt - 0.5, dacstop + 0.5 );
+                dacName[dac].c_str(  ), dacName[dac].c_str(  ) ),
+	  nstp, dacstrt - 0.5, dacstop + 0.5 );
 
   for( int32_t i = dacstrt; i <= dacstop; i += dacstep ) {
 
@@ -5300,7 +5300,8 @@ CMD_PROC( caldel ) // scan and set CalDel using one pixel
   h11 = new
     TH1D( Form( "caldel_%02i_%02i_wbc%03i", col, row, wbc ),
           Form( "CalDel scan col %i row %i WBC %i;CalDel [DAC];responses",
-                col, row, wbc ), nstp, -0.5, nstp - 0.5 );
+                col, row, wbc ),
+	  nstp, -0.5, nstp - 0.5 );
 
   // analyze:
 
@@ -7707,7 +7708,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
     TH1D( Form( "N_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
           Form( "responses vs %s ROC %i col %i row %i;%s [DAC];<PH> [ADC]",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
-          nstp, -0.5, nstp - 0.5 );
+          nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
 
   if( h11 )
     delete h11;
@@ -7715,7 +7716,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
     TH1D( Form( "ph_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
           Form( "PH vs %s ROC %i col %i row %i;%s [DAC];<PH> [ADC]",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
-          nstp, -0.5, nstp - 0.5 );
+          nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
 
   if( h12 )
     delete h12;
@@ -7726,7 +7727,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
                 :
                 "Vcal vs %s ROC %i col %i row %i;%s [DAC];calibrated PH [large Vcal DAC]",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
-          nstp, -0.5, nstp - 0.5 );
+          nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
 
   if( h13 )
     delete h13;
@@ -7734,7 +7735,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
     TH1D( Form( "rms_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
           Form( "RMS vs %s ROC %i col %i row %i;%s [DAC];PH RMS [ADC]",
                 dacName[dac].c_str(  ), row, col, row, dacName[dac].c_str(  ) ),
-          nstp, -0.5, nstp - 0.5 );
+          nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
 
   // tb.CalibrateDacScan runs on the FPGA
   // kinks in PH vs DAC
@@ -7766,18 +7767,20 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
 
   for( int32_t i = 0; i < nstp; ++i ) {
 
+    int idac = dacStrt( dac ) + i * stp;
+
     double ph = PHavg.at( i );
     //cout << setw(4) << ((ph > -0.1 ) ? int(ph+0.5) : -1) << "(" << setw(3) << nReadouts.at(i) << ")";
     Log.printf( " %i", ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 );
     if( ph > -0.5 && ph < phmin )
       phmin = ph;
-    h10->Fill( i, nReadouts.at( i ) );
+    h10->Fill( idac, nReadouts.at( i ) );
     if( nReadouts.at( i ) > 0 ) {
-      h11->Fill( i, ph );
-      h13->Fill( i, PHrms.at( i ) );
+      h11->Fill( idac, ph );
+      h13->Fill( idac, PHrms.at( i ) );
       double vc = PHtoVcal( ph, 0, col, row );
-      h12->Fill( i, vc );
-      //cout << setw(3) << i << "  " << ph << "  " << vc << endl;
+      h12->Fill( idac, vc );
+      //cout << setw(3) << idac << "  " << ph << "  " << vc << endl;
     }
   } // dacs
   cout << endl;
@@ -7820,6 +7823,8 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
   if( !PAR_IS_INT( nTrig, 1, 65500 ) )
     nTrig = 10;
 
+  int stp = 1;
+
   Log.section( "CALSDAC", false );
   Log.printf( " pixel %i %i DAC %i\n", col, row, dac );
 
@@ -7837,7 +7842,7 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
 
   tb.SetDAC( CtrlReg, 4 ); // want large Vcal
 
-  DacScanPix( 0, col, row, dac, 1, -nTrig, nReadouts, PHavg, PHrms ); // negative nTrig = cals
+  DacScanPix( 0, col, row, dac, stp, -nTrig, nReadouts, PHavg, PHrms ); // negative nTrig = cals
 
   tb.SetDAC( CtrlReg, dacval[0][CtrlReg] ); // restore
   tb.Flush(  );
@@ -7850,7 +7855,7 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
     TH1D( Form( "cals_dac%02i_%02i_%02i", dac, col, row ),
           Form( "CALS vs  %s col %i row %i;%s [DAC];<CALS> [ADC]",
                 dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
-          nstp, -0.5, nstp - 0.5 );
+          nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
 
   if( h12 )
     delete h12;
@@ -7858,7 +7863,7 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
     TH1D( Form( "resp_cals_dac%02i_%02i_%02i", dac, col, row ),
           Form( "CALS responses vs  %s col %i row %i;%s [DAC];responses",
                 dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
-          nstp, -0.5, nstp - 0.5 );
+          nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
 
   // print:
 
@@ -7866,14 +7871,16 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
 
   for( int32_t i = 0; i < nstp; ++i ) {
 
+    int idac = dacStrt( dac ) + i * stp;
+
     double ph = PHavg.at( i );
     cout << setw( 4 ) << ( ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 )
 	 <<"(" << setw( 3 ) << nReadouts.at( i ) << ")";
     Log.printf( " %i", ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 );
     if( ph > -0.5 && ph < phmin )
       phmin = ph;
-    h11->Fill( i, ph );
-    h12->Fill( i, nReadouts.at( i ) );
+    h11->Fill( idac, ph );
+    h12->Fill( idac, nReadouts.at( i ) );
 
   } // dacs
   cout << endl;
@@ -7946,9 +7953,13 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
 		dac, roc, col, row, stp ),
           Form( "Responses vs %s ROC %i col %i row %i;%s [DAC] step %i;responses",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ), stp ),
-	  nstp, -0.5, ( nstp - 0.5 ) * stp );
+	  nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
 
   // print and plot:
+
+  int i10 = 0;
+  int i50 = 0;
+  int i90 = 0;
 
   for( int32_t i = 0; i < nstp; ++i ) {
 
@@ -7958,10 +7969,20 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
     Log.printf( "%i %i\n", idac, cnt );
     h11->Fill( idac, cnt );
 
+    if( cnt <= 0.1 * nTrig )
+      i10 = idac; // thr - 1.28155 * sigma
+    if( cnt <= 0.5 * nTrig )
+      i50 = idac; // thr
+    if( cnt <= 0.9 * nTrig )
+      i90 = idac; // thr + 1.28155 * sigma
+
   } // dacs
   cout << endl;
   Log.printf( "\n" );
   Log.flush(  );
+
+  if( dac == Vcal )
+    cout << "  thr " << i50 << ", width " << i90 - i10 << endl;
 
   h11->Write(  );
   h11->SetStats( 0 );
@@ -8025,7 +8046,7 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
           Form
           ( "thr vs %s col %i row %i bits %i;%s [DAC];threshold [small Vcal DAC]",
             dacName[dac].c_str(  ), col, row, trim, dacName[dac].c_str(  ) ),
-          nstp, dacstrt - 0.5, dacstop + 0.5 );
+          nstp, dacStrt(dac)-0.5*dacstep, dacStop(dac) + 0.5*dacstep );
 
 #ifndef DAQOPENCLOSE
   tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
@@ -8148,7 +8169,7 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
           Form
           ( "thr vs %s col %i row %i bits %i;%s [DAC];threshold [small Vcal DAC]",
             dacName[dac].c_str(  ), col, row, trim, dacName[dac].c_str(  ) ),
-          nstp, dacstrt - 0.5, dacstop + 0.5 );
+          nstp, dacStrt(dac)-0.5*dacstep, dacStop(dac) + 0.5*dacstep );
 
   int tmin = 255;
   int imin = 0;
