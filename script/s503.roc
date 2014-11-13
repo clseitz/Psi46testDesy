@@ -52,7 +52,7 @@ mdelay 500
 
 --- set divgV2.1 chip 400 DACs beam test
 
-chip 502
+chip 503
 
 dac   1    9  Vdig  
 dac   2  117  Vana  27 mA
