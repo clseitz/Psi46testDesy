@@ -56,7 +56,7 @@ analog ROCs, DESY bump bonded Sep 2013:
  113  dot1, beam test
 
 --------------------------------------------------------------------------------
-digV2.1 2014
+digV2.1 Feb 2014
  400  gap30-57675
  401  gap30-slit
  402  gap30-57675
@@ -67,3 +67,10 @@ digV2.1 2014
  422  (ETH 202)
  426  (ETH 206, no output)
  431  (ETH 211)
+
+--------------------------------------------------------------------------------
+digV2p1respin Nov 2014
+ 500  gap30-57675, 2 missing bumps
+ 501  gap30-slit, 52 missing bumps
+ 502  gap30-slit,  1 dead pixel
+ 503  gap30-slit, 10 missing bumps
