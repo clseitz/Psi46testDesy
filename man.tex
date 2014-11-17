@@ -542,7 +542,9 @@ that all pixels fit into the ADC range
 \item [\texttt{modtd~period}] take data with trigger rate 40\,MHz
 / \texttt{period} 
 \item [\texttt{wdac DESCRIPTION}] write dac settings for all ROCs into textile
-\item [\texttt{trim DESCRIPTION}] write trim settings for all ROCs into textile
+\item [\texttt{wtrim DESCRIPTION}] write trim settings for all ROCs into textile
+\item [\texttt{rddac DESCRIPTION}] read dac settings for all ROCs into textile
+\item [\texttt{rdtrim DESCRIPTION}] read trim settings for all ROCs into textile
 \end{description}
 
 \subsubsection{Trimming a module}
@@ -554,7 +556,7 @@ Most of the commands don't produced any plots so after some of the steps using t
 \item [\texttt{modcaldel 22 33}] adjust timing based on given pixel
 \item [\texttt{vt}] set global threshold away from noise
 \item [\texttt{modcaldel 22 33}]
-\item [\texttt{modvthrcomp 42}] pull lowest threshold pixel up to 42 (has to be safely away from trim target), Figure \ref{fig:thrmap} on the left
+\item [\texttt{modvthrcomp 42}] pull lowest threshold pixel down to 42 (has to be safely away from trim target), Figure \ref{fig:thrmap} on the left
 \item [\texttt{modcaldel 22 33}]
 \item [\texttt{modtrim 32}] trim module to a threshold of 32 (Figure \ref{fig:thrmap} on the left), if Vtrim is set to one then repeat modvthrcomp 42
 \item [\texttt{ctl 0}]  set dac for lower test pulse
