@@ -4961,7 +4961,7 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
 // utility function: single pixel dac scan
 bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
                  const uint8_t dac, const uint8_t stp, const int16_t nTrig,
-                 vector < int16_t > &nReadouts,
+                vector < int16_t > &nReadouts,
                  vector < double >&PHavg, vector < double >&PHrms )
 {
   bool ldb = 0;
@@ -5616,10 +5616,12 @@ int ThrPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   }
 
   int thr = 0;
-  for( int j = 0; j < nstp; ++j )
+  for( int j = 0; j < nstp; ++j ){
     if( nReadouts.at( j ) <= 0.5 * nmx )
       thr = j; // overwritten until passed
-
+    if( nReadouts.at( j ) > 0.5 * nmx )
+      break; // get out once we have a threshold
+  }
   return thr;
 }
 
@@ -6920,7 +6922,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     uint32_t hdr = 0;
     uint32_t trl = 0;
     int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
-    int32_t kroc = enabledrocslist[0];
+    int32_t kroc = 0;//enabledrocslist[0];
     uint8_t idc = 0;            // 0..255
 
     // nDAC * nTrig * ( TBM header, 8 * ( ROC header, one pixel ), TBM trailer )
@@ -7299,7 +7301,7 @@ CMD_PROC( modvthrcomp )
 
       cout << "VthrComp " << setw( 3 ) << vthr << " thr " << setw( 3 ) << thr
 	   << endl;
-      if( vstp * thr <= vstp * target ) // signed
+      if( vstp * thr <= vstp * target or thr > 240) // signed
         break;
     } // vthr
 
@@ -7665,8 +7667,9 @@ CMD_PROC( modtrim )
       tb.SetTrimValues( roc, trimvalues );
     }
   } // contTrim
-  tb.Flush(  );
-
+  
+ tb.Flush(  );
+ 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
@@ -9025,16 +9028,21 @@ CMD_PROC( modmap ) // pixelAlive for modules
       case 8:
         hdr = ( hdr << 8 ) + d;
 	//DecodeTbmHeader(hdr);
-	if( ldb )
-          cout << "event " << setw( 6 ) << event << endl;
+	if ( ldb )
+	  cout << "TBM header" << endl;
         iroc = nrocsa * tbmch-1; // new event, will start at 0 or 8
 	countLoop++;
+	if( ldb )
+          cout << "event " << setw( 6 ) << event << " countloop " << countLoop << endl;
+
         break;
 
 	// ROC header data:
       case 4:
 	iroc++;
         kroc = enabledrocslist[iroc];
+	if ( ldb )
+	  cout << "ROC header" << endl;
         if( ldb ) {
           if( kroc >= 0 )
           cout << "ROC " << setw( 2 ) << kroc << " iroc " << iroc << endl;
@@ -9108,6 +9116,8 @@ CMD_PROC( modmap ) // pixelAlive for modules
           cout << endl;
         if( tbmch == 0 )
           event++;
+	if ( ldb )
+	  cout << "TBM trailer" << endl;
         break;
 
       default:

@@ -17,10 +17,10 @@ ctr  4  (CLK +  0)
 sda 19  (CLK + 15)
 tin  9  (CLK +  5)
 
-clklvl 10
-ctrlvl 10
-sdalvl 10
-tinlvl 10
+clklvl 15  #ETH 1.1 needs 10, ETH 1.2 needs 15
+ctrlvl 15
+sdalvl 15
+tinlvl 15
 
 --- power on --------------------------------
 pon
