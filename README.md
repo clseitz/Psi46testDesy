@@ -164,6 +164,6 @@ man.tex (pdflatex, created by LYX)
 Code style:
 -----------
 
-use indent command: indent *.cpp and indent *.h
-uses .indent.pro
+use indent command: indent *.cpp and indent *.h  
+uses .indent.pro  
 see indent.cpp
