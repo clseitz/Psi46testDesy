@@ -70,7 +70,7 @@ digV2.1 Feb 2014
 
 --------------------------------------------------------------------------------
 digV2p1respin Nov 2014
- 500  gap30-57675, 2 missing bumps
- 501  gap30-slit, 52 missing bumps
+ 500  gap30-57675, 2 missing bumps, Uni 
+ 501  gap30-slit, 52 missing bumps, Uni
  502  gap30-slit,  1 dead pixel
- 503  gap30-slit, 10 missing bumps
+ 503  gap30-slit, 10 missing bumps, Fabio Torino
