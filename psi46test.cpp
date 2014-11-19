@@ -33,14 +33,15 @@ CSettings settings;             // global settings
 CProtocol Log;
 
 char filename[512];             // log file
+char rootfilename[512];             // log file
 
 //------------------------------------------------------------------------------
 void help(  )
 {
-  printf( "usage: psi46test a.log\n" );
+  printf( "usage: psi46test a.log a.root\n" );
 }
 
-#ifdef ROOT
+#ifdef withROOT
 //------------------------------------------------------------------------------
 MyMainFrame::MyMainFrame( const TGWindow * p, UInt_t w, UInt_t h )
 :TGMainFrame( p, w, h )
@@ -108,11 +109,16 @@ int main( int argc, char *argv[] )
 {
   printf( VERSIONINFO "\n" );
 
-  if( argc != 2 ) {
+  if( argc < 2 ) {
     help(  );
     return 1;
   }
   strncpy( filename, argv[1], sizeof( filename ) );
+  if (argc == 3)
+    strncpy( rootfilename, argv[2], sizeof( rootfilename ) );
+  else
+    strncpy( rootfilename, "Test.root", 9);
+    
 
  // load settings:
 
@@ -210,8 +216,8 @@ int main( int argc, char *argv[] )
 
     Log.flush(  );
 
-#ifdef ROOT
-    TFile *histoFile = new TFile( "Test.root", "RECREATE" );
+#ifdef withROOT
+    TFile *histoFile = new TFile( rootfilename, "RECREATE" );
 
     cout << "ROOT application..." << endl;
 

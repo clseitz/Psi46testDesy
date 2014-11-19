@@ -51,8 +51,14 @@
 #define	Vcal        25
 #define	CalDel      26
 
-#define VD          31 // DP: supply voltage
-#define VA          32
+// DP: DTB supply voltages
+
+#define VDx         31
+
+/// ROOT 6 include/TInterpreter.h uses VD:
+//    virtual TEnum*   CreateEnum(void *VD, TClass *cl) const = 0;
+
+#define VAx         32
 
 #define	CtrlReg    253
 #define	WBC        254

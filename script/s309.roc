@@ -24,13 +24,13 @@ tinlvl 10
 --- pattern generator: set redout timing --------------------
 pgstop
 pgset 0 b101000  25  pg_resr pg_sync
-pgset 1 b000100 105  pg_cal, set WBC = pg_cal - 5
+pgset 1 b000100 105  pg_cal, set WBC = pg_cal - 6
 pgset 2 b000010  16  pg_trg  shorter is better (caldelroc FW 2.11)
 pgset 3 b000001   0  pg_tok, end of pgset
 
 trigdel 200  # delay in trigger loop [BC], 200 = 5 us
 
-select 0	  [set roclist, I2C]
+select 1	  [set roclist, I2C]
 rocaddr 0	  [set ROC]
 
 dopen 40100100 [daq_open]

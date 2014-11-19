@@ -17,10 +17,10 @@ ctr  4  (CLK +  0)
 sda 19  (CLK + 15)
 tin  9  (CLK +  5)
 
-clklvl 15  #ETH 1.1 needs 10, ETH 1.2 needs 15
-ctrlvl 15
-sdalvl 15
-tinlvl 15
+clklvl 10  # 15 needed for ETH adapter 1.2 from 2014
+ctrlvl 10
+sdalvl 10
+tinlvl 10
 
 --- power on --------------------------------
 pon
@@ -30,64 +30,63 @@ mdelay 400
 resoff
 mdelay 200
 
---- setup TBM08: 2 cores at E and F
+--- setup TBM08b: 2 cores at E and F
 
-modsel b11111  # Module address 31
+modsel b01111  # FPix Module address 15
 
 tbmset $E4 $F0    Init TBM, Reset ROC
 tbmset $F4 $F0
 
-tbmset $E0 $01    Disable PKAM Counter
-tbmset $F0 $01
+tbmset $E0 $00    Disable PKAM Counter  81 ETH
+tbmset $F0 $00                          81
 
 tbmset $E2 $C0    Mode = Calibration
 tbmset $F2 $C0
 
-tbmset $E8 $10    Set PKAM Counter
-tbmset $F8 $10
+tbmset $E8 $02    Set PKAM Counter   10
+tbmset $F8 $02                       10
 
-tbmset $EA b00000000 Delays
-tbmset $FA b00000000
+tbmset $EA b00000000 Delays         E4
+tbmset $FA b00000000                E4
 
-tbmset $EC $00    Temp measurement control
-tbmset $FC $00
+tbmset $EE $00    phase 400 and 160 MHz, once  20
+tbmset $FE $00    Temperature                     00
+
 
 mdelay 100
 
--- digV2 ROCs: DCF problem
+--select 0:15  # all ROCs active
+--select b1111111111111111 #turn on all
+--select b0000000000000001 #turn off all exepct 1
+select b1110101111111101 # turn of ROC 1, 10, 12
 
-select b1111111111111111  # all ROCs on
-
-chip 350  # must be after select
+chip 450  # digV2p1, must be after select
 
 dac   1    8  Vdig 
-dac   2  140  Vana
-dac   3  130  Vsf
+dac   2   85  Vana
+dac   3   33  Vsf
 dac   4   12  Vcomp
 
-dac   7   10  VwllPr
-dac   9   10  VwllPr
+dac   7  160  VwllPr
+dac   9  160  VwllPr
 dac  10  252  VhldDel
 
 dac  11    1  Vtrim
-dac  12   40  VthrComp 60 for X-rays, 40 for Lab
+dac  12   90  VthrComp
 
 dac  13    1  VIBias_Bus
-dac  14   14  Vbias_sf
 dac  22   20  VIColOr
 
-dac  15   60  VoffsetOp
-dac  17  150  VoffsetRO
-dac  18   45  VIon
+dac  17  150  PHOffset
 
 dac  19   30  Vcomp_ADC
-dac  20   70  VIref_ADC
+dac  20  111  PHScale
 
 dac  25  222  Vcal
-dac  26  102  CalDel
+dac  26  111  CalDel
 
 dac  253   4  CtrlReg
-dac  254  60  WBC    // tct - 6
+dac  254  50  WBC    // tct - 7 for digV2p1
 dac  255  12  RBreg
 
 flush
@@ -102,8 +101,8 @@ getia
 
 # d1 1 (40 MHz clk on D1)
 # d1 4 (token on D1, see pixel_dtb.h)
-  d1 5 (trigg on D1, see pixel_dtb.h)
-  d2 6 (cal   on D2, see pixel_dtb.h)
+  d2 5 (trigg on D1, see pixel_dtb.h)
+  d1 6 (cal   on D2, see pixel_dtb.h)
 # d1 7 (reset on D1, see pixel_dtb.h)
 # d1 9 (sync  on D1, see pixel_dtb.h)
 
@@ -115,14 +114,14 @@ a1 1  sdata # 400 MHz
 - pixel_dtb.h:	#define PG_REST  0x1000 // TBM reset
 
 pgstop
-#pgset 0 b010000   8  pg_rest  (reset TBM) # reset erases delay registers
-pgset 0 b011000  16  pg_rest pg_resr  (reset TBM and ROCs) # erases delays
-pgset 1 b000100  66  pg_cal (WBC + 6 for digV2)
+pgset 0 b010000  16  pg_rest  (reset TBM) # reset erases delay registers
+#pgset 0 b011000  16  pg_rest pg_resr  (reset TBM and ROCs) # erases delays
+pgset 1 b000100   57  pg_cal (WBC + 7 for digV2.1)
 pgset 2 b100010   0  pg_trg pg_sync. (delay zero = end of pgset)
 
-trigdel 250  # delay in trigger loop [BC], needed for large WBC
+trigdel 400  # delay in trigger loop [BC], needed for large WBC
 
-pgsingle
+#pgsingle
 
 dopen  30500100  0  [daq_open]
 dopen  30500100  1  [daq_open]

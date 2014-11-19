@@ -13,11 +13,10 @@ id  100 mA
 ia  100 mA
 
 - timing & levels:
-clk  2
-ctr  2  (CLK +  0)
-sda 17  (CLK + 15)
-tin  7  (CLK +  5)
-
+clk  3
+ctr  3  (CLK +  0)
+sda 18  (CLK + 15)
+tin  8  (CLK +  5)
 
 clklvl 10
 ctrlvl 10
@@ -40,7 +39,7 @@ trigdel 200  # delay in trigger loop [BC], 160 = 4 us
 # d1 7 (reset on D1, see pixel_dtb.h)
 # d1 9 (sync  on D1, see pixel_dtb.h)
 
-select 0	  [set roclist, I2C]
+select 1	  [set roclist, I2C]
 rocaddr 0	  [set ROC]
 
 dopen 10100100 0 [daq_open]

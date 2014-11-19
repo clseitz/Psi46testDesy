@@ -49,7 +49,7 @@ bool CTestboard::FindDTB( string & usbId )
   catch( int e ) {
     switch ( e ) {
     case 1:
-      printf( "Cannot access the USB driver\n" );
+      printf( "pixel_dtb cannot access the USB driver\n" );
       return false;
     default:
       return false;
@@ -134,7 +134,7 @@ void CTestboard::mDelay( uint16_t ms )
 // DP: set DAC with corrected DAC table
 void CTestboard::SetDAC( uint8_t reg, uint16_t value )
 {
-  if( reg == VD ) {
+  if( reg == VDx ) {
     if( value < 3000 )
       _SetVD( value );
     else
@@ -142,7 +142,7 @@ void CTestboard::SetDAC( uint8_t reg, uint16_t value )
     return;
   }
 
-  if( reg == VA ) {
+  if( reg == VAx ) {
     if( value < 3000 )
       _SetVA( value );
     else
