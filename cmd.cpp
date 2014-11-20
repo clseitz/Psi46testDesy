@@ -3688,20 +3688,25 @@ CMD_PROC( wbc )
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
+bool setia( int target )
 {
-  if( ierror ) return false;
-
-  int target;
-  PAR_INT( target, 10, 80 );
-
   Log.section( "OPTIA", false );
   Log.printf( " Ia %i mA\n", target );
+  cout << endl;
+  cout << "  [OPTIA] target " << target << " mA" << endl;
 
   int val = dacval[0][Vana];
+
+  if( val < 1 || val > 254 ) {
+    val = 111;
+    tb.SetDAC( Vana, val );
+    dacval[0][Vana] = val;
+    tb.mDelay( 200 );
+  }
+
   double ia = tb.GetIA(  ) * 1E3; // [mA]
 
-  const double slope = 6;       // 255 DACs / 40 mA
+  const double slope = 6; // 255 DACs / 40 mA
   //const double eps = 0.2; // convergence, for ATB
   const double eps = 0.4; // convergence, for DTB
 
@@ -3710,7 +3715,7 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
   double diff = ia - tia;
 
   int iter = 0;
-  cout << iter << ". " << val << "  " << ia << "  " << diff << endl;
+  cout << "  " << iter << ". " << val << "  " << ia << "  " << diff << endl;
 
   while( fabs( diff ) > eps && iter < 11 && val > 0 && val < 255 ) {
 
@@ -3719,23 +3724,41 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
       stp = 1;
     if( diff > 0 )
       stp = -stp;
+
     val += stp;
     if( val < 0 )
       val = 0;
     else if( val > 255 )
       val = 255;
+
     tb.SetDAC( Vana, val );
-    tb.mDelay( 200 );
-    ia = tb.GetIA(  ) * 1E3; // contains flush
     dacval[0][Vana] = val;
     Log.printf( "[SETDAC] %i  %i\n", Vana, val );
+    tb.mDelay( 200 );
+    ia = tb.GetIA(  ) * 1E3; // contains flush
     diff = ia - tia;
     iter++;
-    cout << iter << ". " << val << "  " << ia << "  " << diff << endl;
+    cout << "  " << iter << ". " << val << "  " << ia << "  " << diff << endl;
   }
   Log.flush(  );
-  cout << "set Vana to " << val << endl;
-  return true;
+  cout << "  set Vana to " << val << endl;
+
+  if( fabs( diff ) < eps && iter < 11 && val > 0 && val < 255 )
+    return true;
+  else
+    return false;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
+{
+  if( ierror ) return false;
+
+  int target;
+  PAR_INT( target, 5, 50 );
+
+  return setia( target );
+
 }
 
 //------------------------------------------------------------------------------
@@ -5279,20 +5302,16 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( caldel ) // scan and set CalDel using one pixel
+bool setcaldel( int col, int row, int nTrig )
 {
-  if( ierror ) return false;
-
-  int col, row;
-  PAR_INT( col, 0, 51 );
-  PAR_INT( row, 0, 79 );
-
-  int nTrig;
-  if( !PAR_IS_INT( nTrig, 1, 65500 ) )
-    nTrig = 100;
-
   Log.section( "CALDEL", false );
   Log.printf( " pixel %i %i\n", col, row );
+  cout << endl;
+  cout << "  [CalDel] for pixel " << col << " " << row << endl;
+  cout << "  CalDel   " << dacval[0][CalDel] << endl;
+  cout << "  VthrComp " << dacval[0][VthrComp] << endl;
+  cout << "  CtrlReg  " << dacval[0][CtrlReg] << endl;
+  cout << "  Vcal     " << dacval[0][Vcal] << endl;
 
   uint8_t dac = CalDel;
   int val = dacval[0][CalDel];
@@ -5306,7 +5325,7 @@ CMD_PROC( caldel ) // scan and set CalDel using one pixel
   DacScanPix( 0, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
   int nstp = nReadouts.size(  );
-  cout << "DAC steps " << nstp << endl;
+  cout << "  DAC steps " << nstp << ":" << endl;
 
   int wbc = dacval[0][WBC];
 
@@ -5317,7 +5336,6 @@ CMD_PROC( caldel ) // scan and set CalDel using one pixel
           Form( "CalDel scan col %i row %i WBC %i;CalDel [DAC];responses",
                 col, row, wbc ),
 	  nstp, -0.5, nstp - 0.5 );
-  h11->Sumw2();
 
   // analyze:
 
@@ -5340,28 +5358,49 @@ CMD_PROC( caldel ) // scan and set CalDel using one pixel
 
   } // caldel
   cout << endl;
-  cout << "eff plateau from " << i0 << " to " << i9 << endl;
+  cout << "  eff plateau from " << i0 << " to " << i9 << endl;
 
   h11->Write(  );
   h11->SetStats( 0 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11" << endl;
+  cout << "  histos 11" << endl;
 
+  bool ok = 1;
   if( i9 > 0 ) {
     int i2 = i0 + ( i9 - i0 ) / 4;
     tb.SetDAC( CalDel, i2 );
     dacval[0][CalDel] = i2;
-    printf( "set CalDel to %i\n", i2 );
+    printf( "  set CalDel to %i\n", i2 );
     Log.printf( "[SETDAC] %i  %i\n", CalDel, i2 );
   }
-  else
+  else {
     tb.SetDAC( CalDel, val ); // back to default
+    cout << "  leave CalDel at " << val << endl;
+    ok = 0;
+  }
   tb.Flush(  );
 
   Log.flush(  );
 
-  return true;
+  return ok;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC( caldel ) // scan and set CalDel using one pixel
+{
+  if( ierror ) return false;
+
+  int col, row;
+  PAR_INT( col, 0, 51 );
+  PAR_INT( row, 0, 79 );
+
+  int nTrig;
+  if( !PAR_IS_INT( nTrig, 1, 65500 ) )
+    nTrig = 100;
+
+  return setcaldel( col, row, nTrig );
+
 }
 
 //------------------------------------------------------------------------------
@@ -7930,30 +7969,21 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
 } // calsdac
 
 //------------------------------------------------------------------------------
-CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
+int effvsdac( int col, int row, int dac, int stp, int nTrig, int roc )
 {
-  int col, row, dac;
-  PAR_INT( col, 0, 51 );
-  PAR_INT( row, 0, 79 );
-  PAR_INT( dac, 1, 32 ); // only DACs, not registers
-  int stp;
-  if( !PAR_IS_INT( stp, 1, 255 ) )
-    stp = 1;
-  int nTrig;
-  if( !PAR_IS_INT( nTrig, 1, 65500 ) )
-    nTrig = 100;
-  int roc = 0;
-  if( !PAR_IS_INT( roc, 0, 15 ) )
-    roc = 0;
-
-  if( dacval[roc][dac] == -1 ) {
-    cout << "DAC " << dac << " not active" << endl;
-    return false;
-  }
-
   Log.section( "EFFDAC", false );
   Log.printf( " ROC %i pixel %i %i DAC %i step %i ntrig %i \n",
 	      roc, col, row, dac, stp, nTrig );
+  cout << endl;
+  cout << "  [EFFDAC] pixel " << col << " " << row
+       << " vs DAC " << dac << " step " << stp
+       << ", nTrig " << nTrig
+       << " for ROC " << roc
+       << endl;
+  cout << "  CalDel   " << dacval[0][CalDel] << endl;
+  cout << "  VthrComp " << dacval[0][VthrComp] << endl;
+  cout << "  CtrlReg  " << dacval[0][CtrlReg] << endl;
+  cout << "  Vcal     " << dacval[0][Vcal] << endl;
 
   timeval tv;
   gettimeofday( &tv, NULL );
@@ -7979,7 +8009,6 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
           Form( "Responses vs %s ROC %i col %i row %i;%s [DAC] step %i;responses",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ), stp ),
 	  nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
-  h11->Sumw2();
 
   // print and plot:
 
@@ -8014,12 +8043,41 @@ CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
   h11->SetStats( 0 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11" << endl;
+  cout << "  histos 11" << endl;
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return i50;
+
+} // effvsdac
+
+//------------------------------------------------------------------------------
+CMD_PROC( effdac ) // effdac col row dac [stp] [nTrig] [roc] (efficiency vs dac)
+{
+  int col, row, dac;
+  PAR_INT( col, 0, 51 );
+  PAR_INT( row, 0, 79 );
+  PAR_INT( dac, 1, 32 ); // only DACs, not registers
+  int stp;
+  if( !PAR_IS_INT( stp, 1, 255 ) )
+    stp = 1;
+  if( dac > 30 && stp < 10 ) stp = 10; // VD, VA [mV]
+  int nTrig;
+  if( !PAR_IS_INT( nTrig, 1, 65500 ) )
+    nTrig = 100;
+  int roc = 0;
+  if( !PAR_IS_INT( roc, 0, 15 ) )
+    roc = 0;
+
+  if( dacval[roc][dac] == -1 ) {
+    cout << "DAC " << dac << " not active" << endl;
+    return false;
+  }
+
+  effvsdac( col, row, dac, stp, nTrig, roc );
 
   return true;
 
@@ -8563,21 +8621,17 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > &nReadouts,
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( effmap )
+bool geteffmap( int nTrig )
 {
-  if( ierror ) return false;
-
-  int nTrig;                    // DAQ size 1'248'000 at nTrig = 100 if fully efficient
-  PAR_INT( nTrig, 1, 65000 );
-
   const int vctl = dacval[0][CtrlReg];
   const int vcal = dacval[0][Vcal];
 
   Log.section( "EFFMAP", false );
   Log.printf( " nTrig %i Vcal %i CtrlReg %i\n", nTrig, vcal, vctl );
-  cout << "effmap with " << nTrig << " triggers"
+  cout << endl;
+  cout << "  [EFFMAP] with " << nTrig << " triggers"
        << " at Vcal " << vcal << ", CtrlReg " << vctl << endl;
-
+  
   timeval tv;
   gettimeofday( &tv, NULL );
   long s0 = tv.tv_sec;          // seconds since 1.1.1970
@@ -8591,8 +8645,6 @@ CMD_PROC( effmap )
   nReadouts.reserve( 4160 ); // size 0, capacity 4160
   PHavg.reserve( 4160 );
   PHrms.reserve( 4160 );
-
-  cout << "waiting for FPGA..." << endl;
 
   GetRocData( nTrig, nReadouts, PHavg, PHrms );
 
@@ -8609,7 +8661,6 @@ CMD_PROC( effmap )
   h11 = new TH1D( Form( "Responses_Vcal%i_CR%i", vcal, vctl ),
                   Form( "Responses at Vcal %i, CtrlReg %i;responses;pixels",
                         vcal, vctl ), nTrig + 1, -0.5, nTrig + 0.5 );
-  h11->Sumw2();
 
   if( h21 )
     delete h21;
@@ -8658,12 +8709,11 @@ CMD_PROC( effmap )
   h21->Write(  );
   h21->SetStats( 0 );
   h21->SetMinimum( 0 );
-  //h21->SetMaximum( int ( nTrig / 20 ) * 20 + 20 );
   h21->SetMaximum( nTrig );
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 11, 21" << endl;
+  cout << "  histos 11, 21" << endl;
 
   cout << endl;
   cout << " >0% pixels: " << nok << endl;
@@ -8675,9 +8725,22 @@ CMD_PROC( effmap )
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC( effmap ) // single ROC response map ('PixelAlive')
+{
+  if( ierror ) return false;
+
+  int nTrig;                    // DAQ size 1'248'000 at nTrig = 100 if fully efficient
+  PAR_INT( nTrig, 1, 65000 );
+
+  geteffmap( nTrig );
+
+  return 1;
 }
 
 //------------------------------------------------------------------------------
@@ -10463,15 +10526,8 @@ CMD_PROC( trimbits )
 } // trimbits
 
 //------------------------------------------------------------------------------
-CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
+bool tunePH( int col, int row, int roc )
 {
-  if( ierror ) return false;
-
-  int roc = 0;
-  int col, row;
-  PAR_INT( col, 0, 51 );
-  PAR_INT( row, 0, 79 );
-
   timeval tv;
   gettimeofday( &tv, NULL );
   long s0 = tv.tv_sec;          // seconds since 1.1.1970
@@ -10838,6 +10894,21 @@ CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
   return true;
 
 } // tune
+
+//------------------------------------------------------------------------------
+CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
+{
+  if( ierror ) return false;
+
+  int roc = 0;
+  int col, row;
+  PAR_INT( col, 0, 51 );
+  PAR_INT( row, 0, 79 );
+
+  tunePH( col, row, roc );
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 CMD_PROC( phmap ) // check gain tuning and calibration
@@ -11951,34 +12022,8 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
 } // gaindac
 
 //------------------------------------------------------------------------------
-CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
-// dacscanroc dac [[-]ntrig] [step] [stop]
-// PH vs Vcal (dac 25) = gain calibration
-// N  vs Vcal (dac 25) = Scurves
-// cals N  vs VthrComp (dac 12) = bump bond test (give negative ntrig)
+bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 {
-  if( ierror ) return false;
-
-  int dac;
-  PAR_INT( dac, 1, 32 ); // only DACs, not registers
-
-  if( dacval[0][dac] == -1 ) {
-    cout << "DAC " << dac << " not active" << endl;
-    return false;
-  }
-
-  int nTrig;
-  if( !PAR_IS_INT( nTrig, -65000, 65000 ) )
-    nTrig = 10;
-
-  int step;
-  if( !PAR_IS_INT( step, 1, 8 ) )
-    step = 1;
-
-  int stop;
-  if( !PAR_IS_INT( stop, 1, 255 ) )
-    stop = dacStop( dac );
-
   cout << "scan dac " << dacName[dac]
        << " step " << step
        << " at CtrlReg " << dacval[0][CtrlReg]
@@ -12070,7 +12115,6 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
       return 0;
     }
 
-    cout << "waiting for FPGA..." << endl;
     int dSize = tb.Daq_GetSize(  );
     cout << "DAQ size " << dSize << " words" << endl;
 
@@ -12142,7 +12186,6 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   h11 = new TH1D( "Responses",
 		  "Responses;max responses;pixels",
 		  mTrig + 1, -0.5, mTrig + 0.5 );
-  h11->Sumw2();
 
   dacUpper1 = dacLower1 + (nstp-1)*step; // 255 or 254 (23.8.2014)
 
@@ -12271,7 +12314,6 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     h12 = new TH1D( "CalsVthrPlateauWidth",
 		    "Width of VthrComp plateau for cals;width of VthrComp plateau for cals [DAC];pixels",
 		    151, -0.5, 150.5 );
-    h12->Sumw2();
 
     if( h24 )
       delete h24;
@@ -12395,7 +12437,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     h25->SetMaximum(2);
     h25->Draw( "colz" );
     c1->Update(  );
-    cout << "histos 11, 12, 21, 22, 23, 24, 25" << endl;
+    cout << "  histos 11, 12, 21, 22, 23, 24, 25" << endl;
 
   } // BB test
 
@@ -12403,7 +12445,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
     h21->SetStats( 0 );
     h21->Draw( "colz" );
     c1->Update(  );
-    cout << "histos 11, 21, 22, 23" << endl;
+    cout << "  histos 11, 21, 22, 23" << endl;
   }
 
   Log.flush(  );
@@ -12411,40 +12453,49 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
 } // dacscanroc
 
 //------------------------------------------------------------------------------
-CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
-// dacdac 22 33 26 12 0 = N vs CalDel and VthrComp = tornado
-// dacdac 22 33 26 25 0 = N vs CalDel and Vcal = timewalk
-// dacdac 22 33 26 12 = cals N vs CalDel and VthrComp = tornado, set VthrComp
+CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
+// dacscanroc dac [[-]ntrig] [step] [stop]
+// PH vs Vcal (dac 25) = gain calibration
+// N  vs Vcal (dac 25) = Scurves
+// cals N  vs VthrComp (dac 12) = bump bond test (give negative ntrig)
 {
   if( ierror ) return false;
 
-  int col, row;
-  PAR_INT( col, 0, 51 );
-  PAR_INT( row, 0, 79 );
-  int dac1;
-  PAR_INT( dac1, 1, 32 ); // only DACs, not registers
-  int dac2;
-  PAR_INT( dac2, 1, 32 ); // only DACs, not registers
-  int cals;
-  if( !PAR_IS_INT( cals, 0, 1 ) )
-    cals = 1;
+  int dac;
+  PAR_INT( dac, 1, 32 ); // only DACs, not registers
 
-  if( dacval[0][dac1] == -1 ) {
-    cout << "DAC " << dac1 << " not active" << endl;
-    return false;
-  }
-  if( dacval[0][dac2] == -1 ) {
-    cout << "DAC " << dac2 << " not active" << endl;
+  if( dacval[0][dac] == -1 ) {
+    cout << "DAC " << dac << " not active" << endl;
     return false;
   }
 
+  int nTrig;
+  if( !PAR_IS_INT( nTrig, -65000, 65000 ) )
+    nTrig = 10;
+
+  int step;
+  if( !PAR_IS_INT( step, 1, 8 ) )
+    step = 1;
+
+  int stop;
+  if( !PAR_IS_INT( stop, 1, 255 ) )
+    stop = dacStop( dac );
+
+  dacscanroc( dac, nTrig, step, stop );
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
+{
   Log.section( "DACDAC", false );
   Log.printf( " pixel %i %i DAC %i vs %i\n", col, row, dac1, dac2 );
 
@@ -12683,7 +12734,7 @@ CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
   h23->SetStats( 0 );
   h23->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 21, 22, 23" << endl;
+  cout << "  histos 21, 22, 23" << endl;
 
   if( cals && dac1 == 26 && dac2 == 12 ) { // Tornado plot: VthrComp vs CalDel
 
@@ -12746,11 +12797,44 @@ CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
 } // dacdac
+
+//------------------------------------------------------------------------------
+CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan: 
+// dacdac 22 33 26 12 0 = N vs CalDel and VthrComp = tornado
+// dacdac 22 33 26 25 0 = N vs CalDel and Vcal = timewalk
+// dacdac 22 33 26 12 = cals N vs CalDel and VthrComp = tornado, set VthrComp
+{
+  if( ierror ) return false;
+
+  int col, row;
+  PAR_INT( col, 0, 51 );
+  PAR_INT( row, 0, 79 );
+  int dac1;
+  PAR_INT( dac1, 1, 32 ); // only DACs, not registers
+  int dac2;
+  PAR_INT( dac2, 1, 32 ); // only DACs, not registers
+  int cals;
+  if( !PAR_IS_INT( cals, 0, 1 ) )
+    cals = 1;
+
+  if( dacval[0][dac1] == -1 ) {
+    cout << "DAC " << dac1 << " not active" << endl;
+    return false;
+  }
+  if( dacval[0][dac2] == -1 ) {
+    cout << "DAC " << dac2 << " not active" << endl;
+    return false;
+  }
+
+  dacdac( col, row, dac1, dac2, cals );
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 /* read back reg 255:
@@ -12851,6 +12935,97 @@ CMD_PROC( readback )
   return true;
 
 } // readback
+
+//------------------------------------------------------------------------------
+CMD_PROC( bare ) // bare module test
+{
+  int roc = 0;
+
+  int target = 30; // [IA [mA]
+  if( !setia( target ) ) return 0;
+
+  int ctl = dacval[roc][CtrlReg];
+
+  // caldel at large Vcal:
+
+  tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  dacval[roc][CtrlReg] = 4;
+
+  int nTrig = 100;
+  bool ok = 0;
+  unsigned int col = 26;
+  unsigned int row = 40;
+  unsigned int ntry = 0;
+  while( !ok && ntry < 20 ) {
+    ok = setcaldel( col, row, nTrig );
+    col = ( ++col % 50 ) + 1; // 28, 30, 32..50, 2, 4, 
+    row = ( ++row % 78 ) + 1; // 42, 44, 46..78, 2, 4, 
+    ++ntry;
+  }
+  if( !ok ) return 0;
+
+  // response map at large Vcal:
+
+  geteffmap( nTrig );
+
+  // threshold at small Vcal:
+
+  tb.SetDAC( CtrlReg, 0 ); // small Vcal
+  dacval[roc][CtrlReg] = 0;
+  int stp = 1;
+  int dac = Vcal;
+  ntry = 0;
+  int vthr = dacval[roc][VthrComp];
+  int thr = effvsdac( col, row, dac, stp, nTrig, roc );
+  target = 50;
+
+  while( abs(thr-target) > 5 && ntry < 11 && vthr > 5 && vthr < 250 ) {
+
+    if( thr > target )
+      vthr += 5;
+    else
+      vthr -= 5;
+
+    tb.roc_SetDAC( VthrComp, vthr );
+
+    dacval[roc][VthrComp] = vthr;
+
+    ok = setcaldel( col, row, nTrig ); // update CalDel
+
+    thr = effvsdac( col, row, dac, stp, nTrig, roc );
+
+    ++ntry;
+
+  } // vthr
+
+  tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  dacval[roc][CtrlReg] = 4;
+
+  tunePH( col, row, roc ); // opt PHoffset, PHscale into ADC range
+
+  // S-curves, noise, gain, cal:
+
+  tb.SetDAC( CtrlReg, 0 ); // small Vcal
+  dacval[roc][CtrlReg] = 0;
+  dacscanroc( 25, 25, 1, 127 ); // dac nTrig step stop
+
+  // cals:
+
+  tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  dacval[roc][CtrlReg] = 4;
+
+  dacdac( col, row, 26, 12 ); // sets CalDel and VthrComp for cals
+
+  dacscanroc( 25, -25, 2, 255 ); // for bump height
+
+  dacscanroc( 12, -10, 1, 255 ); // cals, scan VthrComp, bump bond test
+
+  tb.SetDAC( CtrlReg, ctl ); // restore
+  dacval[roc][CtrlReg] = ctl;
+  tb.Flush(  );
+
+  return ok;
+}
 
 //------------------------------------------------------------------------------
 void cmdHelp(  )
@@ -13059,6 +13234,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( effmap,    "effmap nTrig                  pixel alive map" );
   CMD_REG( effmask,   "effmask nTrig                 pixel alive map - all pixels are masked-" );
   CMD_REG( bbtest,    "bbtest nTrig                  CALS map = bump bond test" );
+  CMD_REG( bare,      "bare                          bare module ROC test" );
 
   cmdHelp(  );
 
