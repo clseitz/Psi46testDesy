@@ -15,6 +15,8 @@
 #include <sstream> // stringstream
 #include <utility>
 
+#include "TROOT.h" //  
+#include "TFile.h" //
 #include "TCanvas.h"
 #include <TStyle.h>
 #include <TH1D.h>
@@ -3896,11 +3898,16 @@ CMD_PROC( show1 ) // print one DAC for all ROCs
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( wdac ) // write DACs to file
+
+bool writedac()
 {
-  char cdesc[80];
-  PAR_STRING( cdesc, 80 );
-  string desc = cdesc;
+  string globalName = gROOT->GetFile()->GetName(); 
+  int sizeName = globalName.size();
+  string prefixName = globalName.substr(0,sizeName-5);
+    
+  cout << " Prefix to be used: " << prefixName.c_str() << endl;
+
+  string desc = prefixName;
 
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
@@ -3910,12 +3917,12 @@ CMD_PROC( wdac ) // write DACs to file
   ostringstream fname;          // output string stream
 
   if( nrocs == 1 )
-    fname << "dacParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
+    fname << "dacParam_c" << Chip << "_" << desc.c_str(  ) << ".dat";
   else
-    fname << "dacParameters_D" << Module << "_" << desc.c_str(  ) << ".dat";
-
+    fname << "dacParam_D" << Module << "_" << desc.c_str(  ) << ".dat";
+  
   ofstream dacFile( fname.str(  ).c_str(  ) ); // love it!
-
+  
   for( size_t roc = 0; roc < 16; ++roc )
     if( roclist[roc] ) {
       for( int idac = 1; idac < 256; ++idac )
@@ -3926,6 +3933,15 @@ CMD_PROC( wdac ) // write DACs to file
         } // dac
     } // ROC
   cout << "DAC values written to " << fname.str(  ) << endl;
+  return true;
+
+}
+
+//------------------------------------------------------------------------------
+
+CMD_PROC( wdac ) // write DACs to file
+{
+  writedac();
   return true;
 }
 
@@ -13016,13 +13032,17 @@ CMD_PROC( bare ) // bare module test
 
   dacdac( col, row, 26, 12 ); // sets CalDel and VthrComp for cals
 
-  dacscanroc( 25, -25, 2, 255 ); // for bump height
+  //dacscanroc( 25, -25, 2, 255 ); // for bump height
 
   dacscanroc( 12, -10, 1, 255 ); // cals, scan VthrComp, bump bond test
 
   tb.SetDAC( CtrlReg, ctl ); // restore
   dacval[roc][CtrlReg] = ctl;
   tb.Flush(  );
+
+  // write all dac in a file
+
+  writedac();
 
   return ok;
 }
