@@ -120,8 +120,11 @@ int main( int argc, char *argv[] )
   std::string baseName(argv[1]);
   int sizeName = baseName.size();
   // take as baseName the logfile 
-  rootfilename = baseName.substr(0,sizeName-3)+"root";
-  logfilename = baseName;
+  //rootfilename = baseName.substr(0,sizeName-3)+"root";
+  //logfilename = baseName;
+
+  logfilename = baseName+".log";
+  rootfilename = baseName+".root";
 
   // to be used in the log
   //strncpy( filename, argv[1], sizeof( filename ) );
