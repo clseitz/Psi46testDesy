@@ -3915,9 +3915,9 @@ bool writedac(string desc)
   ostringstream fname;          // output string stream
 
   if( nrocs == 1 )
-    fname << "dacParam_c" << Chip << "_" << desc.c_str(  ) << ".dat";
+    fname << "dacParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
   else
-    fname << "dacParam_D" << Module << "_" << desc.c_str(  ) << ".dat";
+    fname << "dacParameters_D" << Module << "_" << desc.c_str(  ) << ".dat";
   
   ofstream dacFile( fname.str(  ).c_str(  ) ); // love it!
   
