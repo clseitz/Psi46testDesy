@@ -3899,15 +3899,13 @@ CMD_PROC( show1 ) // print one DAC for all ROCs
 
 //------------------------------------------------------------------------------
 
-bool writedac()
+bool writedac(string desc)
 {
-  string globalName = gROOT->GetFile()->GetName(); 
-  int sizeName = globalName.size();
-  string prefixName = globalName.substr(0,sizeName-5);
-    
-  cout << " Prefix to be used: " << prefixName.c_str() << endl;
-
-  string desc = prefixName;
+  //string globalName = gROOT->GetFile()->GetName(); 
+  //int sizeName = globalName.size();
+  //string prefixName = globalName.substr(0,sizeName-5);
+  //cout << " Prefix to be used: " << prefixName.c_str() << endl;
+  //string desc = prefixName;
 
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
@@ -3941,7 +3939,10 @@ bool writedac()
 
 CMD_PROC( wdac ) // write DACs to file
 {
-  writedac();
+  char cdesc[80];
+  PAR_STRING( cdesc, 80 );
+  string desc = cdesc;
+  writedac(cdesc);
   return true;
 }
 
@@ -13040,9 +13041,12 @@ CMD_PROC( bare ) // bare module test
   dacval[roc][CtrlReg] = ctl;
   tb.Flush(  );
 
-  // write all dac in a file
-
-  writedac();
+  // write all dac values in a file with name from the root-file
+  string globalName = gROOT->GetFile()->GetName(); 
+  int sizeName = globalName.size();
+  string prefixName = globalName.substr(0,sizeName-5);
+  //
+  writedac(prefixName);
 
   return ok;
 }
