@@ -5003,8 +5003,8 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
 // utility function: single pixel dac scan
 bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
                  const uint8_t dac, const uint8_t stp, const int16_t nTrig,
-                vector < int16_t > &nReadouts,
-                 vector < double >&PHavg, vector < double >&PHrms )
+		 vector < int16_t >  & nReadouts,
+                 vector < double > & PHavg, vector < double > & PHrms )
 {
   bool ldb = 0;
 
@@ -5024,6 +5024,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
     } // row y
   } // col x
   tb.SetTrimValues( roc, trimvalues ); // load into FPGA
+  if( ldb ) cout << "[DacScanPix] loaded trim values to FPGA" << endl;
 
   int tbmch = roc / 8;          // 0 or 1
 
@@ -5219,6 +5220,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
     int cnt = 0;
     int phsum = 0;
+    int phsu2 = 0;
 
     uint32_t raw = 0;
     uint32_t hdr = 0;
@@ -5282,6 +5284,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
         if( kroc == roc && x == col && y == row ) {
           cnt++;
           phsum += ph;
+	  phsu2 += ph * ph;
         }
         break;
 
@@ -5294,10 +5297,17 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 	//DecodeTbmTrailer(trl);
         if( event % mTrig == mTrig - 1 ) {
           nReadouts.push_back( cnt );
-          double ph = ( cnt > 0 ) ? ( double ) phsum / cnt : -1.0;
+	  double ph = -1.0;
+	  double rms = -0.1;
+	  if( cnt > 0 ) {
+	    ph = ( double ) phsum / cnt;
+	    rms = sqrt( ( double ) phsu2 / cnt - ph * ph );
+	  }
           PHavg.push_back( ph );
+	  PHrms.push_back( rms );
           cnt = 0;
           phsum = 0;
+          phsu2 = 0;
         }
         if( ldbm )
           cout << endl;
@@ -7782,6 +7792,10 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
 
   int nstp = nReadouts.size(  );
 
+  //cout << "  after DacScanPix: nReadouts.size() = " << nstp << endl;
+  //cout << "  after DacScanPix: PHavg.size() = " << PHavg.size() << endl;
+  //cout << "  after DacScanPix: PHrms.size() = " << PHrms.size() << endl;
+
   if( h10 )
     delete h10;
   h10 = new
@@ -7854,9 +7868,12 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
     double ph = PHavg.at( i );
     //cout << setw(4) << ((ph > -0.1 ) ? int(ph+0.5) : -1) << "(" << setw(3) << nReadouts.at(i) << ")";
     Log.printf( " %i", ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 );
+
     if( ph > -0.5 && ph < phmin )
       phmin = ph;
+
     h10->Fill( idac, nReadouts.at( i ) );
+
     if( nReadouts.at( i ) > 0 ) {
       h11->Fill( idac, ph );
       h13->Fill( idac, PHrms.at( i ) );
@@ -7864,11 +7881,14 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
       h12->Fill( idac, vc );
       //cout << setw(3) << idac << "  " << ph << "  " << vc << endl;
     }
-  } // dacs
-  cout << endl;
+
+  } // dacs i
+
+  //cout << endl;
   Log.printf( "\n" );
-  cout << "min PH " << phmin << endl;
   Log.flush(  );
+
+  cout << "min PH " << phmin << endl;
 
   h10->Write(  );
   h11->Write(  );
@@ -9163,7 +9183,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
 
 	  if( col != x  or row != y ) {
 	    addressmatch = false;
-	    if(ldb ) {
+	    if( ldb ) {
 	      cout << " pixel address mismatch " << endl;
 	      cout << "from data " << " x " << x << " y " << y << " ph " << ph << endl;
 	      cout << "from loop " << " col " << col << " row " << row << endl;
