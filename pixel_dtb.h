@@ -41,9 +41,14 @@
 #define	VoffsetOp   15
 
 #define	VoffsetRO   17
+//chip in > 400 series
+#define	PHOffset    17
+
 #define	VIon        18
 #define	Vcomp_ADC   19
 #define	VIref_ADC   20
+//chip in > 400 series
+#define	PHScale     20
 
 #define	VIColOr     22
 
