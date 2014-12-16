@@ -10619,10 +10619,12 @@ bool tunePH( int col, int row, int roc )
   // offset and gain DACs:
 
   int offsdac = VoffsetOp;      // digV2, positive slope
+  int gaindac = VIref_ADC;
   if( Chip >= 400 )
-    offsdac = VoffsetRO; // digV2.1, positive slope
-
-  const int gaindac = VIref_ADC;
+    {
+      offsdac = PHOffset; // digV2.1, positive slope
+      gaindac = PHScale;
+    }
 
   cout << "start offset dac " << offsdac << " at " << dacval[roc][offsdac] <<
     endl;
@@ -10710,7 +10712,7 @@ bool tunePH( int col, int row, int roc )
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // check for all pixels
-
+  
   vector < int16_t > nResponses; // size 0
   vector < double >QHmax;
   vector < double >QHrms;
@@ -10929,7 +10931,7 @@ bool tunePH( int col, int row, int roc )
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
-
+ 
   return true;
 
 } // tune
@@ -10945,6 +10947,395 @@ CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
   PAR_INT( row, 0, 79 );
 
   tunePH( col, row, roc );
+
+  return true;
+}
+
+
+bool tunePHmod( int col, int row, int roc )
+{
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec;          // seconds since 1.1.1970
+  long u0 = tv.tv_usec;         // microseconds
+
+  //tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  //tb.Flush(  );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // scan Vcal for one pixel
+
+  int dac = Vcal;
+  int16_t nTrig = 9;
+
+  vector < int16_t > nReadouts; // size 0
+  vector < double >PHavg;
+  vector < double >PHrms;
+  nReadouts.reserve( 256 ); // size 0, capacity 256
+  PHavg.reserve( 256 );
+  PHrms.reserve( 256 );
+
+  DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
+
+  if( nReadouts.size(  ) < 256 ) {
+    cout << "only " << nReadouts.size(  ) << " Vcal points"
+	 << ". choose different pixel, check CalDel, check Ia, or give up"
+	 << endl;
+    return 0;
+  }
+
+  if( nReadouts.at( nReadouts.size(  ) - 1 ) < nTrig ) {
+    cout << "only " << nReadouts.at( nReadouts.size(  ) - 1 )
+	 << " responses at " << nReadouts.size(  ) - 1
+	 << ". choose different pixel, check CalDel, check Ia, or give up" <<
+      endl;
+    return 0;
+  }
+
+  // scan from end, search for smallest responding Vcal:
+
+  int minVcal = 255;
+
+  for( int idac = nReadouts.size(  ) - 1; idac >= 0; --idac )
+    if( nReadouts.at( idac ) == nTrig )
+      minVcal = idac;
+  cout << "min responding Vcal " << minVcal << endl;
+  minVcal += 1; // safety
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // offset and gain DACs:
+
+  int offsdac = VoffsetOp;      // digV2, positive slope
+  int gaindac = VIref_ADC;
+  if( Chip >= 400 )
+    {
+      offsdac = PHOffset; // digV2.1, positive slope
+      gaindac = PHScale;
+    }
+
+
+
+  cout << "start offset dac " << offsdac << " at " << dacval[roc][offsdac] <<
+    endl;
+  cout << "start gain   dac " << gaindac << " at " << dacval[roc][gaindac] <<
+    endl;
+
+  // set gain to minimal (at DAC 255), to avoid overflow or underflow:
+
+  tb.SetDAC( gaindac, 255 );
+  tb.Flush(  );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // Scan PH vs offset at Vcal 255:
+
+  tb.SetDAC( Vcal, 255 ); // max Vcal
+  vector < double >PHmax;
+  PHmax.reserve( 256 );
+  nReadouts.clear(  );
+  PHrms.clear(  );
+  DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmax, PHrms );
+
+  // Scan PH vs offset at minVcal:
+
+  tb.SetDAC( Vcal, minVcal );
+  vector < double >PHmin;
+  PHmin.reserve( 256 );
+  nReadouts.clear(  );
+  PHrms.clear(  );
+  DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmin, PHrms );
+
+  // use offset to center PH at 132:
+
+  int offs = 0;
+  double phmid = 0;
+  for( size_t idac = 0; idac < PHmin.size(  ); ++idac ) {
+    double phmean = 0.5 * ( PHmin.at( idac ) + PHmax.at( idac ) );
+    if( fabs( phmean - 132 ) < fabs( phmid - 132 ) ) {
+      offs = idac;
+      phmid = phmean;
+    }
+  }
+
+  cout << "mid PH " << phmid << " at offset " << offs << endl;
+
+  tb.SetDAC( offsdac, offs );
+  tb.Flush(  );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // scan PH vs gain at Vcal 255 and at minVcal
+
+  tb.SetDAC( Vcal, 255 );
+  vector < double >PHtop;
+  PHtop.reserve( 256 );
+  nReadouts.clear(  );
+  PHrms.clear(  );
+
+  DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHtop, PHrms );
+
+  tb.SetDAC( Vcal, minVcal );
+  vector < double >PHbot;
+  PHbot.reserve( 256 );
+  nReadouts.clear(  );
+  PHrms.clear(  );
+
+  DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHbot, PHrms );
+
+  // set gain:
+
+  int gain = PHtop.size(  ) - 1;
+  for( ; gain >= 1; --gain ) {
+    if( PHtop.at( gain ) > 233 )
+      break;
+    if( PHbot.at( gain ) < 22 )
+      break;
+  }
+  cout << "top PH " << PHtop.at( gain )
+       << " at gain " << gain
+       << " for Vcal 255" << " for pixel " << col << " " << row << endl;
+  cout << "bot PH " << PHbot.at( gain )
+       << " at gain " << gain
+       << " for Vcal " << minVcal << " for pixel " << col << " " << row << endl;
+
+  tb.SetDAC( gaindac, gain );
+  tb.Flush(  );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // check for all pixels
+  /*
+  vector < int16_t > nResponses; // size 0
+  vector < double >QHmax;
+  vector < double >QHrms;
+  nResponses.reserve( 4160 ); // size 0, capacity 4160
+  QHmax.reserve( 4160 );
+  QHrms.reserve( 4160 );
+
+  tb.SetDAC( Vcal, 255 );
+  tb.Flush(  );
+
+  bool again = 0;
+
+  int colmax = 0;
+  int rowmax = 0;
+
+  do { // no overflows
+
+    GetRocData( nTrig, nResponses, QHmax, QHrms );
+
+    size_t j = 0;
+    double phmax = 0;
+
+    for( int col = 0; col < 52; ++col ) {
+
+      for( int row = 0; row < 80; ++row ) {
+
+        double ph = QHmax.at( j );
+        if( ph > phmax ) {
+          phmax = ph;
+          colmax = col;
+          rowmax = row;
+        }
+
+        ++j;
+        if( j == nReadouts.size(  ) )
+          break;
+
+      } // row
+
+      if( j == nReadouts.size(  ) )
+        break;
+
+    } // col
+
+    cout << "max PH " << phmax << " at " << colmax << " " << rowmax << endl;
+
+    if( phmax > 252 && gain < 255 ) {
+
+      gain += 1; // reduce gain
+      tb.SetDAC( gaindac, gain );
+      tb.Flush(  );
+
+      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
+
+      again = 1;
+      nResponses.clear(  );
+      QHmax.clear(  );
+      QHrms.clear(  );
+
+    }
+    else
+      again = 0;
+
+  } while( again );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // check all pixels for underflow at minVcal:
+
+  vector < double >QHmin;
+  QHmin.reserve( 4160 );
+  nResponses.clear(  );
+  QHrms.clear(  );
+
+  tb.SetDAC( Vcal, minVcal );
+  tb.Flush(  );
+
+  again = 0;
+
+  int colmin = 0;
+  int rowmin = 0;
+
+  do { // no underflows
+
+    GetRocData( nTrig, nResponses, QHmin, QHrms );
+
+    size_t j = 0;
+    double phmin = 255;
+
+    for( int col = 0; col < 52; ++col ) {
+
+      for( int row = 0; row < 80; ++row ) {
+
+        if( nResponses.at( j ) < nTrig / 2 ) {
+          cout << "pixel " << col << " " << row << " below threshold at Vcal "
+	       << minVcal << endl;
+        }
+        else {
+          double ph = QHmin.at( j );
+          if( ph < phmin ) {
+            phmin = ph;
+            colmin = col;
+            rowmin = row;
+          }
+        }
+
+        ++j;
+        if( j == nReadouts.size(  ) )
+          break;
+
+      } // row
+
+      if( j == nReadouts.size(  ) )
+        break;
+
+    } // col
+
+    cout << "min PH " << phmin << " at " << colmin << " " << rowmin << endl;
+
+    if( phmin < 3 && gain > 0 ) {
+
+      gain += 1; // reduce gain
+      tb.SetDAC( gaindac, gain );
+      tb.Flush(  );
+
+      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
+
+      again = 1;
+      nResponses.clear(  );
+      QHmin.clear(  );
+      QHrms.clear(  );
+
+    }
+    else
+      again = 0;
+
+  } while( again );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // we have min and max.
+  // adjust gain and offset such that max-min = 200, mid = 132
+
+  again = 0;
+
+  do {
+
+    int cnt;
+    double rms;
+
+    tb.SetDAC( Vcal, minVcal );
+    tb.Flush(  );
+    double phmin = 255;
+    GetPixData( roc, colmin, rowmin, nTrig, cnt, phmin, rms );
+
+    tb.SetDAC( Vcal, 255 );
+    tb.Flush(  );
+    double phmax = 0;
+    GetPixData( roc, colmax, rowmax, nTrig, cnt, phmax, rms );
+
+    again = 0;
+
+    double phmid = 0.5 * ( phmax + phmin );
+
+    cout << "PH mid " << phmid << endl;
+
+    if( phmid > 132 + 3 && offs > 0 ) { // 3 is margin of convergence
+      offs -= 1;
+      again = 1;
+    }
+    else if( phmid < 132 - 3 && offs < 255 ) {
+      offs += 1;
+      again = 1;
+    }
+    if( again ) {
+      tb.SetDAC( offsdac, offs );
+      tb.Flush(  );
+      cout << "offs dac " << dacName[offsdac] << " set to " << offs << endl;
+    }
+
+    double range = phmax - phmin;
+
+    cout << "PH rng " << range << endl;
+
+    if( range > 200 + 3 && gain < 255 ) { // 3 is margin of convergence
+      gain += 1; // reduce gain
+      again = 1;
+    }
+    else if( range < 200 - 3 && gain > 0 ) {
+      gain -= 1; // more gain
+      again = 1;
+    }
+    if( again ) {
+      tb.SetDAC( gaindac, gain );
+      tb.Flush(  );
+      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
+    }
+  } while( again );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // done
+
+  cout << "final offs dac " << dacName[offsdac] << " set to " << offs << endl;
+  cout << "final gain dac " << dacName[gaindac] << " set to " << gain << endl;
+
+  dacval[roc][offsdac] = offs;
+  dacval[roc][gaindac] = gain;
+
+  Log.printf( "[SETDAC] %i  %i\n", gaindac, gain );
+  Log.printf( "[SETDAC] %i  %i\n", offsdac, offs );
+  Log.flush(  );
+
+  tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
+  tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
+  tb.Flush(  );
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec;          // seconds since 1.1.1970
+  long u9 = tv.tv_usec;         // microseconds
+  cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  */
+  return true;
+
+} // tune
+
+
+CMD_PROC( modtune ) // adjust PH gain and offset to fit into ADC range
+{
+  if( ierror ) return false;
+
+  int roc = 0;
+  int col, row;
+  PAR_INT( col, 0, 51 );
+  PAR_INT( row, 0, 79 );
+
+  tunePHmod( col, row, roc );
 
   return true;
 }
@@ -13251,6 +13642,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
   CMD_REG( modthrmap, "modthrmap                     module threshold map" );
+  CMD_REG( modtune,   "modtune col row               (Doesn't work yet) tune gain and offset" );
 
   CMD_REG( takedata,  "takedata period               readout 40 MHz/period (stop: s enter)" );
   CMD_REG( tdscan,    "tdscan vmin vmax              take data vs VthrComp" );
