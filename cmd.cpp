@@ -76,6 +76,8 @@ int nrocsb;
 
 int modthr[16][52][80];
 int modtrm[16][52][80];
+int modcnt[16][52][80];
+int modamp[16][52][80];
 
 // gain:
 
@@ -5331,6 +5333,8 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   return true;
 }
 
+
+
 //------------------------------------------------------------------------------
 bool setcaldel( int col, int row, int nTrig )
 {
@@ -8896,16 +8900,19 @@ CMD_PROC( effmask )
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( modmap ) // pixelAlive for modules
+void ModPixelAlive( int nTrig )
 {
-  int nTrig = 10;
-  if( !PAR_IS_INT( nTrig, 1, 65500 ) )
-    nTrig = 10;
-
   Log.section( "MODMAP", false );
   Log.printf( " nTrig %i\n", nTrig );
   cout << "modmap with " << nTrig << " triggers" << endl;
 
+  for( int roc = 0; roc < 16; ++roc )
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row ) {
+	modcnt[roc][col][row] = 0;
+	modamp[roc][col][row] = 0;
+	
+      }
   timeval tv;
   gettimeofday( &tv, NULL );
   long s0 = tv.tv_sec;          // seconds since 1.1.1970
@@ -8918,18 +8925,14 @@ CMD_PROC( modmap ) // pixelAlive for modules
   for( size_t iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
     int roc = enabledrocslist[iroc];
     if( roclist[roc] == 0 ){
-      //should never be true?!
-      cout << "Skipping ROC: " << roclist[roc];
       continue;
     }
     tb.roc_I2cAddr( roc );
     rocAddress.push_back( roc );
     vector < uint8_t > trimvalues( 4160 );
     for( int col = 0; col < 52; ++col ) {
-      //tb.roc_Col_Enable( col, 1 );
       for( int row = 0; row < 80; ++row ) {
         int trim = modtrm[roc][col][row];
-	//tb.roc_Pix_Trim( col, row, trim );
         int i = 80 * col + row;
         trimvalues[i] = trim;
       } // row
@@ -8977,7 +8980,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
     }
     catch( CRpcError & e ) {
       e.What(  );
-      return 0;
+      return;
     }
 
     cout << ( done ? "done" : "not done" ) << endl;
@@ -9024,7 +9027,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
       }
       catch( CRpcError & e ) {
         e.What(  );
-        return 0;
+        return;
       }
 
     } // tbmch
@@ -9047,45 +9050,6 @@ CMD_PROC( modmap ) // pixelAlive for modules
   int PX[16] = { 0 };
   int event = 0;
 
-  if( h11 )
-    delete h11;
-  h11 = new TH1D( Form( "Responses_Vcal%i_CR%i",
-                        dacval[0][Vcal], dacval[0][CtrlReg] ),
-                  Form( "Responses at Vcal %i, CtrlReg %i;responses;pixels",
-                        dacval[0][Vcal], dacval[0][CtrlReg] ),
-                  nTrig + 1, -0.5, nTrig + 0.5 );
-  h11->Sumw2();
-
-  if( h12 )
-    delete h12;
-  h12 = new TH1D( Form( "Mod_PH_spectrum_Vcal%i_CR%i",
-                        dacval[0][Vcal], dacval[0][CtrlReg] ),
-                  Form( "PH at Vcal %i, CtrlReg %i;PH [ADC];pixels",
-                        dacval[0][Vcal], dacval[0][CtrlReg] ),
-                  256, -0.5, 255.5 );
-  h12->Sumw2();
-
-  if( h13 )
-    delete h13;
-  h13 = new TH1D( Form( "Mod_Vcal_spectrum_Vcal%i_CR%i",
-                        dacval[0][Vcal], dacval[0][CtrlReg] ),
-                  Form( "Vcal at Vcal %i, CtrlReg %i;PH [Vcal DAC];pixels",
-                        dacval[0][Vcal], dacval[0][CtrlReg] ),
-                  256, -0.5, 255.5 );
-
-  if( h21 )
-    delete h21;
-  h21 = new TH2D( "ModuleHitMap",
-                  "Module hit map;col;row;hits",
-                  8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
-  gStyle->SetOptStat( 10 ); // entries
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
-
-  if( h22 )
-    delete h22;
-  h22 = new TH2D( "ModulePHmap",
-                  "Module PH map;col;row;sum PH [ADC]",
-                  8 * 52, -0.5, 8 * 52 - 0.5, 2 * 80, -0.5, 2 * 80 - 0.5 );
 
   //try to match pixel address
   // loop cols
@@ -9165,7 +9129,6 @@ CMD_PROC( modmap ) // pixelAlive for modules
         raw = ( raw << 12 ) + d;
 	//DecodePixel(raw);
         ph = ( raw & 0x0f ) + ( ( raw >> 1 ) & 0xf0 );
-	h12->Fill( ph );
         raw >>= 9;
         c = ( raw >> 12 ) & 7;
         c = c * 6 + ( ( raw >> 9 ) & 7 );
@@ -9191,19 +9154,9 @@ CMD_PROC( modmap ) // pixelAlive for modules
 	  }
 	} // dummy scope
 	if( addressmatch ) {
+          modcnt[kroc][x][y]++;
+          modamp[kroc][x][y] = ph;
 	  PX[kroc]++;
-	  { // start a scope to make compiler happy
-	    double vc = PHtoVcal( ph, kroc, x, y );
-	    h13->Fill( vc );
-	    int l = kroc % 8;     // 0..7
-	    int m = kroc / 8;     // 0..1
-	    int xm = 52 * l + x;  // 0..415  rocs 0 1 2 3 4 5 6 7
-	    if( m == 1 )
-	      xm = 415 - xm; // rocs 8 9 A B C D E F
-	    int ym = 159 * m + ( 1 - 2 * m ) * y; // 0..159
-	    h21->Fill( xm, ym );
-	    h22->Fill( xm, ym, ph );
-	  }
 	} // dummy scope
         break;
 
@@ -9264,6 +9217,92 @@ CMD_PROC( modmap ) // pixelAlive for modules
     int roc = enabledrocslist[iroc];
     cout << "ROC " << setw( 2 ) << roc << ", hits " << PX[roc] << endl;
   }
+
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec;          // seconds since 1.1.1970
+  long u9 = tv.tv_usec;         // microseconds
+  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+} // ModPixelAlive
+
+CMD_PROC( modmap ) // pixelAlive for modules
+{
+  int nTrig = 10;
+  if( !PAR_IS_INT( nTrig, 1, 65500 ) )
+    nTrig = 10;
+
+  ModPixelAlive( nTrig ); //fills mdocnt and modamp
+
+
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec;          // seconds since 1.1.1970
+  long u0 = tv.tv_usec;         // microseconds
+
+  if( h11 )
+    delete h11;
+  h11 = new TH1D( Form( "Responses_Vcal%i_CR%i",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  Form( "Responses at Vcal %i, CtrlReg %i;responses;pixels",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  nTrig + 1, -0.5, nTrig + 0.5 );
+  h11->Sumw2();
+
+  if( h12 )
+    delete h12;
+  h12 = new TH1D( Form( "Mod_PH_spectrum_Vcal%i_CR%i",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  Form( "PH at Vcal %i, CtrlReg %i;PH [ADC];pixels",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  256, -0.5, 255.5 );
+  h12->Sumw2();
+
+  if( h13 )
+    delete h13;
+  h13 = new TH1D( Form( "Mod_Vcal_spectrum_Vcal%i_CR%i",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  Form( "Vcal at Vcal %i, CtrlReg %i;PH [Vcal DAC];pixels",
+                        dacval[0][Vcal], dacval[0][CtrlReg] ),
+                  256, -0.5, 255.5 );
+
+  if( h21 )
+    delete h21;
+  h21 = new TH2D( "ModuleHitMap",
+                  "Module hit map;col;row;hits",
+                  8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
+  gStyle->SetOptStat( 10 ); // entries
+  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+
+  if( h22 )
+    delete h22;
+  h22 = new TH2D( "ModulePHmap",
+                  "Module PH map;col;row;sum PH [ADC]",
+                  8 * 52, -0.5, 8 * 52 - 0.5, 2 * 80, -0.5, 2 * 80 - 0.5 );
+
+
+  for( int roc = 0; roc < 16; ++roc ) {
+    if( roclist[roc] == 0 )
+      continue;
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row ) {
+	int l = roc % 8;   // 0..7
+	int xm = 52 * l + col; // 0..415  rocs 0 1 2 3 4 5 6 7
+	int ym = row; // 0..79
+	if( roc > 7 ) {
+	  xm = 415 - xm; // rocs 8 9 A B C D E F
+	  ym = 159 - row; // 80..159
+	}
+	double vc = PHtoVcal( modamp[roc][col][row] , roc, col, row );
+	h13->Fill( vc );
+	h11->Fill( modcnt[roc][col][row] );
+	h21->Fill( xm, ym, modcnt[roc][col][row] );
+	h12->Fill( modamp[roc][col][row] );
+	h22->Fill( xm, ym, modamp[roc][col][row] );
+      }
+  } // rocs
+
+
   for( int ibin = 1; ibin <= h21->GetNbinsX(  ); ++ibin )
     for( int jbin = 1; jbin <= h21->GetNbinsY(  ); ++jbin )
       h11->Fill( h21->GetBinContent( ibin, jbin ) );
@@ -9286,7 +9325,8 @@ CMD_PROC( modmap ) // pixelAlive for modules
 
   return true;
 
-} // modmap
+  } // modmap
+
 
 //------------------------------------------------------------------------------
 // Daniel Pitzl, DESY, 25.1.2014: measure ROC threshold Vcal map, uses tb.PixelThreshold
@@ -13691,6 +13731,9 @@ void cmd(  )                    // called once from psi46test
       for( int row = 0; row < 80; ++row ) {
         modthr[roc][col][row] = 255;
         modtrm[roc][col][row] = 15;
+	modcnt[roc][col][row] = 0;
+	modamp[roc][col][row] = 0;
+
       }
 
   ierror = 0;
