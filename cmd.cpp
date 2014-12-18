@@ -8902,9 +8902,6 @@ CMD_PROC( effmask )
 //------------------------------------------------------------------------------
 void ModPixelAlive( int nTrig )
 {
-  Log.section( "MODMAP", false );
-  Log.printf( " nTrig %i\n", nTrig );
-  cout << "modmap with " << nTrig << " triggers" << endl;
 
   for( int roc = 0; roc < 16; ++roc )
     for( int col = 0; col < 52; ++col )
@@ -9155,7 +9152,7 @@ void ModPixelAlive( int nTrig )
 	} // dummy scope
 	if( addressmatch ) {
           modcnt[kroc][x][y]++;
-          modamp[kroc][x][y] = ph;
+          modamp[kroc][x][y] += ph;
 	  PX[kroc]++;
 	} // dummy scope
         break;
@@ -9232,7 +9229,11 @@ CMD_PROC( modmap ) // pixelAlive for modules
   if( !PAR_IS_INT( nTrig, 1, 65500 ) )
     nTrig = 10;
 
-  ModPixelAlive( nTrig ); //fills mdocnt and modamp
+  Log.section( "MODMAP", false );
+  Log.printf( " nTrig %i\n", nTrig );
+  cout << "modmap with " << nTrig << " triggers" << endl;
+
+  ModPixelAlive( nTrig ); //fills modcnt and modamp
 
 
   timeval tv;
@@ -9293,19 +9294,18 @@ CMD_PROC( modmap ) // pixelAlive for modules
 	  xm = 415 - xm; // rocs 8 9 A B C D E F
 	  ym = 159 - row; // 80..159
 	}
-	double vc = PHtoVcal( modamp[roc][col][row] , roc, col, row );
+	double ph = modamp[roc][col][row] / nTrig;
+	double vc = PHtoVcal( ph , roc, col, row );
+
 	h13->Fill( vc );
 	h11->Fill( modcnt[roc][col][row] );
 	h21->Fill( xm, ym, modcnt[roc][col][row] );
-	h12->Fill( modamp[roc][col][row] );
-	h22->Fill( xm, ym, modamp[roc][col][row] );
+	h12->Fill( ph );
+	h22->Fill( xm, ym, ph ); 
       }
   } // rocs
 
 
-  for( int ibin = 1; ibin <= h21->GetNbinsX(  ); ++ibin )
-    for( int jbin = 1; jbin <= h21->GetNbinsY(  ); ++jbin )
-      h11->Fill( h21->GetBinContent( ibin, jbin ) );
 
   h11->Write(  );
   h12->Write(  );
@@ -11141,7 +11141,7 @@ bool tunePHmod( int col, int row, int roc )
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // check for all pixels
-  /*
+  
   vector < int16_t > nResponses; // size 0
   vector < double >QHmax;
   vector < double >QHrms;
@@ -11159,8 +11159,8 @@ bool tunePHmod( int col, int row, int roc )
 
   do { // no overflows
 
-    GetRocData( nTrig, nResponses, QHmax, QHrms );
-
+    //GetRocData( nTrig, nResponses, QHmax, QHrms );
+    ModPixelAlive( nTrig );
     size_t j = 0;
     double phmax = 0;
 
@@ -11168,7 +11168,7 @@ bool tunePHmod( int col, int row, int roc )
 
       for( int row = 0; row < 80; ++row ) {
 
-        double ph = QHmax.at( j );
+        double ph = modcnt[roc][col][row] / nTrig;
         if( ph > phmax ) {
           phmax = ph;
           colmax = col;
@@ -11209,7 +11209,7 @@ bool tunePHmod( int col, int row, int roc )
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // check all pixels for underflow at minVcal:
-
+  /*
   vector < double >QHmin;
   QHmin.reserve( 4160 );
   nResponses.clear(  );
