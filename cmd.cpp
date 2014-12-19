@@ -11168,7 +11168,8 @@ bool tunePHmod( int col, int row, int roc )
 
       for( int row = 0; row < 80; ++row ) {
 
-        double ph = modcnt[roc][col][row] / nTrig;
+        double ph = modamp[roc][col][row] / nTrig;
+	//cout<< " ph " << ph << endl;
         if( ph > phmax ) {
           phmax = ph;
           colmax = col;
