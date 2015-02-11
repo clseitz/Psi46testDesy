@@ -11,10 +11,10 @@ id  100 mA
 ia  100 mA
 
 - timing & levels:
-clk  4
-ctr  4  (CLK +  0)
-sda 19  (CLK + 15)
-tin  9  (CLK +  5)
+clk  5
+ctr  5  (CLK +  0)
+sda 20  (CLK + 15)
+tin 10  (CLK +  5)
 
 clklvl 10
 ctrlvl 10
@@ -37,7 +37,12 @@ trigdel 200  # delay in trigger loop [BC], 200 = 5 us
 # d1 7 (reset on D1, see pixel_dtb.h)
 # d1 9 (sync  on D1, see pixel_dtb.h)
 
+<<<<<<< HEAD
+#select b0000000000000001  # all ROCs active, new bit pattern format from custom modules with disabled rocs
+select b1000000000000000  # all ROCs active, new bit pattern format from custom modules with disabled rocs
+=======
 select 1   [set roclist, I2C]
+>>>>>>> a75de5a2cb6da03e70f2dd45630918adae73ca5c
 rocaddr 0  [set ROC]
 
 dopen 40100100   [daq_open]

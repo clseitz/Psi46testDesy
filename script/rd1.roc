@@ -7,5 +7,6 @@ dstart 1
 pgsingle
 udelay(500)
 dstop 1
-dread400 1
+#dread400 1
+dreadm 1
 #dclose 1

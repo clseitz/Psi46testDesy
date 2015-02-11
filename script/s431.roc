@@ -13,10 +13,10 @@ id  100 mA
 ia  100 mA
 
 - timing & levels:
-clk  3
-ctr  3  (CLK +  0)
-sda 18  (CLK + 15)
-tin  8  (CLK +  5)
+clk  4
+ctr  4  (CLK +  0)
+sda 19  (CLK + 15)
+tin  9  (CLK +  5)
 
 clklvl 10
 ctrlvl 10
@@ -25,12 +25,12 @@ tinlvl 10
 
 --- pattern generator: set redout timing --------------------
 pgstop
-pgset 0 b101000  15  pg_resr pg_sync
+pgset 0 b101000  25  pg_resr pg_sync
 pgset 1 b000100 106  pg_cal, set WBC = pg_cal - 7
-pgset 2 b000010  16  pg_trg  [50 does not work: phmap errors]
+pgset 2 b000010  16  pg_trg  
 pgset 3 b000001   0  pg_tok, end of pgset
 
-trigdel 200  # delay in trigger loop [BC], 160 = 4 us
+trigdel 200  # delay in trigger loop [BC], 200 = 5 us
 
 # d1 1 (40 MHz clk on D1)
 # d1 4 (token on D1, see pixel_dtb.h)
@@ -39,10 +39,8 @@ trigdel 200  # delay in trigger loop [BC], 160 = 4 us
 # d1 7 (reset on D1, see pixel_dtb.h)
 # d1 9 (sync  on D1, see pixel_dtb.h)
 
-select 1	  [set roclist, I2C]
+select 0	  [set roclist, I2C]
 rocaddr 0	  [set ROC]
-
-dopen 10100100 0 [daq_open]
 
 --- power on --------------------------------
 pon
@@ -50,35 +48,34 @@ hvon
 
 mdelay 500
 
---- set divgV2.1 chip 426 = ETH 206 DACs-----------------------------
+--- set divgV2.1 chip ETH 211 = DESY 431 DACs
 
-chip 426
+dac   1    9  Vdig  for full eff
+dac   2   91  Vana  for 25 mA
+dac   3   33  Vsf   
+dac   4   12  Vcomp
 
-dac   1   10  Vdig  needed for large events
-dac   2   67  Vana  optia 25
-dac   3   33  Vsf   linearity
-dac   4    6  Vcomp better multi-pulse eff (td52)
-	 
-dac   7  135  VwllPr
-dac   9  135  VwllPr
+dac   7  160  VwllPr
+dac   9  160  VwllPr
 dac  10  252  VhldDel
 
 dac  11    1  Vtrim
-dac  12  100  VthrComp
+dac  12   94  VthrComp
 
 dac  13   30  VIBias_Bus
 dac  22   99  VIColOr
 
-dac  17  210  VoffsetRO
+dac  17  185  VoffsetRO
 
 dac  19   10  Vcomp_ADC
-dac  20   99  VIref_ADC
+dac  20  108  VIref_ADC
 
 dac  25  222  Vcal
-dac  26  106  CalDel
-	 
+dac  26  101  CalDel
+
 dac 253    4  CtrlReg
-dac 254  99  WBC (159 to get 79 pixel/DC, but not 80 = erase)
+dac 254   99  WBC
+dac 255   12  RBreg
 
 flush
 
@@ -90,5 +87,7 @@ getvd
 getva
 getid
 getia
+
+dopen 40100100 0 [daq_open]
 
 fire 2 2

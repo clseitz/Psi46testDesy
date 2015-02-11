@@ -32,12 +32,14 @@ CSettings settings;             // global settings
 //DP CProber prober;
 CProtocol Log;
 
-char filename[512];             // log file
+//char filename[512];              // log file
+string rootfilename;             // root file
+string logfilename;              // log file   
 
 //------------------------------------------------------------------------------
 void help(  )
 {
-  printf( "usage: psi46test a.log\n" );
+  printf( "usage: psi46test a.log \n" );
 }
 
 #ifdef withROOT
@@ -108,11 +110,29 @@ int main( int argc, char *argv[] )
 {
   printf( VERSIONINFO "\n" );
 
-  if( argc != 2 ) {
+  if( argc < 2 ) {
     help(  );
     return 1;
   }
-  strncpy( filename, argv[1], sizeof( filename ) );
+
+  // printing:
+
+  std::string baseName(argv[1]);
+  int sizeName = baseName.size();
+  // take as baseName the logfile 
+  //rootfilename = baseName.substr(0,sizeName-3)+"root";
+  //logfilename = baseName;
+
+  logfilename = baseName+".log";
+  rootfilename = baseName+".root";
+
+  // to be used in the log
+  //strncpy( filename, argv[1], sizeof( filename ) );
+  //if (argc == 3)
+  //  strncpy( rootfilename, argv[2], sizeof( rootfilename ) );
+  // else
+  //  strncpy( rootfilename, "Test.root", 9);
+    
 
  // load settings:
 
@@ -122,8 +142,8 @@ int main( int argc, char *argv[] )
     return 2;
   }
 
-  cout << "logging to " << filename << endl;
-  if( !Log.open( filename ) ) {
+  cout << "logging to " << logfilename.c_str() << endl;
+  if( !Log.open( logfilename.c_str() ) ) {
     printf( "log: error creating file\n" );
     return 3;
   }
@@ -211,9 +231,10 @@ int main( int argc, char *argv[] )
     Log.flush(  );
 
 #ifdef withROOT
-    TFile *histoFile = new TFile( "Test.root", "RECREATE" );
+    TFile *histoFile = new TFile( rootfilename.c_str(), "RECREATE" );
 
     cout << "ROOT application..." << endl;
+    cout << "Histogram to be saved in: " << rootfilename.c_str() << endl;
 
     TApplication theApp( "psi46test", &argc, argv );
 #endif

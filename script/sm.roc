@@ -17,10 +17,10 @@ ctr  4  (CLK +  0)
 sda 19  (CLK + 15)
 tin  9  (CLK +  5)
 
-clklvl 10
-ctrlvl 10
-sdalvl 10
-tinlvl 10
+clklvl 15  #ETH 1.1 needs 10, ETH 1.2 needs 15
+ctrlvl 15
+sdalvl 15
+tinlvl 15
 
 --- power on --------------------------------
 pon
@@ -84,10 +84,10 @@ dac  19   30  Vcomp_ADC
 dac  20   70  VIref_ADC
 
 dac  25  222  Vcal
-dac  26  122  CalDel
+dac  26  102  CalDel
 
 dac  253   4  CtrlReg
-dac  254 160  WBC    // tct - 6
+dac  254  60  WBC    // tct - 6
 dac  255  12  RBreg
 
 flush
@@ -115,9 +115,9 @@ a1 1  sdata # 400 MHz
 - pixel_dtb.h:	#define PG_REST  0x1000 // TBM reset
 
 pgstop
-pgset 0 b010000  16  pg_rest  (reset TBM) # reset erases delay registers
-#pgset 0 b011000  16  pg_rest pg_resr  (reset TBM and ROCs) # erases delays
-pgset 1 b000100 166  pg_cal (WBC + 6 for digV2)
+#pgset 0 b010000   8  pg_rest  (reset TBM) # reset erases delay registers
+pgset 0 b011000  16  pg_rest pg_resr  (reset TBM and ROCs) # erases delays
+pgset 1 b000100  66  pg_cal (WBC + 6 for digV2)
 pgset 2 b100010   0  pg_trg pg_sync. (delay zero = end of pgset)
 
 trigdel 250  # delay in trigger loop [BC], needed for large WBC

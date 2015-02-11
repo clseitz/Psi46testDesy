@@ -9,13 +9,18 @@
 \usepackage[latin9]{inputenc}
 \usepackage{geometry}
 \geometry{verbose,tmargin=2cm,bmargin=2cm,lmargin=2cm,rmargin=2cm,headheight=0cm,headsep=0cm,footskip=0cm}
-\pagestyle{empty}
+%\pagestyle{empty}
 \setlength{\parskip}{\smallskipamount}
 \setlength{\parindent}{0pt}
 \usepackage{graphicx}
 \usepackage{setspace}
 \onehalfspacing
-
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true, %set true if you want colored links
+    linktoc=all,     %set to all if you want both sections and subsections linked
+    linkcolor=black,  %choose some color if you want links to stand out
+}
 \makeatletter
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
@@ -51,7 +56,7 @@
 \makeatother
 
 \usepackage{babel}
-
+\pagenumbering{arabic}
 \begin{document}
 
 \title{\textbf{psi46test at DESY}}
@@ -60,10 +65,11 @@
 \author{Daniel Pitzl, Claudia Seitz, DESY}
 
 
-\date{21.7.2014}
+\date{09.12.2014}
 
 \maketitle
 
+\tableofcontents
 \section{Introduction}
 
 psi46test is C++ code to test CMS pixel readout chips (ROCs) from
@@ -119,8 +125,9 @@ Connect a DTB via a USB cable to your computer.
 
 \texttt{cd Psi46test}
 
-\noindent \texttt{bin/psi46test d.log}
+\noindent \texttt{bin/psi46test d.log d.root}
 
+The second argument (root file name) is optional, if none is given plots are written out to Test.root. These files will be overwritten whenever the software is started again.
 You should see something like
 
 \texttt{instantiated a CTestboard}
@@ -212,7 +219,7 @@ Under Mac try
 
 and reboot. This can cause problems when other devices are plugged in and you might have to reverse the change again.
 
-\section{commands}
+\subsection{commands}
 
 Commands are defined in \texttt{cmd.cpp}. To add a command, put the
 code in a new block \texttt{CMD\_PROC(cmdname)\{\}} somewhere in the
@@ -238,10 +245,10 @@ Commands and measurements are written to the log file. This used to
 be used for offline parsing, processing, and plotting. It is still
 useful for reconstructing the conditions under which a particular
 test in a session was executed. Measurements are now also written
-as 1D and 2D histograms into a ROOT file \texttt{Test.root}, for direct
-plotting and offline processing.
+as 1D and 2D histograms into a ROOT file either \texttt{Test.root} or the filename you give it, 
+for direct plotting and offline processing.
 
-
+\section{Test software}
 \subsection{DTB commands}
 
 These commands don't require the presence of a ROC. Use them to check
@@ -278,8 +285,91 @@ Rename \texttt{d.log} and/or \texttt{Test.root} if you want to keep
 them, otherwise they get overwritten with the next start of \texttt{psi46test}.
 
 
-\subsection{starting up with a ROC}
+\subsection{ROC testing}
+\subsubsection{DAC parameters}
 
+Table \ref{tab:DACparam} shows the DAC parameters for psi46digV2.1.
+
+%
+\begin{table}
+\noindent \begin{centering}
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline 
+DAC  & name  & range  & DAC  & name  & range\tabularnewline
+\hline
+\hline 
+1  & Vdig  & 0:15  & 17  & PHOffset  & 0:255\tabularnewline
+\hline 
+2  & Vana  & 0:255  & 19  & Vcomp\_ADC  & 0:255\tabularnewline
+\hline 
+3  & Vsf  & 0:255  & 20  & PHScale  & 0:255\tabularnewline
+\hline 
+4  & Vcomp  & 0:15  & 22  & VIColOr  & 0:255\tabularnewline
+\hline 
+7  & VwllPr  & 0:255  & 25  & Vcal  & 0:255\tabularnewline
+\hline 
+9  & VwllSh  & 0:255  & 26  & CalDel  & 0:255\tabularnewline
+\hline 
+10  & VhldDel  & 0:255  & 253  & CtrlReg  & 0, 4\tabularnewline
+\hline 
+11  & Vtrim  & 0:255  & 254  & WBC  & 0:255\tabularnewline
+\hline 
+12  & VthrComp  & 0:255  & 255  & RBreg  & 0:15\tabularnewline
+\hline 
+13  & VIBias\_Bus  & 0:255  &  &  & \tabularnewline
+\hline
+\end{tabular}
+\par\end{centering}
+
+\protect\caption{DAC paramters for psi46digV2.1\label{tab:DACparam}}
+%
+\end{table}
+
+
+
+\subsubsection{setting DAC parameters}
+\begin{description}
+\item [\texttt{optia\ target}] set Vana to get the desired target
+analog current {[}mA{]}, .e.g. optia 25 
+\item [\texttt{show}] current DAC settings (presumably, from book-keeping
+in psi46test; reading back DACs from the ROC is not possible) 
+\item [\texttt{dac\ number\ value}] set a DAC value (number is
+the DAC address). Some DACs have shortcuts: 
+\item [\texttt{vana\ value}] set \texttt{Vana} (check analog current
+with \texttt{getia}, 1 mA / 6 Vana DAC units) 
+\item [\texttt{vthr\ value}] set global threshold \texttt{VthrComp} 
+\item [\texttt{vcal\ value}] set test pulse amplitude 
+\item [\texttt{ctl}] set control register (0 = small Vcal, 4 = large
+Vcal, 1 = ROC off) 
+\item [\texttt{caldel\ col\ row}] measure pixel efficiency vs \texttt{CalDel},
+set \texttt{CalDel} in the plateau region 
+\item [\texttt{caldelroc}] scan \texttt{CalDel} for the entire ROC
+(perfect pixels respond to all triggers, alive pixels have at least
+50\% response), sets \texttt{CalDel} in the plateau region 
+\item [\texttt{thrmap\ guess}] measure pixel threshold map for current
+settings (faster if guess is close to truth) 
+\item [\texttt{vthrcompi}] scan digital current vs global threshold,
+set \texttt{VthrComp} below the onset of the noise peak 
+\item [\texttt{vthrcomp\ target\,{[}guess{]}}] set VthrComp such
+that the minimum pixel threshold is at target Vcal units (faster if
+guess is near present threshold) 
+\item [\texttt{trim\ target}] set \texttt{Vtrim} and \texttt{trim
+bits} such that all pixel thresholds are as close as possible to target
+Vcal units 
+\item [\texttt{effmap\ nTrig}] measure efficiency map (PixelAlive)
+with n triggers per pixel 
+\item [\texttt{trimbits}] adjust trim bits to recover maximum efficiency 
+\item [\texttt{wtrim\ desc}] write current trim bits to \texttt{trimParameters\_cijk\_desc.dat}
+(or \texttt{trimParameters\_Dm\_desc.dat for modules)} 
+\item [\texttt{phmap\ trig}] measure pixel pulse height map 
+\item [\texttt{tune}] set gain and offset such that the pulse heights
+of all pixels are in 80\% of the ADC range, for large and small Vcal,
+with 10\% margins against overflows and underflows 
+\item [\texttt{wdac\ desc}] write current DAC settings to \texttt{dacParameters\_cijk\_desc.dat}
+(or \texttt{dacParameters\_Dm\_desc.dat for modules)} 
+\end{description}
+
+\subsubsection{Starting up with a ROC}
 Connect a ROC (or module) via adapter board and SCSI cable to the
 DTB. You may also want to connect bias voltage (e.g. -150 V) to the
 red-ringed lemo connector.
@@ -335,90 +425,9 @@ and \texttt{row})
 \item [\texttt{pixd\ col\ row}] disable (mask) pixel 
 \end{description}
 
-\subsection{DAC parameters}
-
-Table \ref{tab:DACparam} shows the DAC parameters for psi46digV2.1.
-
-%
-\begin{table}
-\noindent \begin{centering}
-\begin{tabular}{|l|l|l|l|l|l|}
-\hline 
-DAC  & name  & range  & DAC  & name  & range\tabularnewline
-\hline
-\hline 
-1  & Vdig  & 0:15  & 17  & PHOffset  & 0:255\tabularnewline
-\hline 
-2  & Vana  & 0:255  & 19  & Vcomp\_ADC  & 0:255\tabularnewline
-\hline 
-3  & Vsf  & 0:255  & 20  & PHScale  & 0:255\tabularnewline
-\hline 
-4  & Vcomp  & 0:15  & 22  & VIColOr  & 0:255\tabularnewline
-\hline 
-7  & VwllPr  & 0:255  & 25  & Vcal  & 0:255\tabularnewline
-\hline 
-9  & VwllSh  & 0:255  & 26  & CalDel  & 0:255\tabularnewline
-\hline 
-10  & VhldDel  & 0:255  & 253  & CtrlReg  & 0, 4\tabularnewline
-\hline 
-11  & Vtrim  & 0:255  & 254  & WBC  & 0:255\tabularnewline
-\hline 
-12  & VthrComp  & 0:255  & 255  & RBreg  & 0:15\tabularnewline
-\hline 
-13  & VIBias\_Bus  & 0:255  &  &  & \tabularnewline
-\hline
-\end{tabular}
-\par\end{centering}
-
-\protect\caption{DAC paramters for psi46digV2.1\label{tab:DACparam}}
-%
-\end{table}
 
 
-
-\subsection{setting DAC parameters}
-\begin{description}
-\item [\texttt{optia\ target}] set Vana to get the desired target
-analog current {[}mA{]}, .e.g. optia 25 
-\item [\texttt{show}] current DAC settings (presumably, from book-keeping
-in psi46test; reading back DACs from the ROC is not possible) 
-\item [\texttt{dac\ number\ value}] set a DAC value (number is
-the DAC address). Some DACs have shortcuts: 
-\item [\texttt{vana\ value}] set \texttt{Vana} (check analog current
-with \texttt{getia}, 1 mA / 6 Vana DAC units) 
-\item [\texttt{vthr\ value}] set global threshold \texttt{VthrComp} 
-\item [\texttt{vcal\ value}] set test pulse amplitude 
-\item [\texttt{ctl}] set control register (0 = small Vcal, 4 = large
-Vcal, 1 = ROC off) 
-\item [\texttt{caldel\ col\ row}] measure pixel efficiency vs \texttt{CalDel},
-set \texttt{CalDel} in the plateau region 
-\item [\texttt{caldelroc}] scan \texttt{CalDel} for the entire ROC
-(perfect pixels respond to all triggers, alive pixels have at least
-50\% response), sets \texttt{CalDel} in the plateau region 
-\item [\texttt{thrmap\ guess}] measure pixel threshold map for current
-settings (faster if guess is close to truth) 
-\item [\texttt{vthrcompi}] scan digital current vs global threshold,
-set \texttt{VthrComp} below the onset of the noise peak 
-\item [\texttt{vthrcomp\ target\,{[}guess{]}}] set VthrComp such
-that the minimum pixel threshold is at target Vcal units (faster if
-guess is near present threshold) 
-\item [\texttt{trim\ target}] set \texttt{Vtrim} and \texttt{trim
-bits} such that all pixel thresholds are as close as possible to target
-Vcal units 
-\item [\texttt{effmap\ nTrig}] measure efficiency map (PixelAlive)
-with n triggers per pixel 
-\item [\texttt{trimbits}] adjust trim bits to recover maximum efficiency 
-\item [\texttt{wtrim\ desc}] write current trim bits to \texttt{trimParameters\_cijk\_desc.dat}
-(or \texttt{trimParameters\_Dm\_desc.dat for modules)} 
-\item [\texttt{phmap\ ntrig}] measure pixel pulse height map 
-\item [\texttt{tune}] set gain and offset such that the pulse heights
-of all pixels are in 80\% of the ADC range, for large and small Vcal,
-with 10\% margins against overflows and underflows 
-\item [\texttt{wdac\ desc}] write current DAC settings to \texttt{dacParameters\_cijk\_desc.dat}
-(or \texttt{dacParameters\_Dm\_desc.dat for modules)} 
-\end{description}
-
-\subsection{DAC scans}
+\subsubsection{DAC scans}
 
 For diagnostic purposes: scan a dac (or two) for one pixel or the
 entire ROC, and measure efficiency, pulse height, or threshold. The
@@ -442,7 +451,7 @@ dac 25 at ctl 4 gives gain calibration, dac 26 gives CalDel)
 pixels, checks the gain calibration 
 \end{description}
 
-\subsection{maps}
+\subsubsection{maps}
 \begin{description}
 \item [\texttt{effmap\ nTrig}] pixel efficiency map (PixelAlive) 
 \item [\texttt{thrmap\ guess}] measure pixel threshold map for current
@@ -451,7 +460,7 @@ settings (faster if guess is close to truth)
 and \texttt{ctl} to explore the full range) 
 \end{description}
 
-\subsection{sensor calibrate and bump bond test}
+\subsubsection{sensor calibrate and bump bond test}
 
 The ROC test pulse may be directed towards a pad on the surface of
 each pixel, inducing a (small) charge into the sensor across the air
@@ -477,7 +486,7 @@ by negative nTrig) pulse height and efficiency vs dac for all pixels
 (\texttt{dac} 12 at \texttt{ctl} 4 gives bump bond test) 
 \end{description}
 
-\subsection{data taking}
+\subsubsection{data taking}
 
 The pattern generator on the DTB can be operated in a loop, repeating
 its programmed cycle (typically reset-cal-trigger-token = rctk) at
@@ -502,15 +511,19 @@ patterns (arm), or just with noise (at lowest thresholds, enable all
 pixels).
 
 
-\subsection{Module commands}
+\subsection{Full modules}
+\subsubsection{Module commands}
 
 The start-up script for a module (like \texttt{script/sm.roc}) defines
 up to 16 active ROCs and the module number. Several commands listed
 above use the number of active ROCs (1 or more) to decide if a ROC
 (160\,MHz Deser160 readout) or a module (400\,MHz readout with TBM)
-is present. Module-specifi commands: 
+is present. Module-specific commands: 
 \begin{description}
 \item [\texttt{sm}] start script for the module located in the \texttt{scripts/} folder
+
+\item [\texttt{select b1111111111111111}] bit pattern for enabled 16 ROCs on a module. This is usually a part of the \textbf{\texttt{sm}} script. Only dead ROCs (no current, physically left out of the toke chain) can be set to 0 and will be ignored in the readout with this function.
+\item [\texttt{optiamod 27}] set analog current for each ROC independently. For Vana $=$ 0 ROCs still draw 5 mA current and this offset needs to be subtracted when the dac is set.
 \item [\texttt{vt}] script to measure the digital current as a function of \texttt{VthrComp}, sets \texttt{VthrComp} away from the noise level
 
 
@@ -533,7 +546,42 @@ ROCs
 that all pixels fit into the ADC range 
 \item [\texttt{modtd~period}] take data with trigger rate 40\,MHz
 / \texttt{period} 
+\item [\texttt{wdac DESCRIPTION}] write dac settings for all ROCs into textile
+\item [\texttt{wtrim DESCRIPTION}] write trim settings for all ROCs into textile
+\item [\texttt{rddac DESCRIPTION}] read dac settings for all ROCs into textile
+\item [\texttt{rdtrim DESCRIPTION}] read trim settings for all ROCs into textile
 \end{description}
+
+\subsubsection{Trimming a module}
+The following list of commands show an example of how to start with a new module, perform threshold trimming, and collect the relevant data for the gain calibration.
+Most of the commands don't produced any plots, in order to record a threshold map use the \textbf{\texttt{modthrmap}} command (not necessary for the trimming procedure, therefore written in parenthesis in the following list).
+\begin{description}
+\item [\texttt{sm}] start script for the module
+\item [\texttt{optiamod 27}] set analog current for each ROC independently
+\item [\texttt{modcaldel 22 33}] adjust timing based on given pixel
+\item [\texttt{vt}] set global threshold away from noise
+\item [\texttt{modcaldel 22 33}]
+\item [\texttt{modvthrcomp 42}] pull lowest threshold pixel up to 42 (has to be safely away from trim target), Figure \ref{fig:thrmap} on the left
+\item [\texttt{modcaldel 22 33}]
+\item [\texttt{(modthrmap)}]
+\item [\texttt{modtrim 32}] trim module to a threshold of 32 (Figure \ref{fig:thrmap} on the left), if Vtrim is set to 1 then repeat modvthrcomp 42
+\item [\texttt{(modthrmap)}]
+\item [\texttt{ctl 0}]  set dac for lower test pulse
+\item [\texttt{dacscanmod 25 10 2}]  gain calibration for low test pulses with 10 triggers and step size 2
+\item [\texttt{ctl 4}]  set dac for higher test pulse
+\item [\texttt{dacscanmod 25 10 2}]  gain calibration for high test pulses
+\end{description}
+\begin{figure}
+\noindent \begin{centering}
+\includegraphics[scale=0.40]{plots/thresholdmap_aftermodvthrcomp42_caldel.pdf} 
+\includegraphics[scale=0.40]{plots/thresholdmap_aftermodtrim32_caldel.pdf} 
+\label{fig:thrmap}
+\par\end{centering}
+
+\protect\caption{Threshold distribution before (left) and after (right) trimming to 32.}
+\end{figure}
+
+
 
 \section{acronyms}
 
@@ -842,7 +890,7 @@ shown in Figure.
 %
 \begin{figure}
 \noindent \begin{centering}
-\includegraphics[scale=0.5]{c405-thrdist-scurve-trim36} 
+\includegraphics[scale=0.5]{plots/c405-thrdist-scurve-trim36.pdf} 
 \par\end{centering}
 
 \protect\caption{Distribution of the number of responses as a function of Vcal fitted
@@ -876,7 +924,7 @@ saves them in threshold\_scurve.ps.
 %
 \begin{figure}
 \noindent \begin{centering}
-\includegraphics[scale=0.6]{c405-thrsigma-trim36} 
+\includegraphics[scale=0.6]{plots/c405-thrsigma-trim36.pdf} 
 \par\end{centering}
 
 \protect\caption{The top row shows the threshold distribution (left) and the width
@@ -911,7 +959,7 @@ be done with large pulses (\texttt{CtrlReg} 4, \texttt{Vcal} 255).
 
 %
 \begin{figure}
-\hfill{}\includegraphics[scale=0.5]{c405-perfect-va-Ia}\hfill{}~\protect\caption{perfectly efficient pixels vs analog current. 22\,mA is required
+\hfill{}\includegraphics[scale=0.5]{plots/c405-perfect-va-Ia.pdf}\hfill{}~\protect\caption{perfectly efficient pixels vs analog current. 22\,mA is required
 to reach the plateau. At large current the effective threshold is
 too high}
 %
@@ -920,7 +968,7 @@ too high}
 
 %
 \begin{figure}[h]
- \hfill{}\includegraphics[bb=0bp 0bp 567bp 480bp,scale=0.66]{c405-caldel-wbc-97-98-99-100}\hfill{}~
+ \hfill{}\includegraphics[bb=0bp 0bp 567bp 480bp,scale=0.66]{plots/c405-caldel-wbc-97-98-99-100.pdf}\hfill{}~
 
 \protect\caption{Responses vs \texttt{CalDel} for one pixel. tct 106. \texttt{WBC}
 100 (red, 90 triggers), \texttt{WBC} 99 (blue, 100 triggers, working
@@ -932,7 +980,7 @@ point), \texttt{WBC} 98 (green, 90 triggers), \texttt{WBC} 97 (black,
 
 %
 \begin{figure}[h]
- \hfill{}\includegraphics[bb=0bp 0bp 567bp 425bp,scale=0.5]{c405-caldelroc}\hfill{}~\protect\caption{\texttt{CalDel} scan for an entire ROC counting the number of fully
+ \hfill{}\includegraphics[bb=0bp 0bp 567bp 425bp,scale=0.5]{plots/c405-caldelroc.pdf}\hfill{}~\protect\caption{\texttt{CalDel} scan for an entire ROC counting the number of fully
 responding pixels at each point at large \texttt{Vcal}. The working
 point is set on the plateau towards the left edge, to allow for timewalk
 at smallest pulse heights.}
@@ -942,7 +990,7 @@ at smallest pulse heights.}
 
 %
 \begin{figure}
-\hfill{}\includegraphics[scale=0.5]{c405-S-curve}\hfill{}~\protect\caption{Single pixel S-curve: counting responses to 100 triggers as a function
+\hfill{}\includegraphics[scale=0.5]{plots/c405-S-curve.pdf}\hfill{}~\protect\caption{Single pixel S-curve: counting responses to 100 triggers as a function
 of the test pulse amplitude (in low range). The threshold is defined
 as the Vcal value where 50\% efficiency is reached. The width of the
 curve is taken as a measure of the noise.}
@@ -952,21 +1000,21 @@ curve is taken as a measure of the noise.}
 
 %
 \begin{figure}
-\hfill{}\includegraphics[scale=0.4]{c405-thrdist-untrimmed}\hfill{}\includegraphics[scale=0.4]{c405-thrmap-untrimmed}\hfill{}~\protect\caption{threshold distribution and map, untrimmed digV2.1 chip}
+\hfill{}\includegraphics[scale=0.4]{plots/c405-thrdist-untrimmed.pdf}\hfill{}\includegraphics[scale=0.4]{plots/c405-thrmap-untrimmed.pdf}\hfill{}~\protect\caption{threshold distribution and map, untrimmed digV2.1 chip}
 %
 \end{figure}
 
 
 %
 \begin{figure}
-\hfill{}\includegraphics[scale=0.5]{c405-thr-vs-vthrcomp}\hfill{}~\protect\caption{pixel threshold vs global threshold}
+\hfill{}\includegraphics[scale=0.5]{plots/c405-thr-vs-vthrcomp.pdf}\hfill{}~\protect\caption{pixel threshold vs global threshold}
 %
 \end{figure}
 
 
 %
 \begin{figure}
-\hfill{}\includegraphics[scale=0.5]{c405-thr-vs-vtrim}\hfill{}~\protect\caption{Pixel threshold vs \texttt{Vtrim} for different \texttt{trim bits}:
+\hfill{}\includegraphics[scale=0.5]{plots/c405-thr-vs-vtrim.pdf}\hfill{}~\protect\caption{Pixel threshold vs \texttt{Vtrim} for different \texttt{trim bits}:
 top (black): 15, 2nd (blue): 11, mid (green): 7, 4th (magenta): 3,
 bottom (red): 0 (at large \texttt{Vtrim} and and trim bits 0 the threshold
 approaches the noise level and the measurement becomes unreliable).
@@ -978,7 +1026,7 @@ leading to a sharper threshold distribution.}
 
 %
 \begin{figure}
-\includegraphics[scale=0.5]{c405-thrdist-trim36}\caption{threshold distribution before (black-white) and after trimming (blue-yellow).
+\includegraphics[scale=0.5]{plots/c405-thrdist-trim36.pdf}\caption{threshold distribution before (black-white) and after trimming (blue-yellow).
 The statistics box refers to the final distribution. 36 VcalDAC units
 corresponds to about 1.8\,ke signal. The entire distribution can
 still be shifted around using the global threshold \texttt{VthrComp}
@@ -989,7 +1037,7 @@ while maintaining an RMS width of less than 2 DAC units.}
 
 %
 \begin{figure}
-\hfill{}\includegraphics[scale=0.5]{c405-thr-vs-ia}\hfill{}~\protect\caption{Pixel threshold vs \texttt{Vana}. Threshold 255 means overflow (current
+\hfill{}\includegraphics[scale=0.5]{plots/c405-thr-vs-ia.pdf}\hfill{}~\protect\caption{Pixel threshold vs \texttt{Vana}. Threshold 255 means overflow (current
 too low or threshold too high). Changing \texttt{Vana} changes the
 working point of preamplifier and shaper and the baseline at the input
 to the comparator, thus changing the pixel threshold with fixed comparator
@@ -1002,7 +1050,7 @@ or at least take a threshold map).}
 
 %
 \begin{figure}
-\includegraphics[scale=0.5]{PH-vs-Vcal-fit2}\caption{gain calibration: measure pulse height vs large (black) and small
+\includegraphics[scale=0.5]{plots/PH-vs-Vcal-fit2.pdf}\caption{gain calibration: measure pulse height vs large (black) and small
 (blue) Vcal and perform common fit to Weibull distribution (magenta).}
 %
 \end{figure}
@@ -1010,7 +1058,7 @@ or at least take a threshold map).}
 
 %
 \begin{figure}
-\includegraphics[scale=0.5]{c300-phdist}\caption{ROC pulse height distribution: raw ADC counts (black-white) and calibrated
+\includegraphics[scale=0.5]{plots/c300-phdist.pdf}\caption{ROC pulse height distribution: raw ADC counts (black-white) and calibrated
 Vcal DAC (blue-yellow). The original Vcal was 150 DAC units.}
 %
 \end{figure}

@@ -9,6 +9,6 @@ udelay(1000)
 pgsingle
 udelay(1000)
 dstop 0
-dread400 0
-#dreadm 0
+#dread400 0
+dreadm 0
 #dclose 0
