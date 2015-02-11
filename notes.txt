@@ -190,7 +190,9 @@ Function calls:
   126: bool LoopSingleRocOnePixelDacDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
   127: void VectorTest(vector<uint16_t>&, vectorR<uint16_t>&);
 
-
+--------------------------------------------------------------------------------
+11.8.2014
+git commit -m "cmd  takedata writes data file, tdscan for X-ray threshold method, scanvb for bias voltage scan with iseg"
 
 --------------------------------------------------------------------------------
  rsync -vrtpE * /media/Dell\ USB\ Portable\ HDD/psi/dtb/Psi46testDesy
