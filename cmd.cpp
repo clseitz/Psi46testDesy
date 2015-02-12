@@ -983,6 +983,62 @@ CMD_PROC( resoff )
 }
 
 //------------------------------------------------------------------------------
+CMD_PROC( select ) // define active ROCs
+{
+  //int rocmin, rocmax;
+  //PAR_RANGE( rocmin, rocmax, 0, 15 );
+
+  int enabledrocs;
+  PAR_INT( enabledrocs, 0, 65535 );
+
+  enabledrocslist.clear();
+  nrocsa = 0;
+  nrocsb = 0;
+  int rocmin = -1;
+  for( int i = 0; i < 16; i++ ) {
+    roclist[i] = (enabledrocs>>i) & 1;
+    if( enabledrocs >> i & 1 ) {
+      enabledrocslist.push_back(i);
+      if( i < 8 )
+	nrocsa++;
+      else
+	nrocsb++;
+    }
+    if( roclist[i] == 1 && rocmin == -1 ) rocmin = i;
+  } // i
+
+  //tb.Daq_Deser400_OldFormat( true ); // PSI D0003 has TBM08
+  tb.Daq_Deser400_OldFormat( false ); // DESY has TBM08b
+
+  vector < uint8_t > trimvalues( 4160 ); // uint8 in 2.15
+  for( int i = 0; i < 4160; ++i )
+    trimvalues[i] = 15; // 15 = no trim
+
+  // set up list of ROCs in FPGA:
+
+  vector < uint8_t > roci2cs;
+  roci2cs.reserve( 16 );
+  for( uint8_t roc = 0; roc < 16; ++roc )
+    if( roclist[roc] )
+      roci2cs.push_back( roc );
+
+  tb.SetI2CAddresses( roci2cs );
+
+  cout << "setTrimValues for ROC";
+  for( uint8_t roc = 0; roc < 16; ++roc )
+    if( roclist[roc] ) {
+      cout << " " << ( int ) roc << flush;
+      tb.roc_I2cAddr( roc );
+      tb.SetTrimValues( roc, trimvalues );
+    }
+  cout << endl;
+  tb.roc_I2cAddr( rocmin );
+  DO_FLUSH;
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 CMD_PROC( rocaddr )
 {
   int addr;
@@ -1146,6 +1202,14 @@ CMD_PROC( module )
 
   cout << "Module " << Module << endl;
 
+  if( Module < 1000 ) {
+    tb.Daq_Deser400_OldFormat( true ); // PSI D0003 has TBM08
+    cout << "TBM08 with old format" << endl;
+  }
+  else {
+    tb.Daq_Deser400_OldFormat( false ); // DESY has TBM08b/a
+    cout << "TBM08abc with new format" << endl;
+  }
   return true;
 }
 
@@ -3520,68 +3584,6 @@ CMD_PROC(tbmgetraw)
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( select ) // define active ROCs
-{
-  //int rocmin, rocmax;
-  //PAR_RANGE( rocmin, rocmax, 0, 15 );
-
-  int enabledrocs;
-  PAR_INT(enabledrocs,0,65535);
-
-  // int i;
-  // for( i = 0; i < rocmin; ++i )
-  //   roclist[i] = 0;
-  // for( ; i <= rocmax; ++i )
-  //   roclist[i] = 1;
-  // for( ; i < 16; ++i )
-  //   roclist[i] = 0;
-  enabledrocslist.clear();
-  nrocsa = 0;
-  nrocsb = 0;
-  int rocmin = -1;
-  for( int i = 0; i < 16; i++ ) {
-    roclist[i] = (enabledrocs>>i) & 1;
-    if( enabledrocs >> i & 1 ) {
-      enabledrocslist.push_back(i);
-      if( i < 8 )
-	nrocsa++;
-      else
-	nrocsb++;
-    }
-    if( roclist[i] == 1 && rocmin == -1 ) rocmin = i;
-  } // i
-
-  tb.Daq_Deser400_OldFormat( true ); // 3.0 for TBM08
-
-  vector < uint8_t > trimvalues( 4160 ); // uint8 in 2.15
-  for( int i = 0; i < 4160; ++i )
-    trimvalues[i] = 15; // 15 = no trim
-
-  // set up list of ROCs in FPGA:
-
-  vector < uint8_t > roci2cs;
-  roci2cs.reserve( 16 );
-  for( uint8_t roc = 0; roc < 16; ++roc )
-    if( roclist[roc] )
-      roci2cs.push_back( roc );
-
-  tb.SetI2CAddresses( roci2cs );
-
-  cout << "setTrimValues for ROC";
-  for( uint8_t roc = 0; roc < 16; ++roc )
-    if( roclist[roc] ) {
-      cout << " " << ( int ) roc << flush;
-      tb.roc_I2cAddr( roc );
-      tb.SetTrimValues( roc, trimvalues );
-    }
-  cout << endl;
-  tb.roc_I2cAddr( rocmin );
-  DO_FLUSH;
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
 CMD_PROC( dac ) // e.g. dac 25 222 [8]
 {
   int addr, value;
@@ -4595,7 +4597,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 }
 
 //------------------------------------------------------------------------------
-// utility function for Pixel PH and cnt
+// ROC utility function for Pixel PH and cnt
 bool GetPixData( int roc, int col, int row, int nTrig,
                  int &nReadouts, double &PHavg, double &PHrms )
 {
@@ -5806,7 +5808,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
     try {
       uint32_t rest;
-      tb.Daq_Read( data, Blocksize, rest, tbmch ); // 32768 gives zero
+      tb.Daq_Read( data, Blocksize, rest, tbmch );
       cout << "data size " << data.size(  ) << ", remaining " << rest << endl;
       while( rest > 0 ) {
         vector < uint16_t > dataB;
@@ -7129,7 +7131,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     iw = 4;
 
   // S-curves:
-  bool lex = 1; // example
+  bool lex = 0; // example
 
   for( int roc = 0; roc < 16; ++roc ) {
 
@@ -11259,7 +11261,7 @@ bool tunePHmod( int col, int row, int roc )
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // we have min and max.
   // adjust gain and offset such that max-min = 200, mid = 132
-  /*
+
   again = 0;
 
   do {
@@ -11337,7 +11339,7 @@ bool tunePHmod( int col, int row, int roc )
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
-  */
+
   return true;
 
 } // tune
@@ -13658,7 +13660,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( modthrdac, "modthrdac col row dac         Threshold vs DAC one pixel" );
   CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
-  CMD_REG( modtune,   "modtune col row               (Doesn't work yet) tune gain and offset" );
+  CMD_REG( modtune,   "modtune col row               tune gain and offset" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
   CMD_REG( modthrmap, "modthrmap                     module threshold map" );
 
