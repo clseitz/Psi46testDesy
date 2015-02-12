@@ -2358,7 +2358,7 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
 
   for( int vthr = vmin; vthr <= vmax; ++vthr ) {
 
-    tb.roc_SetDAC( VthrComp, vthr );
+    tb.SetDAC( VthrComp, vthr );
 
     // set CalDel? not needed for random hits with clock stretch
 
@@ -3586,7 +3586,7 @@ CMD_PROC( dac ) // e.g. dac 25 222 [8]
   for( int i = rocmin; i <= rocmax; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_SetDAC( addr, value ); // set corrected
+      tb.SetDAC( addr, value ); // set corrected
       dacval[i][addr] = value;
       Log.printf( "[SETDAC] %i  %i\n", addr, value );
     }
@@ -3603,7 +3603,7 @@ CMD_PROC( vana )
   for( int i = 0; i < 16; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_SetDAC( Vana, value );
+      tb.SetDAC( Vana, value );
       dacval[i][Vana] = value;
       Log.printf( "[SETDAC] %i  %i\n", Vana, value );
     }
@@ -3620,7 +3620,7 @@ CMD_PROC( vtrim )
   for( int i = 0; i < 16; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_SetDAC( Vtrim, value );
+      tb.SetDAC( Vtrim, value );
       dacval[i][Vtrim] = value;
       Log.printf( "[SETDAC] %i  %i\n", Vtrim, value );
     }
@@ -3637,7 +3637,7 @@ CMD_PROC( vthr )
   for( int i = 0; i < 16; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_SetDAC( VthrComp, value );
+      tb.SetDAC( VthrComp, value );
       dacval[i][VthrComp] = value;
       Log.printf( "[SETDAC] %i  %i\n", VthrComp, value );
     }
@@ -3653,7 +3653,7 @@ CMD_PROC( vcal )
   for( int i = 0; i < 16; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_SetDAC( Vcal, value );
+      tb.SetDAC( Vcal, value );
       dacval[i][Vcal] = value;
       Log.printf( "[SETDAC] %i  %i\n", Vcal, value );
     }
@@ -3669,7 +3669,7 @@ CMD_PROC( ctl )
   for( int i = 0; i < 16; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_SetDAC( CtrlReg, value );
+      tb.SetDAC( CtrlReg, value );
       dacval[i][CtrlReg] = value;
       Log.printf( "[SETDAC] %i  %i\n", CtrlReg, value );
     }
@@ -3685,7 +3685,7 @@ CMD_PROC( wbc )
   for( int i = 0; i < 16; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_SetDAC( WBC, value );
+      tb.SetDAC( WBC, value );
       dacval[i][WBC] = value;
       Log.printf( "[SETDAC] %i  %i\n", WBC, value );
     }
@@ -3782,7 +3782,7 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
     if( roclist[iroc] ) ++nrocs;
     val[iroc] = dacval[iroc][Vana];
     tb.roc_I2cAddr(iroc);
-    tb.roc_SetDAC(Vana, 0);
+    tb.SetDAC(Vana, 0);
   }
   tb.mDelay(300);
   //1 roc optimized each time, reduce offset current by one
@@ -3798,7 +3798,7 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
   for( int iroc = 0; iroc < 16; ++iroc ) {
     if( !roclist[iroc] ) continue;    
     tb.roc_I2cAddr( iroc );
-    tb.roc_SetDAC( Vana, val[iroc] );
+    tb.SetDAC( Vana, val[iroc] );
     tb.mDelay( 300 );
     double ia = tb.GetIA(  ) * 1E3 - IAoff; // [mA]
     double diff = target + 0.1 - ia; // besser zuviel als zuwenig
@@ -3997,7 +3997,7 @@ CMD_PROC( rddac ) // read DACs from file
     else if( idac > 255 )
       cout << "illegal dac number " << idac;
     else {
-      tb.roc_SetDAC( idac, vdac );
+      tb.SetDAC( idac, vdac );
       dacval[roc][idac] = vdac;
       cout << setw( 3 ) << idac
 	   << "  " << dacName[idac] << "\t" << setw( 5 ) << vdac << endl;
@@ -5002,7 +5002,7 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
 }
 
 //------------------------------------------------------------------------------
-// utility function: single pixel dac scan
+// utility function: single pixel dac scan, ROC or module
 bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
                  const uint8_t dac, const uint8_t stp, const int16_t nTrig,
 		 vector < int16_t >  & nReadouts,
@@ -9322,7 +9322,6 @@ CMD_PROC( modmap ) // pixelAlive for modules
 
   } // modmap
 
-
 //------------------------------------------------------------------------------
 // Daniel Pitzl, DESY, 25.1.2014: measure ROC threshold Vcal map, uses tb.PixelThreshold
 
@@ -11009,6 +11008,8 @@ bool tunePHmod( int col, int row, int roc )
   PHavg.reserve( 256 );
   PHrms.reserve( 256 );
 
+  // add: loop over ROCs
+
   DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
   if( nReadouts.size(  ) < 256 ) {
@@ -11150,8 +11151,8 @@ bool tunePHmod( int col, int row, int roc )
 
   do { // no overflows
 
-    //GetRocData( nTrig, nResponses, QHmax, QHrms );
     ModPixelAlive( nTrig ); // fills modcnt and modamp
+
     size_t j = 0;
     double phmax = 0;
 
@@ -13448,7 +13449,7 @@ CMD_PROC( bare ) // bare module test
     else
       vthr -= 5;
 
-    tb.roc_SetDAC( VthrComp, vthr );
+    tb.SetDAC( VthrComp, vthr );
 
     dacval[roc][VthrComp] = vthr;
 
