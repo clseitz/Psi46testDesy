@@ -992,7 +992,7 @@ CMD_PROC( select ) // define active ROCs
   PAR_INT( enabledrocs, 0, 65535 );
 
   enabledrocslist.clear();
-  nrocsa = 0;
+  nrocsa = 0; // global
   nrocsb = 0;
   int rocmin = -1;
   for( int i = 0; i < 16; ++i ) {
@@ -4601,6 +4601,8 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 bool GetPixData( int roc, int col, int row, int nTrig,
                  int &nReadouts, double &PHavg, double &PHrms )
 {
+  bool ldb = 0;
+
   nReadouts = 0;
   PHavg = -1;
   PHrms = -1;
@@ -4672,14 +4674,14 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 
   // unpack data:
 
+  int cnt = 0;
+  int phsum = 0;
+  int phsu2 = 0;
+
   if( nrocs == 1 ) {
 
     Decoder dec;
     bool even = 1;
-
-    int cnt = 0;
-    int phsum = 0;
-    int phsu2 = 0;
 
     bool extra = 0;
 
@@ -4719,14 +4721,111 @@ bool GetPixData( int roc, int col, int row, int nTrig,
     if( extra )
       cout << endl;
 
-    nReadouts = cnt;
-    if( cnt > 0 ) {
-      PHavg = ( double ) phsum / cnt;
-      PHrms = sqrt( ( double ) phsu2 / cnt - PHavg * PHavg );
-    }
   } // ROC
-  else {
+
+  else { // mod
+
+    bool ldbm = 0;
+
+    int event = 0;
+
+    uint32_t raw = 0;
+    uint32_t hdr = 0;
+    uint32_t trl = 0;
+    int32_t iroc = nrocsa * tbmch - 1; // will start at 8
+    int32_t kroc = 0; // enabledrocslist[0];
+
+    // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
+
+    for( size_t i = 0; i < data.size(  ); ++i ) {
+
+      int d = data[i] & 0xfff;  // 12 bits data
+      int v = ( data[i] >> 12 ) & 0xe; // 3 flag bits: e = 14 = 1110
+
+      uint32_t ph = 0;
+      int c = 0;
+      int r = 0;
+      int x = 0;
+      int y = 0;
+
+      switch ( v ) {
+
+	// TBM header:
+      case 10:
+        hdr = d;
+        break;
+      case 8:
+        hdr = ( hdr << 8 ) + d;
+	//DecodeTbmHeader(hdr);
+        if( ldbm )
+          cout << "event " << setw( 6 ) << event;
+        iroc = nrocsa * tbmch - 1; // will start at 8
+        break;
+
+	// ROC header data:
+      case 4:
+        ++iroc;
+        kroc = enabledrocslist[iroc];
+        break;
+
+	// pixel data:
+      case 0:
+        raw = d;
+        break;
+      case 2:
+        raw = ( raw << 12 ) + d;
+	//DecodePixel(raw);
+        ph = ( raw & 0x0f ) + ( ( raw >> 1 ) & 0xf0 );
+        raw >>= 9;
+        c = ( raw >> 12 ) & 7;
+        c = c * 6 + ( ( raw >> 9 ) & 7 );
+        r = ( raw >> 6 ) & 7;
+        r = r * 6 + ( ( raw >> 3 ) & 7 );
+        r = r * 6 + ( raw & 7 );
+        y = 80 - r / 2;
+        x = 2 * c + ( r & 1 );
+        if( ldbm )
+          cout << setw( 3 ) << kroc << setw( 3 ) << x << setw( 3 ) << y <<
+            setw( 4 ) << ph;
+	
+        if( kroc == roc && x == col && y == row ) {
+          ++cnt;
+          phsum += ph;
+	  phsu2 += ph * ph;
+        }
+        break;
+
+	// TBM trailer:
+      case 14:
+        trl = d;
+        break;
+      case 12:
+        trl = ( trl << 8 ) + d;
+	//DecodeTbmTrailer(trl);
+        if( ldbm )
+          cout << endl;
+        ++event;
+        break;
+
+      default:
+        printf( "\nunknown data: %X = %d", v, v );
+        break;
+
+      } // switch
+
+    } // data
+
+    if( ldb )
+      cout << "  events " << event
+	   << " = " << event / mTrig << " dac values" << endl;
+
   } // mod
+
+  nReadouts = cnt;
+  if( cnt > 0 ) {
+    PHavg = ( double ) phsum / cnt;
+    PHrms = sqrt( ( double ) phsu2 / cnt - PHavg * PHavg );
+  }
 
   return 1;
 }
