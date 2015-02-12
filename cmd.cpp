@@ -212,7 +212,7 @@ CMD_PROC( scan ) // scan for DTB on USB
   try {
     if( !tb->EnumFirst( nDev ) )
       throw int ( 1 );
-    for( nr = 0; nr < nDev; nr++ ) {
+    for( nr = 0; nr < nDev; ++nr ) {
       if( !tb->EnumNext( name ) )
         throw int ( 2 );
       if( name.size(  ) < 4 )
@@ -239,7 +239,7 @@ CMD_PROC( scan ) // scan for DTB on USB
     return true;
   }
 
-  for( nr = 0; nr < devList.size(  ); nr++ )
+  for( nr = 0; nr < devList.size(  ); ++nr )
     try {
       printf( "%10s: ", devList[nr].c_str(  ) );
       if( !tb->Open( devList[nr], false ) ) {
@@ -360,7 +360,7 @@ bool UpdateDTB( const char *filename )
       if( src.good(  ) ) {
         if( rec.size(  ) == 0 )
           continue;
-        recordCount++;
+        ++recordCount;
         if( tb.UpgradeData( rec ) != 0 ) {
           string msg;
           tb.UpgradeErrorMsg( msg );
@@ -901,7 +901,7 @@ CMD_PROC( getia ) // measure analog supply current
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
-      nrocs++;
+      ++nrocs;
   printf( "IA %4.1f mA for %i ROCs = %4.1f mA per ROC\n",
           ia, nrocs, ia / nrocs );
   Log.printf( "IA %4.1f mA for %i ROCs = %4.1f mA per ROC\n",
@@ -919,7 +919,7 @@ CMD_PROC( getid ) // measure digital supply current
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
-      nrocs++;
+      ++nrocs;
   if( nrocs == 1 && id > 600 ) { // current limit [mA]
     ierror = 1;
     cout << "Error: digital current too high" << endl;
@@ -995,14 +995,14 @@ CMD_PROC( select ) // define active ROCs
   nrocsa = 0;
   nrocsb = 0;
   int rocmin = -1;
-  for( int i = 0; i < 16; i++ ) {
+  for( int i = 0; i < 16; ++i ) {
     roclist[i] = (enabledrocs>>i) & 1;
     if( enabledrocs >> i & 1 ) {
       enabledrocslist.push_back(i);
       if( i < 8 )
-	nrocsa++;
+	++nrocsa;
       else
-	nrocsb++;
+	++nrocsb;
     }
     if( roclist[i] == 1 && rocmin == -1 ) rocmin = i;
   } // i
@@ -1498,7 +1498,7 @@ CMD_PROC( deser160 ) // scan DESER160 and clock phase for header 7F8
   int x, y;
   printf( "deser phs 0     1     2     3     4     5     6     7\n" );
 
-  for( y = 0; y < 25; y++ ) { // clk
+  for( y = 0; y < 25; ++y ) { // clk
 
     printf( "clk %2i:", y );
 
@@ -1507,7 +1507,7 @@ CMD_PROC( deser160 ) // scan DESER160 and clock phase for header 7F8
     tb.Sig_SetDelay( SIG_SDA, y + 15 );
     tb.Sig_SetDelay( SIG_TIN, y + 5 );
 
-    for( x = 0; x < 8; x++ ) { // deser160 phase
+    for( x = 0; x < 8; ++x ) { // deser160 phase
 
       tb.Daq_Select_Deser160( x );
       tb.uDelay( 10 );
@@ -1565,7 +1565,7 @@ CMD_PROC( deser160 ) // scan DESER160 and clock phase for header 7F8
   }
   printf( "Good values are:\n" );
   for( std::vector < std::pair < int, int > >::const_iterator it =
-	 goodvalues.begin(  ); it != goodvalues.end(  ); it++ ) {
+	 goodvalues.begin(  ); it != goodvalues.end(  ); ++it ) {
     printf( "%i %i\n", it->first, it->second );
   }
   const int select = floor( 0.5 * goodvalues.size(  ) - 0.5 );
@@ -1767,8 +1767,8 @@ bool Decoder::Sample( uint16_t sample )
       printEvery = 0;
     }
     else
-      printEvery++;
-    nReadout++;
+      ++printEvery;
+    ++nReadout;
     nSamples = 0;
   }
   if( nSamples < DECBUFFERSIZE ) {
@@ -1839,7 +1839,7 @@ CMD_PROC( dread ) // daq read and print as ROC data
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
-      nrocs++;
+      ++nrocs;
   cout << nrocs << " ROCs defined" << endl;
   int tbmData = 0;
   if( nrocs > 1 )
@@ -1920,14 +1920,14 @@ CMD_PROC( dread ) // daq read and print as ROC data
         if( npx % 8 == 7 && ldb )
           cout << endl;
         if( ix < 52 && iy < 80 ) {
-          nn[ix][iy]++; // hit map
+          ++nn[ix][iy]; // hit map
           if( iy > ymax )
             ymax = iy;
           h21->Fill( ix, iy );
         }
         else
-          nrr++; // error
-        npx++;
+          ++nrr; // error
+        ++npx;
       }
     }
     even = 1 - even;
@@ -1949,7 +1949,7 @@ CMD_PROC( dread ) // daq read and print as ROC data
   // hit map:
   /*
     if( npx > 0 ) {
-    if( ymax < 79 ) ymax++; // print one empty
+    if( ymax < 79 ) ++ymax; // print one empty
     for( int row = ymax; row >= 0; --row ) {
     cout << setw(2) << row << " ";
     for( int col = 0; col < 52; ++col )
@@ -2174,7 +2174,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 
     tb.Daq_Read( data, Blocksize, remaining );
 
-    ndq++;
+    ++ndq;
 
     //tb.uDelay(1000);
     tb.Daq_Start(  );
@@ -2224,7 +2224,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
           printf( "%X", data[i] );
         even = 0;
         npxev = 0;
-        nev++;
+        ++nev;
       }
       else if( even ) { // 24 data bits come in 2 words
 
@@ -2233,8 +2233,8 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
           unsigned long raw = ( data[i] & 0xfff ) << 12;
           raw += data[i + 1] & 0xfff; // even + odd
 
-          npx++;
-          npxev++;
+          ++npx;
+          ++npxev;
 
           dec.Translate( raw );
 
@@ -2253,15 +2253,15 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
           h22->Fill( ix, iy, vc );
 
           if( ix < 52 && iy < 80 ) {
-            NN[ix][iy]++; // hit map
+            ++NN[ix][iy]; // hit map
             if( ph > 0 && ph < 256 )
-              PH[ph]++;
+              ++PH[ph];
           }
           else
-            nrr++;
+            ++nrr;
 	}
         else {
-          nrr++;
+          ++nrr;
 	  cout << " err at " << i << " in " << data.size(  ) << endl;
         }
 
@@ -2488,14 +2488,14 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
       if( ( data[i] & 0xffc ) == 0x7f8 ) { // header
         even = 0;
         npxev = 0;
-        nev++;
+        ++nev;
       }
       else if( even ) { // 24 data bits come in 2 words
 
         if( i < data.size(  ) - 1 ) {
 
-          npx++;
-          npxev++;
+          ++npx;
+          ++npxev;
 
           unsigned long raw = ( data[i] & 0xfff ) << 12;
           raw += data[i + 1] & 0xfff; // even + odd
@@ -2512,10 +2512,10 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
           h21->Fill( ix, iy );
           h22->Fill( ix, iy, vc );
           if( ix > 51 || iy > 79 || ph > 255 )
-            nrr++;
+            ++nrr;
         }
         else {
-          nrr++;
+          ++nrr;
         }
 
       } // even
@@ -2645,7 +2645,7 @@ CMD_PROC( onevst ) // pulse one pixel vs time
 
     tb.Daq_Read( data, Blocksize, remaining );
 
-    ndq++;
+    ++ndq;
     got += data.size(  );
     rst += remaining;
 
@@ -2695,7 +2695,7 @@ CMD_PROC( onevst ) // pulse one pixel vs time
         if( ldb )
           printf( "%X", data[i] );
         even = 0;
-        nev++;
+        ++nev;
       }
       else if( even ) { // 24 data bits come in 2 words
 
@@ -2715,15 +2715,15 @@ CMD_PROC( onevst ) // pulse one pixel vs time
 		 << ":" << ph << "(" << ( int ) vc << ")";
           if( ix == col && iy == row ) {
             h11->Fill( duration, ph );
-            nsum++;
+            ++nsum;
             phsum += ph;
           }
           else
-            nrr++;
-          npx++;
+            ++nrr;
+          ++npx;
         }
         else {
-          nrr++;
+          ++nrr;
         }
 
       } // even
@@ -2902,7 +2902,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     tb.Daq_Read( data0, Blocksize, remaining0, 0 );
     tb.Daq_Read( data1, Blocksize, remaining1, 1 );
 
-    ndq++;
+    ++ndq;
     got += data0.size(  );
     rst += remaining0;
     got += data1.size(  );
@@ -2971,7 +2971,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 	  // TBM header:
         case 10:
           hdr = d;
-          nth[ch]++;
+          ++nth[ch];
           npxev = 0;
           break;
         case 8:
@@ -2997,9 +2997,9 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 
 	  // ROC header data:
         case 4:
-          iroc++; // start at 0
+          ++iroc; // start at 0
           kroc = enabledrocslist[iroc];
-          nrh[ch]++;
+          ++nrh[ch];
           if( ldb ) {
             if( kroc > 0 )
               cout << endl;
@@ -3020,8 +3020,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
           break;
         case 2:
           raw = ( raw << 12 ) + d;
-          npx++;
-          PX[kroc]++;
+          ++npx;
+          ++PX[kroc];
 	  //DecodePixel(raw);
           ph = ( raw & 0x0f ) + ( ( raw >> 1 ) & 0xf0 );
 	  h12->Fill( ph );
@@ -3036,7 +3036,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
           if( ldb )
             cout << " " << x << "." << y << ":" << ph;
           if( y > -1 && y < 80 && x > -1 && x < 52 ) {
-	    npxev++;
+	    ++npxev;
             NN[kroc][x][y] += 1;
             PH[kroc][x][y] += ph;
 	    int l = kroc % 8;   // 0..7
@@ -3067,8 +3067,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
             DecodeTbmTrailer( trl );
             cout << endl;
           }
-          nev[ch]++;
-          ntt[ch]++;
+          ++nev[ch];
+          ++ntt[ch];
           h11->Fill( npxev );
 	  if( npxev > 0 ) outFile << endl;
           break;
@@ -3110,7 +3110,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   cout << "histos 11, 12, 13, 21, 22" << endl;
 
   cout << endl;
-  for( size_t iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
+  for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
     int roc = enabledrocslist[iroc];
     cout << "ROC " << setw( 2 ) << roc << ", hits " << PX[roc] << endl;
   }
@@ -3461,7 +3461,7 @@ CMD_PROC( decoding )
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  for( t = 0; t < 44; t++ ) {
+  for( t = 0; t < 44; ++t ) {
     tb.Sig_SetDelay( SIG_CLK, t );
     tb.Sig_SetDelay( SIG_TIN, t + 5 );
     tb.uDelay( 10 );
@@ -3758,7 +3758,7 @@ bool setia( int target )
     tb.mDelay( 200 );
     ia = tb.GetIA(  ) * 1E3; // contains flush
     diff = ia - tia;
-    iter++;
+    ++iter;
     cout << "  " << iter << ". " << val << "  " << ia << "  " << diff << endl;
   }
   Log.flush(  );
@@ -3929,7 +3929,7 @@ bool writedac(string desc)
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
-      nrocs++;
+      ++nrocs;
 
   ostringstream fname;          // output string stream
 
@@ -3975,7 +3975,7 @@ CMD_PROC( rddac ) // read DACs from file
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
-      nrocs++;
+      ++nrocs;
 
   ostringstream fname;          // output string stream
 
@@ -4002,7 +4002,7 @@ CMD_PROC( rddac ) // read DACs from file
   while( !dacFile.eof(  ) ) {
     dacFile >> idac >> dacname >> vdac;
     if( idac == 1 ) {
-      croc++;
+      ++croc;
       roc = enabledrocslist[croc];
       cout << "ROC " << roc << endl;
       tb.roc_I2cAddr( roc );
@@ -4033,7 +4033,7 @@ CMD_PROC( wtrim ) // write trim bits to file
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
-      nrocs++;
+      ++nrocs;
 
   ostringstream fname;          // output string stream
 
@@ -4066,7 +4066,7 @@ CMD_PROC( rdtrim ) // read trim bits from file
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
-      nrocs++;
+      ++nrocs;
 
   ostringstream fname;          // output string stream
 
@@ -4597,13 +4597,50 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 }
 
 //------------------------------------------------------------------------------
-// ROC utility function for Pixel PH and cnt
+// ROC utility function for Pixel PH and cnt, ROC or mod
 bool GetPixData( int roc, int col, int row, int nTrig,
                  int &nReadouts, double &PHavg, double &PHrms )
 {
   nReadouts = 0;
   PHavg = -1;
   PHrms = -1;
+
+  tb.roc_I2cAddr( roc );
+  tb.roc_Col_Enable( col, true );
+  int trim = modtrm[roc][col][row];
+  tb.roc_Pix_Trim( col, row, trim );
+  tb.roc_Pix_Cal( col, row, false );
+
+  vector < uint8_t > trimvalues( 4160 );
+  for( int x = 0; x < 52; ++x ) {
+    for( int y = 0; y < 80; ++y ) {
+      int trim = modtrm[roc][x][y];
+      int i = 80 * x + y;
+      trimvalues[i] = trim;
+    } // row y
+  } // col x
+  tb.SetTrimValues( roc, trimvalues ); // load into FPGA
+
+  int tbmch = roc / 8;          // 0 or 1
+
+  int nrocs = 0;
+  for( int iroc = 0; iroc < 16; ++iroc )
+    if( roclist[iroc] )
+      ++nrocs;
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Open( Blocksize, tbmch );
+#endif
+  if( nrocs == 1 )
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  else {
+    tb.Daq_Select_Deser400(  );
+    tb.Daq_Deser400_Reset( 3 );
+  }
+  tb.uDelay( 100 );
+  tb.Daq_Start( tbmch );
+  tb.uDelay( 100 );
+  tb.Flush(  );
 
   uint16_t flags = 0;
   if( nTrig < 0 )
@@ -4613,30 +4650,17 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 
   uint16_t mTrig = abs( nTrig );
 
-  tb.roc_Col_Enable( col, true );
-  int trim = modtrm[0][col][row];
-  tb.roc_Pix_Trim( col, row, trim );
-  tb.roc_Pix_Cal( col, row, false );
-
-#ifdef DAQOPENCLOSE
-  tb.Daq_Open( Blocksize );
-#endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-  tb.uDelay( 100 );
-  tb.Daq_Start(  );
-  tb.uDelay( 100 );
-
   tb.LoopSingleRocOnePixelCalibrate( roc, col, row, mTrig, flags );
 
-  //tb.Daq_Stop();
+  //tb.Daq_Stop( tbmch );
 
   vector < uint16_t > data;
-  data.reserve( tb.Daq_GetSize(  ) );
-
-  tb.Daq_Read( data, Blocksize );
+  data.reserve( tb.Daq_GetSize( tbmch ) );
+  uint32_t rest;
+  tb.Daq_Read( data, Blocksize, rest, tbmch );
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close( tbmch );
   //tb.Daq_DeselectAll();
   tb.Flush(  );
 #endif
@@ -4646,56 +4670,63 @@ bool GetPixData( int roc, int col, int row, int nTrig,
   tb.roc_ClrCal(  );
   tb.Flush(  );
 
-  Decoder dec;
-  bool even = 1;
+  // unpack data:
 
-  int cnt = 0;
-  int phsum = 0;
-  int phsu2 = 0;
+  if( nrocs == 1 ) {
 
-  bool extra = 0;
+    Decoder dec;
+    bool even = 1;
 
-  for( unsigned int i = 0; i < data.size(  ); ++i ) {
+    int cnt = 0;
+    int phsum = 0;
+    int phsu2 = 0;
 
-    if( ( data[i] & 0xffc ) == 0x7f8 ) { // header
-      even = 0;
-    }
-    else if( even ) { // merge 2 data words into one int:
+    bool extra = 0;
 
-      if( i < data.size(  ) - 1 ) {
+    for( unsigned int i = 0; i < data.size(  ); ++i ) {
 
-        unsigned long raw = ( data[i] & 0xfff ) << 12;
-        raw += data[i + 1] & 0xfff;
-
-        dec.Translate( raw );
-
-        uint16_t ix = dec.GetX(  );
-        uint16_t iy = dec.GetY(  );
-        uint16_t ph = dec.GetPH(  );
-
-        if( ix == col && iy == row ) {
-          cnt++;
-          phsum += ph;
-          phsu2 += ph * ph;
-        }
-        else {
-          cout << " + " << ix << " " << iy << " " << ph;
-          extra = 1;
-        }
+      if( ( data[i] & 0xffc ) == 0x7f8 ) { // header
+	even = 0;
       }
+      else if( even ) { // merge 2 data words into one int:
+
+	if( i < data.size(  ) - 1 ) {
+
+	  unsigned long raw = ( data[i] & 0xfff ) << 12;
+	  raw += data[i + 1] & 0xfff;
+
+	  dec.Translate( raw );
+
+	  uint16_t ix = dec.GetX(  );
+	  uint16_t iy = dec.GetY(  );
+	  uint16_t ph = dec.GetPH(  );
+
+	  if( ix == col && iy == row ) {
+	    cnt++;
+	    phsum += ph;
+	    phsu2 += ph * ph;
+	  }
+	  else {
+	    cout << " + " << ix << " " << iy << " " << ph;
+	    extra = 1;
+	  }
+	}
+      }
+
+      even = 1 - even;
+
+    } // data loop
+    if( extra )
+      cout << endl;
+
+    nReadouts = cnt;
+    if( cnt > 0 ) {
+      PHavg = ( double ) phsum / cnt;
+      PHrms = sqrt( ( double ) phsu2 / cnt - PHavg * PHavg );
     }
-
-    even = 1 - even;
-
-  } // data loop
-  if( extra )
-    cout << endl;
-
-  nReadouts = cnt;
-  if( cnt > 0 ) {
-    PHavg = ( double ) phsum / cnt;
-    PHrms = sqrt( ( double ) phsu2 / cnt - PHavg * PHavg );
-  }
+  } // ROC
+  else {
+  } // mod
 
   return 1;
 }
@@ -5032,7 +5063,6 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   tb.roc_Pix_Cal( col, row, false );
 
   vector < uint8_t > trimvalues( 4160 );
-
   for( int x = 0; x < 52; x++ ) {
     for( int y = 0; y < 80; y++ ) {
       int trim = modtrm[roc][x][y];
@@ -5048,7 +5078,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
-      nrocs++;
+      ++nrocs;
   
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, tbmch );
@@ -5068,7 +5098,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   if( nTrig < 0 )
     flags = 0x0002; // FLAG_USE_CALS
   //flags |= 0x0020; // don't use DAC correction table
-  //flags |= 0x0010; // FLAG_FORCE_MASK (needs trims)
+  flags |= 0x0010; // FLAG_FORCE_MASK (needs trims)
 
   // scan dac:
 
@@ -5099,7 +5129,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   // pixel = +2 words
   // size = 256 * mTrig * (1 or 3) = 7680 for mTrig 10, all respond
 
-  tb.Daq_Stop( tbmch ); // don't need to stop with FW 2.11
+  //tb.Daq_Stop( tbmch ); // don't need to stop with FW 2.11
 
   if( ldb ) {
     cout << "  DAQ size " << tb.Daq_GetSize( tbmch ) << endl;
@@ -5112,7 +5142,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
   try {
     uint32_t rest;
-    tb.Daq_Read( data, Blocksize, rest, tbmch ); // 32768 gives zero
+    tb.Daq_Read( data, Blocksize, rest, tbmch );
     if( ldb )
       cout << "  data size " << data.size(  )
 	   << ", remaining " << rest << endl;
@@ -5135,6 +5165,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 #ifdef DAQOPENCLOSE
   tb.Daq_Close( tbmch );
   //tb.Daq_DeselectAll();
+  tb.Flush(  );
 #endif
 
   tb.SetDAC( dac, vdac ); // restore dac value
@@ -5170,7 +5201,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 	  //cout << " " << hex << pix.hdr << dec << " " << pix.n << endl;
           for( size_t ipx = 0; ipx < vpix.size(  ); ++ipx )
             if( vpix[ipx].x == col && vpix[ipx].y == row ) {
-              cnt++;
+              ++cnt;
               int ph = vpix[ipx].p;
               phsum += ph;
               phsu2 += ph * ph;
@@ -5274,8 +5305,8 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
 	// ROC header data:
       case 4:
-        iroc++;
-        kroc=enabledrocslist[iroc];
+        ++iroc;
+        kroc = enabledrocslist[iroc];
         break;
 
 	// pixel data:
@@ -5299,7 +5330,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
             setw( 4 ) << ph;
 	
         if( kroc == roc && x == col && y == row ) {
-          cnt++;
+          ++cnt;
           phsum += ph;
 	  phsu2 += ph * ph;
         }
@@ -5328,7 +5359,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
         }
         if( ldbm )
           cout << endl;
-        event++;
+        ++event;
         break;
 
       default:
@@ -5776,7 +5807,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     return 0;
   }
 
-  cout << "waiting for FPGA..." << endl;
+  cout << "        waiting for FPGA..." << endl;
   int dSize[2];
   dSize[0] = tb.Daq_GetSize( 0 );
   dSize[1] = tb.Daq_GetSize( 1 );
@@ -5786,7 +5817,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
   long u2 = tv.tv_usec;         // microseconds
   double dt = s2 - s1 + ( u2 - u1 ) * 1e-6;
 
-  cout << "LoopMultiRocOnePixelDacScan takes " << dt << " s"
+  cout << "        LoopMultiRocOnePixelDacScan takes " << dt << " s"
        << " = " << dt / 16 / nstp / nTrig * 1e6 << " us / pix" << endl;
 
   // read and unpack data:
@@ -5797,7 +5828,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
 
-    cout << "DAQ size channel " << tbmch
+    cout << "        DAQ size channel " << tbmch
 	 << " = " << dSize[tbmch] << " words " << endl;
 
     //cout << "DAQ_Stop..." << endl;
@@ -5809,14 +5840,15 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     try {
       uint32_t rest;
       tb.Daq_Read( data, Blocksize, rest, tbmch );
-      cout << "data size " << data.size(  ) << ", remaining " << rest << endl;
+      cout << "        data size " << data.size(  )
+	   << ", remaining " << rest << endl;
       while( rest > 0 ) {
         vector < uint16_t > dataB;
         dataB.reserve( Blocksize );
         tb.uDelay( 5000 );
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
         data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "data size " << data.size(  )
+        cout << "        data size " << data.size(  )
 	     << ", remaining " << rest << endl;
         dataB.clear(  );
       }
@@ -5871,7 +5903,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
 	// ROC header data:
       case 4:
-        iroc++; // start at 0
+        ++iroc; // start at 0
         kroc = enabledrocslist[iroc];
         if( ldb ) {
           if( kroc > 0 )
@@ -5882,7 +5914,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
           cout << "Error kroc " << kroc << endl;
           kroc = 15;
         }
-        nrh++;
+        ++nrh;
         break;
 
 	// pixel data:
@@ -5904,9 +5936,9 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
         if( ldb )
           cout << setw( 3 ) << kroc << setw( 3 )
 	       << x << setw( 3 ) << y << setw( 4 ) << ph;
-        npx++;
+        ++npx;
         if( x == col && y == row && kroc >= 0 && kroc < 16 )
-          cnt[kroc][idc]++;
+          ++cnt[kroc][idc];
         break;
 
 	// TBM trailer:
@@ -5918,7 +5950,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 	//DecodeTbmTrailer(trl);
         if( ldb )
           cout << endl;
-        nev++;
+        ++nev;
         break;
 
       default:
@@ -5929,11 +5961,12 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
     } // data
 
-    cout << "TBM ch " << tbmch
+    cout << "        TBM ch " << tbmch
 	 << ": events " << nev
 	 << " (expect " << nstp * nTrig << ")"
 	 << ", ROC headers " << nrh
-	 << " (expect " << nstp * nTrig * 8 << ")" << ", pixels " << npx << endl;
+	 << " (expect " << nstp * nTrig * 8 << ")"
+	 << ", pixels " << npx << endl;
 
   } // tbmch
 
@@ -5941,7 +5974,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
   long s3 = tv.tv_sec;          // seconds since 1.1.1970
   long u3 = tv.tv_usec;         // microseconds
   double dtr = s3 - s2 + ( u3 - u2 ) * 1e-6;
-  cout << "Daq_Read takes " << dtr << " s"
+  cout << "        Daq_Read takes " << dtr << " s"
        << " = " << 2 * ( dSize[0] + dSize[1] ) / dtr / 1024 / 1024 << " MiB/s"
        << endl;
 
@@ -5950,7 +5983,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     if( roclist[roc] == 0 )
       continue;
 
-    cout << "ROC " << setw( 2 ) << roc << ":" << endl;
+    cout << "        ROC " << setw( 2 ) << roc << ":" << endl;
 
     int nmx = 0;
     for( int idc = 0; idc < nstp; ++idc )
@@ -6090,18 +6123,18 @@ int GetEff( int &n01, int &n50, int &n99 )
 
         if( pix.n > 0 )
           if( pix.x == col && pix.y == row )
-            cnt++;
+            ++cnt;
 
       } // trig
 
       if( err )
         break;
       if( cnt > 0 )
-        n01++;
+        ++n01;
       if( cnt >= nTrig / 2 )
-        n50++;
+        ++n50;
       if( cnt == nTrig )
-        n99++;
+        ++n99;
 
     } // row
 
@@ -6256,7 +6289,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     long u2 = tv.tv_usec;       // microseconds
     dtloop += s2 - s1 + ( u2 - u1 ) * 1e-6;
 
-    cout << "waiting for FPGA..." << endl;
+    cout << "        waiting for FPGA..." << endl;
     int dSize[2];
     dSize[0] = tb.Daq_GetSize( 0 );
     dSize[1] = tb.Daq_GetSize( 1 );
@@ -6265,7 +6298,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
     for( int tbmch = 0; tbmch < 2; ++tbmch ) {
 
-      cout << "DAQ size channel " << tbmch
+      cout << "        DAQ size channel " << tbmch
 	   << " = " << dSize[tbmch] << " words " << endl;
 
       //cout << "DAQ_Stop..." << endl;
@@ -6279,7 +6312,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
         data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                             dataB.end(  ) );
-        cout << "data[" << tbmch << "] size " << data[tbmch].size(  )
+        cout << "        data[" << tbmch << "] size " << data[tbmch].size(  )
 	     << ", remaining " << rest << endl;
         while( rest > 0 ) {
           dataB.clear(  );
@@ -6287,7 +6320,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
           tb.Daq_Read( dataB, Blocksize, rest, tbmch );
           data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                               dataB.end(  ) );
-          cout << "data[" << tbmch << "] size " << data[tbmch].size(  )
+          cout << "        data[" << tbmch << "] size " << data[tbmch].size(  )
 	       << ", remaining " << rest << endl;
         }
       }
@@ -6305,8 +6338,9 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
   } // while FPGA not done
 
-  cout << "LoopMultiRocAllPixelDacScan takes " << dtloop << " s" << endl;
-  cout << "Daq_Read takes " << dtread << " s"
+  cout << "        LoopMultiRocAllPixelDacScan takes " << dtloop
+       << " s" << endl;
+  cout << "        Daq_Read takes " << dtread << " s"
        << " = " << 2 * ( data[0].size(  ) + data[1].size(  ) ) /
     dtread / 1024 / 1024 << " MiB/s" << endl;
 
@@ -6327,7 +6361,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   for( int i = 0; i < 16; ++i )
     for( int j = 0; j < 52; ++j )
       for( int k = 0; k < 80; ++k )
-        for( int l = 0; l < nstp; l++ )
+        for( int l = 0; l < nstp; ++l )
           cnt[i][j][k][l] = 0;
 
   int ****amp = new int ***[16];
@@ -6343,14 +6377,14 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   for( int i = 0; i < 16; ++i )
     for( int j = 0; j < 52; ++j )
       for( int k = 0; k < 80; ++k )
-        for( int l = 0; l < nstp; l++ )
+        for( int l = 0; l < nstp; ++l )
           amp[i][j][k][l] = 0;
 
   bool ldb = 0;
   long countLoop = -1; 
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
     countLoop = -1; 
-    cout << "DAQ size channel " << tbmch
+    cout << "        DAQ size channel " << tbmch
 	 << " = " << data[tbmch].size(  ) << " words " << endl;
 
     uint32_t nev = 0;
@@ -6389,12 +6423,12 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
           cout << "event " << setw( 6 ) << nev;
         iroc = nrocsa * tbmch - 1; // new event, will start at 0 or 8
         idc = ( nev / mTrig ) % nstp; // 0..nstp-1
-	countLoop++;
+	++countLoop;
         break;
 
 	// ROC header data:
       case 4:
-        iroc++; // start at 0 or 8
+        ++iroc; // start at 0 or 8
         kroc = enabledrocslist[iroc];
         if( ldb ) {
           if( kroc > 0 )
@@ -6405,7 +6439,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
           cout << "Error kroc " << kroc << endl;
           kroc = 15;
         }
-        nrh++;
+        ++nrh;
         break;
 
 	// pixel data:
@@ -6427,7 +6461,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
         if( ldb )
           cout << setw( 3 ) << kroc << setw( 3 )
 	       << x << setw( 3 ) << y << setw( 4 ) << ph;
-        npx++;
+        ++npx;
 	{
 	  long xi = (countLoop / mTrig ) / nstp ;
 	  int row = ( xi ) % 80;
@@ -6444,7 +6478,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 	} // dummy scope
 
 	if( addressmatch && kroc >= 0 && kroc < 16 ) {
-          cnt[kroc][x][y][idc]++;
+          ++cnt[kroc][x][y][idc];
           amp[kroc][x][y][idc] += ph;
 	}
         break;
@@ -6458,7 +6492,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 	//DecodeTbmTrailer(trl);
         if( ldb )
           cout << endl;
-        nev++;
+        ++nev;
         break;
 
       default:
@@ -6469,7 +6503,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
     } // data
 
-    cout << "TBM ch " << tbmch
+    cout << "        TBM ch " << tbmch
 	 << ": events " << nev
 	 << " (expect " << 4160 * nstp * mTrig << ")"
 	 << ", ROC headers " << nrh
@@ -6741,7 +6775,7 @@ void printThrMap( const bool longmode, int roc, int &nok )
       if( thr < 255 ) {
         sum += thr;
         su2 += thr * thr;
-        nok++;
+        ++nok;
       }
       else
         cout << "thr " << setw( 3 ) << thr
@@ -6993,7 +7027,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
   for( int i = 0; i < 16; ++i )
     for( int j = 0; j < 52; ++j )
       for( int k = 0; k < 80; ++k )
-        for( int l = 0; l < nstp; l++ )
+        for( int l = 0; l < nstp; ++l )
           cnt[i][j][k][l] = 0;
 
   bool ldb = 0;
@@ -7038,13 +7072,13 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
         if( ldb )
           cout << "event " << setw( 6 ) << nev;
         iroc = nrocsa * tbmch - 1; 
-	countLoop++;
+	++countLoop;
         idc = ( nev / nTrig ) % nstp; // 0..nstp-1
         break;
 
 	// ROC header data:
       case 4:
-        iroc++;
+        ++iroc;
         kroc = enabledrocslist[iroc]; // start at 0 or 8
         if( ldb ) {
           if( kroc > 0 )
@@ -7055,7 +7089,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
           cout << "Error kroc " << kroc << endl;
           kroc = 15;
         }
-        nrh++;
+        ++nrh;
         break;
 
 	// pixel data:
@@ -7077,7 +7111,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
         if( ldb )
           cout << setw( 3 ) << kroc << setw( 3 )
 	       << x << setw( 3 ) << y << setw( 4 ) << ph;
-        npx++;
+        ++npx;
 	{
 	  long xi = (countLoop / nTrig ) / nstp ;
 	  int row = ( xi ) % 80;
@@ -7094,7 +7128,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 	} // dummy scope
 
 	if( addressmatch && kroc >= 0 && kroc < 16 )
-          cnt[kroc][x][y][idc]++;
+          ++cnt[kroc][x][y][idc];
         break;
 
 	// TBM trailer:
@@ -7106,7 +7140,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 	//DecodeTbmTrailer(trl);
         if( ldb )
           cout << endl;
-        nev++;
+        ++nev;
         break;
 
       default:
@@ -8477,7 +8511,7 @@ bool GetRocData( int nTrig, vector < int16_t > &nReadouts,
 
         if( pix.n > 0 )
           if( pix.x == col && pix.y == row ) {
-            cnt++;
+            ++cnt;
             phsum += pix.p;
             phsu2 += pix.p * pix.p;
           }
@@ -8643,7 +8677,7 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > &nReadouts,
 
         if( pix.n > 0 )
           if( pix.x == col && pix.y == row ) {
-            cnt++;
+            ++cnt;
             phsum += pix.p;
             phsu2 += pix.p * pix.p;
           }
@@ -8742,11 +8776,11 @@ bool geteffmap( int nTrig )
       h11->Fill( cnt );
       h21->Fill( col, row, cnt );
       if( cnt > 0 )
-        nok++;
+        ++nok;
       if( cnt >= nTrig / 2 )
-        nActive++;
+        ++nActive;
       if( cnt == nTrig )
-        nPerfect++;
+        ++nPerfect;
       if( cnt < nTrig )
         cout << "pixel " << setw( 2 ) << col << setw( 3 ) << row
 	     << " responses " << cnt << endl;
@@ -8832,7 +8866,7 @@ CMD_PROC( effmask )
   PHavg.reserve( 4160 );
   PHrms.reserve( 4160 );
 
-  cout << "waiting for FPGA..." << endl;
+  cout << "        waiting for FPGA..." << endl;
 
   GetRocDataMasked( nTrig, nReadouts, PHavg, PHrms );
 
@@ -8841,7 +8875,7 @@ CMD_PROC( effmask )
   long u2 = tv.tv_usec;         // microseconds
   double dt = s2 - s0 + ( u2 - u0 ) * 1e-6;
 
-  cout << "LoopSingleRocAllPixelsCalibrate takes " << dt << " s"
+  cout << "        LoopSingleRocAllPixelsCalibrate takes " << dt << " s"
        << " = " << dt / 4160 / nTrig * 1e6 << " us / pix" << endl;
 
   if( h21 )
@@ -8867,11 +8901,11 @@ CMD_PROC( effmask )
       h11->Fill( cnt );
       if( cnt > 0 ) {
 	h21->Fill( col, row, cnt );
-	nError++;
+	++nError;
       }
       else {
 	h21->Fill( col, row, 1 );
-	nOk++;
+	++nOk;
       }
 
       if( cnt >= 0 )
@@ -8933,7 +8967,7 @@ void ModPixelAlive( int nTrig )
 
   vector < uint8_t > rocAddress;
 
-  for( size_t iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
+  for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
     int roc = enabledrocslist[iroc];
     if( roclist[roc] == 0 )
       continue;
@@ -8979,7 +9013,7 @@ void ModPixelAlive( int nTrig )
 
   while( done == 0 ) {
 
-    cout << "loop..." << endl << flush;
+    cout << "        loop..." << endl << flush;
 
     gettimeofday( &tv, NULL );
     long s1 = tv.tv_sec;        // seconds since 1.1.1970
@@ -8993,14 +9027,14 @@ void ModPixelAlive( int nTrig )
       return;
     }
 
-    cout << ( done ? "done" : "not done" ) << endl;
+    cout << "        " << ( done ? "done" : "not done" ) << endl;
 
     gettimeofday( &tv, NULL );
     long s2 = tv.tv_sec;        // seconds since 1.1.1970
     long u2 = tv.tv_usec;       // microseconds
     dtloop += s2 - s1 + ( u2 - u1 ) * 1e-6;
 
-    cout << "waiting for FPGA..." << endl;
+    cout << "        waiting for FPGA..." << endl;
     int dSize[2];
     dSize[0] = tb.Daq_GetSize( 0 );
     dSize[1] = tb.Daq_GetSize( 1 );
@@ -9009,7 +9043,7 @@ void ModPixelAlive( int nTrig )
 
     for( int tbmch = 0; tbmch < 2; ++tbmch ) {
 
-      cout << "DAQ size channel " << tbmch
+      cout << "        DAQ size channel " << tbmch
 	   << " = " << dSize[tbmch] << " words " << endl;
 
       //cout << "DAQ_Stop..." << endl;
@@ -9023,7 +9057,7 @@ void ModPixelAlive( int nTrig )
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
         data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                             dataB.end(  ) );
-        cout << "data[" << tbmch << "] size " << data[tbmch].size(  )
+        cout << "        data[" << tbmch << "] size " << data[tbmch].size(  )
 	     << ", remaining " << rest << endl;
         while( rest > 0 ) {
           dataB.clear(  );
@@ -9031,7 +9065,7 @@ void ModPixelAlive( int nTrig )
           tb.Daq_Read( dataB, Blocksize, rest, tbmch );
           data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                               dataB.end(  ) );
-          cout << "data[" << tbmch << "] size " << data[tbmch].size(  )
+          cout << "        data[" << tbmch << "] size " << data[tbmch].size(  )
 	       << ", remaining " << rest << endl;
         }
       }
@@ -9049,8 +9083,9 @@ void ModPixelAlive( int nTrig )
 
   } // while not done
 
-  cout << "LoopMultiRocAllPixelsCalibrate takes " << dtloop << " s" << endl;
-  cout << "Daq_Read takes " << dtread << " s" << " = "
+  cout << "        LoopMultiRocAllPixelsCalibrate takes "
+       << dtloop << " s" << endl;
+  cout << "        Daq_Read takes " << dtread << " s" << " = "
        << 2 * ( data[0].size(  ) + data[1].size(  ) ) / dtread / 1024 / 1024
        << " MiB/s" << endl;
 
@@ -9072,7 +9107,7 @@ void ModPixelAlive( int nTrig )
   long countLoop = -1;    
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
     countLoop = -1;    
-    cout << "DAQ size channel " << tbmch
+    cout << "        DAQ size channel " << tbmch
 	 << " = " << data[tbmch].size(  ) << " words " << endl;
 
     uint32_t raw = 0;
@@ -9080,7 +9115,7 @@ void ModPixelAlive( int nTrig )
     uint32_t trl = 0;
     int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
     int32_t kroc = 0;
-    cout << "nrocsa " << nrocsa << " nrocsb " << nrocsb << endl;
+    cout << "        nrocsa " << nrocsa << " nrocsb " << nrocsb << endl;
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
     for( size_t i = 0; i < data[tbmch].size(  ); ++i ) {
@@ -9106,7 +9141,7 @@ void ModPixelAlive( int nTrig )
 	if( ldb )
 	  cout << "TBM header" << endl;
         iroc = nrocsa * tbmch-1; // new event, will start at 0 or 8
-	countLoop++;
+	++countLoop;
 	if( ldb )
           cout << "event " << setw( 6 ) << event << " countloop " << countLoop << endl;
 
@@ -9114,7 +9149,7 @@ void ModPixelAlive( int nTrig )
 
 	// ROC header data:
       case 4:
-	iroc++;
+	++iroc;
         kroc = enabledrocslist[iroc];
 	if( ldb )
 	  cout << "ROC header" << endl;
@@ -9161,9 +9196,9 @@ void ModPixelAlive( int nTrig )
 	  }
 	} // dummy scope
 	if( addressmatch ) {
-          modcnt[kroc][x][y]++;
+          ++modcnt[kroc][x][y];
           modamp[kroc][x][y] += ph;
-	  PX[kroc]++;
+	  ++PX[kroc];
 	} // dummy scope
         break;
 
@@ -9177,7 +9212,7 @@ void ModPixelAlive( int nTrig )
         if( ldb )
           cout << endl;
         if( tbmch == 0 )
-          event++;
+          ++event;
 	if( ldb )
 	  cout << "TBM trailer" << endl;
         break;
@@ -9190,7 +9225,7 @@ void ModPixelAlive( int nTrig )
 
     } // data
 
-    cout << "TBM ch " << tbmch
+    cout << "        TBM ch " << tbmch
 	 << " events " << event
 	 << " = " << event / nTrig << " pixels / ROC" << endl;
 
@@ -9219,16 +9254,10 @@ void ModPixelAlive( int nTrig )
 
   Log.flush(  );
 
-  cout << endl;
-  for ( size_t iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
+  for ( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
     int roc = enabledrocslist[iroc];
     cout << "ROC " << setw( 2 ) << roc << ", hits " << PX[roc] << endl;
   }
-
-  gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
 } // ModPixelAlive
 
@@ -9703,7 +9732,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
 
           if( pix.n > 0 ) {
             if( pix.x == col && pix.y == row ) {
-              cnt[idc]++;
+              ++cnt[idc];
             }
           }
 
@@ -10569,7 +10598,7 @@ CMD_PROC( trimbits )
 
       // increase trim bits:
 
-      trm++;
+      ++trm;
 
       for( ; trm <= 15; ++trm ) {
 
@@ -10577,8 +10606,8 @@ CMD_PROC( trimbits )
 
         vector < uint8_t > trimvalues( 4160 );
 
-        for( int ix = 0; ix < 52; ix++ )
-          for( int iy = 0; iy < 80; iy++ ) {
+        for( int ix = 0; ix < 52; ++ix )
+          for( int iy = 0; iy < 80; ++iy ) {
             int i = 80 * ix + iy;
             trimvalues[i] = modtrm[roc][ix][iy];
           } // iy
@@ -11128,7 +11157,7 @@ bool tunePHmod( int col, int row, int roc )
 
   // set gain:
 
-  int gain = PHtop.size(  ) - 1;
+  int gain = PHtop.size(  ) - 1; // 255
   for( ; gain >= 1; --gain ) {
     if( PHtop.at( gain ) > 233 )
       break;
@@ -11201,6 +11230,8 @@ bool tunePHmod( int col, int row, int roc )
 
   } while( again );
 
+  cout << "no overflows at " << dacName[gaindac] << " = " << gain << endl;
+
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // check all pixels for underflow at minVcal:
 
@@ -11257,6 +11288,8 @@ bool tunePHmod( int col, int row, int roc )
       again = 0;
 
   } while( again );
+
+  cout << "no underflows at " << dacName[gaindac] << " = " << gain << endl;
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // we have min and max.
@@ -11467,7 +11500,7 @@ CMD_PROC( phmap ) // check gain tuning and calibration
       Log.printf( " %i", ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 );
 
       if( cnt > 0 ) {
-        nok++;
+        ++nok;
         sum += ph;
         su2 += ph * ph;
         if( ph < phmin )
@@ -11590,7 +11623,7 @@ CMD_PROC( calsmap ) // test PH map through sensor
         cout << endl << "   ";
       Log.printf( " %i", ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 );
       if( cnt > 0 ) {
-        nok++;
+        ++nok;
         sum += ph;
         su2 += ph * ph;
         if( ph < phmin )
@@ -11720,11 +11753,11 @@ CMD_PROC( bbtest ) // bump bond test
       Log.printf( " %i", cnt );
 
       if( cnt > 0 ) {
-        nok++;
+        ++nok;
         if( cnt >= nTrig / 2 )
-          nActive++;
+          ++nActive;
         if( cnt == nTrig )
-          nPerfect++;
+          ++nPerfect;
         sum += ph;
         su2 += ph * ph;
         if( ph < phmin )
@@ -11877,7 +11910,7 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
     }
 
     if( n01 < 4 && step == 2 )
-      n0++; // count empty responses
+      ++n0; // count empty responses
 
     idel += step;
 
@@ -12064,7 +12097,7 @@ CMD_PROC( scanvthr )
 	if( thr < 255 ) {
 	  sum += thr;
 	  su2 += thr * thr;
-	  nok++;
+	  ++nok;
 	}
       }
 
@@ -12207,7 +12240,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
       kmax = 0;
     }
     if( n99 == nmax )
-      kmax++;
+      ++kmax;
 
     double ia = tb.GetIA(  ) * 1E3;
 
@@ -12417,7 +12450,7 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
         hph[j].Fill( ical, ph );
         double vc = PHtoVcal( ph, 0, col, row );
         if( cnt > 0 && vc < 999 ) {
-          nok++;
+          ++nok;
           sum += vc;
           su2 += vc * vc;
           if( vc < vcmin )
@@ -12716,7 +12749,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
 	  if( pix.n > 0 ) {
 	    if( pix.x == col && pix.y == row ) {
-	      cnt++;
+	      ++cnt;
 	      phsum += pix.p;
 	    }
 	  }
@@ -12793,7 +12826,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
     // pixels:
 
-    for( int ibin = 1; ibin <= nbinx; ibin++ ) {
+    for( int ibin = 1; ibin <= nbinx; ++ibin ) {
 
       ipx = h22->GetXaxis(  )->GetBinCenter( ibin );
 
@@ -12821,7 +12854,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
 	// search for DAC response plateau:
 
-	for( int jbin = 0; jbin <= nbiny; jbin++ ) {
+	for( int jbin = 0; jbin <= nbiny; ++jbin ) {
 
 	  int idac = h22->GetYaxis(  )->GetBinCenter( jbin );
 
@@ -12842,14 +12875,14 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
 	if( iEnd - iBegin < 35 ) {
 
-	  nMissing++;
+	  ++nMissing;
 	  cout << "[Missing Bump at raw col:] " << ipx % 80
 	       << " " << ipx / 80 << endl;
 	  Log.printf( "[Missing Bump at raw col:] %i %i\n", ibin % 80, ibin / 80 );
 	  h25->Fill( ipx / 80, ipx % 80, 2 ); // red
 	}
 	else {
-	  nActive++;
+	  ++nActive;
 	  h25->Fill( ipx / 80, ipx % 80, 1 ); // green
 	} // plateau width
 
@@ -13144,7 +13177,7 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
 
         if( pix.n > 0 ) {
           if( pix.x == col && pix.y == row ) {
-            cnt++;
+            ++cnt;
             phsum += pix.p;
           }
         }
