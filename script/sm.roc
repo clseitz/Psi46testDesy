@@ -58,6 +58,8 @@ mdelay 100
 
 select b1111111111111111  # all ROCs on
 
+module 4016
+
 chip 350  # must be after select
 
 dac   1    8  Vdig 
