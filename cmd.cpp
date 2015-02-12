@@ -76,8 +76,8 @@ int nrocsb;
 
 int modthr[16][52][80];
 int modtrm[16][52][80];
-int modcnt[16][52][80];
-int modamp[16][52][80];
+int modcnt[16][52][80]; // responses
+int modamp[16][52][80]; // amplitudes
 
 // gain:
 
@@ -8902,18 +8902,17 @@ CMD_PROC( effmask )
 //------------------------------------------------------------------------------
 void ModPixelAlive( int nTrig )
 {
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec;          // seconds since 1.1.1970
+  long u0 = tv.tv_usec;         // microseconds
 
   for( int roc = 0; roc < 16; ++roc )
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row ) {
 	modcnt[roc][col][row] = 0;
-	modamp[roc][col][row] = 0;
-	
+	modamp[roc][col][row] = 0;	
       }
-  timeval tv;
-  gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
 
   // all on:
 
@@ -8921,9 +8920,8 @@ void ModPixelAlive( int nTrig )
 
   for( size_t iroc = 0; iroc < enabledrocslist.size(); iroc++ ) {
     int roc = enabledrocslist[iroc];
-    if( roclist[roc] == 0 ){
+    if( roclist[roc] == 0 )
       continue;
-    }
     tb.roc_I2cAddr( roc );
     rocAddress.push_back( roc );
     vector < uint8_t > trimvalues( 4160 );
@@ -9037,16 +9035,14 @@ void ModPixelAlive( int nTrig )
   } // while not done
 
   cout << "LoopMultiRocAllPixelsCalibrate takes " << dtloop << " s" << endl;
-  cout << "Daq_Read takes " << dtread << " s"
-       << " = " << 2 * ( data[0].size(  ) +
-			 data[1].size(  ) ) / dtread / 1024 /
-    1024 << " MiB/s" << endl;
+  cout << "Daq_Read takes " << dtread << " s" << " = "
+       << 2 * ( data[0].size(  ) + data[1].size(  ) ) / dtread / 1024 / 1024
+       << " MiB/s" << endl;
 
   // read and analyze:
 
   int PX[16] = { 0 };
   int event = 0;
-
 
   //try to match pixel address
   // loop cols
@@ -9134,8 +9130,7 @@ void ModPixelAlive( int nTrig )
         r = r * 6 + ( raw & 7 );
         y = 80 - r / 2;
         x = 2 * c + ( r & 1 );
-	//        if( ldb )
-         
+	//        if( ldb )         
 	{
 	  long xi = (countLoop / nTrig ) ; 
 	  int row = ( xi ) % 80;
@@ -9215,7 +9210,6 @@ void ModPixelAlive( int nTrig )
     cout << "ROC " << setw( 2 ) << roc << ", hits " << PX[roc] << endl;
   }
 
-
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec;          // seconds since 1.1.1970
   long u9 = tv.tv_usec;         // microseconds
@@ -9223,6 +9217,7 @@ void ModPixelAlive( int nTrig )
 
 } // ModPixelAlive
 
+//------------------------------------------------------------------------------
 CMD_PROC( modmap ) // pixelAlive for modules
 {
   int nTrig = 10;
@@ -9233,7 +9228,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
   Log.printf( " nTrig %i\n", nTrig );
   cout << "modmap with " << nTrig << " triggers" << endl;
 
-  ModPixelAlive( nTrig ); //fills modcnt and modamp
+  ModPixelAlive( nTrig ); // fills modcnt and modamp
 
 
   timeval tv;
@@ -10660,16 +10655,15 @@ bool tunePH( int col, int row, int roc )
 
   int offsdac = VoffsetOp;      // digV2, positive slope
   int gaindac = VIref_ADC;
-  if( Chip >= 400 )
-    {
-      offsdac = PHOffset; // digV2.1, positive slope
-      gaindac = PHScale;
-    }
+  if( Chip >= 400 ) {
+    offsdac = PHOffset; // digV2.1, positive slope
+    gaindac = PHScale;
+  }
 
-  cout << "start offset dac " << offsdac << " at " << dacval[roc][offsdac] <<
-    endl;
-  cout << "start gain   dac " << gaindac << " at " << dacval[roc][gaindac] <<
-    endl;
+  cout << "start offset dac " << offsdac
+       << " at " << dacval[roc][offsdac] << endl;
+  cout << "start gain   dac " << gaindac
+       << " at " << dacval[roc][gaindac] << endl;
 
   // set gain to minimal (at DAC 255), to avoid overflow or underflow:
 
@@ -10751,8 +10745,8 @@ bool tunePH( int col, int row, int roc )
   tb.Flush(  );
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // check for all pixels
-  
+  // check for all pixels:
+
   vector < int16_t > nResponses; // size 0
   vector < double >QHmax;
   vector < double >QHrms;
@@ -10999,8 +10993,8 @@ bool tunePHmod( int col, int row, int roc )
   long s0 = tv.tv_sec;          // seconds since 1.1.1970
   long u0 = tv.tv_usec;         // microseconds
 
-  //tb.SetDAC( CtrlReg, 4 ); // large Vcal
-  //tb.Flush(  );
+  tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  tb.Flush(  );
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // scan Vcal for one pixel
@@ -11047,18 +11041,15 @@ bool tunePHmod( int col, int row, int roc )
 
   int offsdac = VoffsetOp;      // digV2, positive slope
   int gaindac = VIref_ADC;
-  if( Chip >= 400 )
-    {
-      offsdac = PHOffset; // digV2.1, positive slope
-      gaindac = PHScale;
-    }
+  if( Chip >= 400 ) {
+    offsdac = PHOffset; // digV2.1, positive slope
+    gaindac = PHScale;
+  }
 
-
-
-  cout << "start offset dac " << offsdac << " at " << dacval[roc][offsdac] <<
-    endl;
-  cout << "start gain   dac " << gaindac << " at " << dacval[roc][gaindac] <<
-    endl;
+  cout << "start offset dac " << offsdac
+       << " at " << dacval[roc][offsdac] << endl;
+  cout << "start gain   dac " << gaindac
+       << " at " << dacval[roc][gaindac] << endl;
 
   // set gain to minimal (at DAC 255), to avoid overflow or underflow:
 
@@ -11160,7 +11151,7 @@ bool tunePHmod( int col, int row, int roc )
   do { // no overflows
 
     //GetRocData( nTrig, nResponses, QHmax, QHrms );
-    ModPixelAlive( nTrig );
+    ModPixelAlive( nTrig ); // fills modcnt and modamp
     size_t j = 0;
     double phmax = 0;
 
@@ -11366,17 +11357,17 @@ bool tunePHmod( int col, int row, int roc )
 
 } // tune
 
-
+//------------------------------------------------------------------------------
 CMD_PROC( modtune ) // adjust PH gain and offset to fit into ADC range
 {
   if( ierror ) return false;
 
-  int roc = 0;
   int col, row;
   PAR_INT( col, 0, 51 );
   PAR_INT( row, 0, 79 );
 
-  tunePHmod( col, row, roc );
+  for( int roc = 0; roc < 1 ; ++roc )
+    tunePHmod( col, row, roc );
 
   return true;
 }
@@ -13681,9 +13672,9 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( modthrdac, "modthrdac col row dac         Threshold vs DAC one pixel" );
   CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
+  CMD_REG( modtune,   "modtune col row               (Doesn't work yet) tune gain and offset" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
   CMD_REG( modthrmap, "modthrmap                     module threshold map" );
-  CMD_REG( modtune,   "modtune col row               (Doesn't work yet) tune gain and offset" );
 
   CMD_REG( takedata,  "takedata period               readout 40 MHz/period (stop: s enter)" );
   CMD_REG( tdscan,    "tdscan vmin vmax              take data vs VthrComp" );
