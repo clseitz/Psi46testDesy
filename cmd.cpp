@@ -1137,6 +1137,19 @@ CMD_PROC( chip )
 }
 
 //------------------------------------------------------------------------------
+CMD_PROC( module )
+{
+  int module;
+  PAR_INT( module, 0, 9999 );
+
+  Module = module;
+
+  cout << "Module " << Module << endl;
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 CMD_PROC( pgset )
 {
   int addr, delay, bits;
@@ -9220,6 +9233,11 @@ void ModPixelAlive( int nTrig )
 //------------------------------------------------------------------------------
 CMD_PROC( modmap ) // pixelAlive for modules
 {
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec;          // seconds since 1.1.1970
+  long u0 = tv.tv_usec;         // microseconds
+
   int nTrig = 10;
   if( !PAR_IS_INT( nTrig, 1, 65500 ) )
     nTrig = 10;
@@ -9229,12 +9247,6 @@ CMD_PROC( modmap ) // pixelAlive for modules
   cout << "modmap with " << nTrig << " triggers" << endl;
 
   ModPixelAlive( nTrig ); // fills modcnt and modamp
-
-
-  timeval tv;
-  gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
 
   if( h11 )
     delete h11;
@@ -9300,8 +9312,6 @@ CMD_PROC( modmap ) // pixelAlive for modules
       }
   } // rocs
 
-
-
   h11->Write(  );
   h12->Write(  );
   h13->Write(  );
@@ -9320,7 +9330,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
 
   return true;
 
-  } // modmap
+} // modmap
 
 //------------------------------------------------------------------------------
 // Daniel Pitzl, DESY, 25.1.2014: measure ROC threshold Vcal map, uses tb.PixelThreshold
@@ -13564,6 +13574,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( rocaddr,   "rocaddr                       set ROC address" );
   CMD_REG( rowinvert, "rowinvert                     invert row address psi46dig" );
   CMD_REG( chip,      "chip num                      set chip number" );
+  CMD_REG( module,    "module num                    set module number" );
 
   CMD_REG( pgset,     "pgset <addr> <bits> <delay>   set pattern generator entry" );
   CMD_REG( pgstop,    "pgstop                        stops pattern generator" );
