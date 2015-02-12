@@ -11010,6 +11010,8 @@ bool tunePHmod( int col, int row, int roc )
 
   // add: loop over ROCs
 
+  tb.roc_I2cAddr( roc );
+
   DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
   if( nReadouts.size(  ) < 256 ) {
@@ -11132,14 +11134,7 @@ bool tunePHmod( int col, int row, int roc )
   tb.Flush(  );
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // check for all pixels
-  
-  vector < int16_t > nResponses; // size 0
-  vector < double >QHmax;
-  vector < double >QHrms;
-  nResponses.reserve( 4160 ); // size 0, capacity 4160
-  QHmax.reserve( 4160 );
-  QHrms.reserve( 4160 );
+  // check for all pixels:
 
   tb.SetDAC( Vcal, 255 );
   tb.Flush(  );
@@ -11153,29 +11148,25 @@ bool tunePHmod( int col, int row, int roc )
 
     ModPixelAlive( nTrig ); // fills modcnt and modamp
 
-    size_t j = 0;
     double phmax = 0;
 
     for( int col = 0; col < 52; ++col ) {
 
       for( int row = 0; row < 80; ++row ) {
 
-        double ph = modamp[roc][col][row] / nTrig;
-	//cout<< " ph " << ph << endl;
-        if( ph > phmax ) {
-          phmax = ph;
-          colmax = col;
-          rowmax = row;
+        if( modcnt[roc][col][row] < nTrig / 2 ) {
+          cout << "weak pixel " << col << " " << row << endl;
         }
-
-        ++j;
-        if( j == nReadouts.size(  ) )
-          break;
+        else {
+          double ph = 1.0*modamp[roc][col][row] / modcnt[roc][col][row];
+	  if( ph > phmax ) {
+	    phmax = ph;
+	    colmax = col;
+	    rowmax = row;
+	  }
+	}
 
       } // row
-
-      if( j == nReadouts.size(  ) )
-        break;
 
     } // col
 
@@ -11184,15 +11175,13 @@ bool tunePHmod( int col, int row, int roc )
     if( phmax > 252 && gain < 255 ) {
 
       gain += 1; // reduce gain
+      tb.roc_I2cAddr( roc );
       tb.SetDAC( gaindac, gain );
       tb.Flush(  );
 
       cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
 
       again = 1;
-      nResponses.clear(  );
-      QHmax.clear(  );
-      QHrms.clear(  );
 
     }
     else
@@ -11202,11 +11191,6 @@ bool tunePHmod( int col, int row, int roc )
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // check all pixels for underflow at minVcal:
-  /*
-  vector < double >QHmin;
-  QHmin.reserve( 4160 );
-  nResponses.clear(  );
-  QHrms.clear(  );
 
   tb.SetDAC( Vcal, minVcal );
   tb.Flush(  );
@@ -11218,21 +11202,20 @@ bool tunePHmod( int col, int row, int roc )
 
   do { // no underflows
 
-    GetRocData( nTrig, nResponses, QHmin, QHrms );
+    ModPixelAlive( nTrig ); // fills modcnt and modamp
 
-    size_t j = 0;
     double phmin = 255;
 
     for( int col = 0; col < 52; ++col ) {
 
       for( int row = 0; row < 80; ++row ) {
 
-        if( nResponses.at( j ) < nTrig / 2 ) {
+        if( modcnt[roc][col][row] < nTrig / 2 ) {
           cout << "pixel " << col << " " << row << " below threshold at Vcal "
 	       << minVcal << endl;
         }
         else {
-          double ph = QHmin.at( j );
+          double ph = 1.0*modamp[roc][col][row] / modcnt[roc][col][row];
           if( ph < phmin ) {
             phmin = ph;
             colmin = col;
@@ -11240,14 +11223,7 @@ bool tunePHmod( int col, int row, int roc )
           }
         }
 
-        ++j;
-        if( j == nReadouts.size(  ) )
-          break;
-
       } // row
-
-      if( j == nReadouts.size(  ) )
-        break;
 
     } // col
 
@@ -11256,15 +11232,13 @@ bool tunePHmod( int col, int row, int roc )
     if( phmin < 3 && gain > 0 ) {
 
       gain += 1; // reduce gain
+      tb.roc_I2cAddr( roc );
       tb.SetDAC( gaindac, gain );
       tb.Flush(  );
 
       cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
 
       again = 1;
-      nResponses.clear(  );
-      QHmin.clear(  );
-      QHrms.clear(  );
 
     }
     else
@@ -11275,7 +11249,7 @@ bool tunePHmod( int col, int row, int roc )
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // we have min and max.
   // adjust gain and offset such that max-min = 200, mid = 132
-
+  /*
   again = 0;
 
   do {
