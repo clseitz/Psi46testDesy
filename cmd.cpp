@@ -3261,7 +3261,7 @@ CMD_PROC( showclk )
     tb.Daq_Start(  );
     tb.Pg_Single(  );
     tb.uDelay( 1000 );
-    //tb.Daq_Stop();
+    tb.Daq_Stop();
     tb.Daq_Read( data[i], 1024 );
     if( data[i].size(  ) != nSamples ) {
       printf( "Data size %i: %i\n", i, int ( data[i].size(  ) ) );
@@ -3324,7 +3324,7 @@ CMD_PROC( showctr )
     tb.Daq_Start(  );
     tb.Pg_Single(  );
     tb.uDelay( 1000 );
-    //tb.Daq_Stop();
+    tb.Daq_Stop();
     tb.Daq_Read( data[i], 1024 );
     if( data[i].size(  ) != nSamples ) {
       printf( "Data size %i: %i\n", i, int ( data[i].size(  ) ) );
@@ -3389,7 +3389,7 @@ CMD_PROC( showsda )
     tb.Daq_Start(  );
     tb.roc_Pix_Trim( 12, 34, 5 );
     tb.uDelay( 1000 );
-    //tb.Daq_Stop();
+    tb.Daq_Stop();
     tb.Daq_Read( data[i], 1024 );
     if( data[i].size(  ) != nSamples ) {
       printf( "Data size %i: %i\n", i, int ( data[i].size(  ) ) );
@@ -3469,7 +3469,7 @@ CMD_PROC( decoding )
       tb.Daq_Start(  );
       tb.Pg_Single(  );
       tb.uDelay( 200 );
-      //tb.Daq_Stop();
+      tb.Daq_Stop();
       tb.Daq_Read( data[i], 200 );
     }
     Log.printf( "%3i ", int ( t ) );
@@ -4654,7 +4654,7 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 
   tb.LoopSingleRocOnePixelCalibrate( roc, col, row, mTrig, flags );
 
-  //tb.Daq_Stop( tbmch );
+  tb.Daq_Stop( tbmch );
 
   vector < uint16_t > data;
   data.reserve( tb.Daq_GetSize( tbmch ) );
@@ -5017,7 +5017,7 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
     tb.uDelay( 200 );
   }
 
-  //tb.Daq_Stop();
+  tb.Daq_Stop();
   cout << "DAQ size " << tb.Daq_GetSize(  ) << endl;
 
   vector < uint16_t > data;
@@ -5153,13 +5153,14 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 		 vector < int16_t >  & nReadouts,
                  vector < double > & PHavg, vector < double > & PHrms )
 {
-  bool ldb = 0;
+  bool ldb = 1;
 
   tb.roc_I2cAddr( roc );
   tb.roc_Col_Enable( col, true );
   int trim = modtrm[roc][col][row];
   tb.roc_Pix_Trim( col, row, trim );
   tb.roc_Pix_Cal( col, row, false );
+  tb.Flush(  );
 
   vector < uint8_t > trimvalues( 4160 );
   for( int x = 0; x < 52; x++ ) {
@@ -5178,7 +5179,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
       ++nrocs;
-  
+
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, tbmch );
 #endif
@@ -5186,9 +5187,9 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
     tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
   else {
     tb.Daq_Select_Deser400(  );
-    tb.Daq_Deser400_Reset( 3 );
+    tb.Daq_Deser400_Reset( 3 ); // no effect
   }
-  tb.uDelay( 100 );
+  tb.uDelay( 100 ); // 1000 does not help
   tb.Daq_Start( tbmch );
   tb.uDelay( 100 );
   tb.Flush(  );
@@ -5197,7 +5198,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   if( nTrig < 0 )
     flags = 0x0002; // FLAG_USE_CALS
   //flags |= 0x0020; // don't use DAC correction table
-  flags |= 0x0010; // FLAG_FORCE_MASK (needs trims)
+  //flags |= 0x0010; // FLAG_FORCE_MASK (needs trims)
 
   // scan dac:
 
@@ -5216,8 +5217,8 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   bool done = 0;
   try {
     done =
-      tb.LoopSingleRocOnePixelDacScan( roc, col, row, mTrig, flags, dac, stp,
-                                       dacstrt, dacstop );
+      tb.LoopSingleRocOnePixelDacScan( roc, col, row, mTrig, flags,
+				       dac, stp, dacstrt, dacstop );
   }
   catch( CRpcError & e ) {
     e.What(  );
@@ -5228,7 +5229,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   // pixel = +2 words
   // size = 256 * mTrig * (1 or 3) = 7680 for mTrig 10, all respond
 
-  //tb.Daq_Stop( tbmch ); // don't need to stop with FW 2.11
+  tb.Daq_Stop( tbmch ); // else ROC 0, 8 garbage (13.2.2015)
 
   if( ldb ) {
     cout << "  DAQ size " << tb.Daq_GetSize( tbmch ) << endl;
@@ -5711,24 +5712,15 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
   long u0 = tv.tv_usec;         // microseconds
 
   int mm[16];
-  //int m0[16];
-  //int m9[16];
 
   for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
     int roc = enabledrocslist[iroc];
     if( roclist[roc] == 0 )
       continue;
     cout << endl << setw( 2 ) << "ROC " << roc << endl;
-    /*
-      tb.roc_I2cAddr(roc);
-      tb.roc_Col_Enable( col, true );
-      int trim = modtrm[roc][col][row];
-      tb.roc_Pix_Trim( col, row, trim );
-      tb.roc_Pix_Cal( col, row, false );
-    */
+
     // scan caldel:
 
-    //int nTrig = 99;
     int nTrig = 10;
     uint8_t dac = CalDel;
 
@@ -5738,13 +5730,8 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
     nReadouts.reserve( 256 ); // size 0, capacity 256
     PHavg.reserve( 256 );
     PHrms.reserve( 256 );
-    cout<<roc<<endl;
-    DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
-    tb.roc_Pix_Mask( col, row );
-    tb.roc_Col_Enable( col, 0 );
-    tb.roc_ClrCal(  );
-    tb.Flush(  );
+    DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
     int nstp = nReadouts.size(  );
     cout << "DAC steps " << nstp << endl;
@@ -5775,8 +5762,6 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
     cout << "eff plateau " << nm << " from " << i0 << " to " << i9 << endl;
 
     mm[roc] = nm;
-    //m0[roc] = i0;
-    //m9[roc] = i9;
 
     if( nm > nTrig / 2 ) {
       //int i2 = i0 + (i9-i0)/2; // mid OK for Vcal
@@ -5790,6 +5775,7 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
     }
 
   } // rocs
+
   cout << endl;
   for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ){
     int roc = enabledrocslist[iroc];
@@ -5880,10 +5866,10 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 #endif
   tb.Daq_Select_Deser400(  );
   tb.uDelay( 100 );
-  tb.Daq_Start( 0 );
-  tb.Daq_Start( 1 );
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
+  tb.Daq_Start( 0 );
+  tb.Daq_Start( 1 );
 
   uint16_t flags = 0;           // or flags = FLAG_USE_CALS;
   //flags |= 0x0010; // FLAG_FORCE_MASK (needs trims)
@@ -5931,7 +5917,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 	 << " = " << dSize[tbmch] << " words " << endl;
 
     //cout << "DAQ_Stop..." << endl;
-    //tb.Daq_Stop(tbmch);
+    tb.Daq_Stop( tbmch );
 
     vector < uint16_t > data;
     data.reserve( dSize[tbmch] );
@@ -6319,8 +6305,6 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 #endif
   tb.Daq_Select_Deser400(  );
   tb.uDelay( 100 );
-  tb.Daq_Start( 0 );
-  tb.Daq_Start( 1 );
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
 
@@ -6365,6 +6349,10 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     long s1 = tv.tv_sec;  // seconds since 1.1.1970
     long u1 = tv.tv_usec; // microseconds
 
+    tb.Daq_Start( 0 );
+    tb.Daq_Start( 1 );
+    tb.uDelay( 100 );
+
     try {
       done =
         tb.LoopMultiRocAllPixelsDacScan( rocAddress, mTrig, flags,
@@ -6401,7 +6389,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 	   << " = " << dSize[tbmch] << " words " << endl;
 
       //cout << "DAQ_Stop..." << endl;
-      //tb.Daq_Stop(tbmch);
+      tb.Daq_Stop( tbmch );
 
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
@@ -6991,8 +6979,6 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 #endif
   tb.Daq_Select_Deser400(  );
   tb.uDelay( 100 );
-  tb.Daq_Start( 0 );
-  tb.Daq_Start( 1 );
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
 
@@ -7030,6 +7016,10 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     long s1 = tv.tv_sec;        // seconds since 1.1.1970
     long u1 = tv.tv_usec;       // microseconds
 
+    tb.Daq_Start( 0 );
+    tb.Daq_Start( 1 );
+    tb.uDelay( 100 );
+
     try {
       done =
         tb.LoopMultiRocAllPixelsDacScan( rocAddress, nTrig, flags,
@@ -7066,7 +7056,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 	   << " = " << dSize[tbmch] << " words " << endl;
 
       //cout << "\tDAQ_Stop..." << endl;
-      //tb.Daq_Stop(tbmch);
+      tb.Daq_Stop( tbmch );
 
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
@@ -9091,8 +9081,6 @@ void ModPixelAlive( int nTrig )
 #endif
   tb.Daq_Select_Deser400(  );
   tb.uDelay( 100 );
-  tb.Daq_Start( 0 );
-  tb.Daq_Start( 1 );
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
 
@@ -9101,8 +9089,9 @@ void ModPixelAlive( int nTrig )
   //flags |= 0x0100; // FLAG_FORCE_UNMASKED: noisy
 
   vector < uint16_t > data[2];
-  data[0].reserve( nTrig * 4160 * 28 ); // 2 TBM head + 8 ROC head + 8*2 pix + 2 TBM trail
-  data[1].reserve( nTrig * 4160 * 28 ); // 2 TBM head + 8 ROC head + 8*2 pix + 2 TBM trail
+  // 28 = 2 TBM head + 8 ROC head + 8*2 pix + 2 TBM trail
+  data[0].reserve( nTrig * 4160 * 28 );
+  data[1].reserve( nTrig * 4160 * 28 );
 
   // measure:
 
@@ -9117,6 +9106,10 @@ void ModPixelAlive( int nTrig )
     gettimeofday( &tv, NULL );
     long s1 = tv.tv_sec;        // seconds since 1.1.1970
     long u1 = tv.tv_usec;       // microseconds
+
+    tb.Daq_Start( 0 );
+    tb.Daq_Start( 1 );
+    tb.uDelay( 100 );
 
     try {
       done = tb.LoopMultiRocAllPixelsCalibrate( rocAddress, nTrig, flags );
@@ -9146,7 +9139,8 @@ void ModPixelAlive( int nTrig )
 	   << " = " << dSize[tbmch] << " words " << endl;
 
       //cout << "DAQ_Stop..." << endl;
-      //tb.Daq_Stop(tbmch);
+      tb.Daq_Stop( tbmch );
+      tb.uDelay( 100 );
 
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
@@ -9638,8 +9632,6 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
 #endif
   tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
-  tb.uDelay( 100 );
 
   // all on:
 
@@ -9695,6 +9687,9 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     long s1 = tv.tv_sec;        // seconds since 1.1.1970
     long u1 = tv.tv_usec;       // microseconds
 
+    tb.Daq_Start(  );
+    tb.uDelay( 100 );
+
     try {
       done =
         tb.LoopSingleRocAllPixelsDacScan( roc, nTrig, flags, dac, dacLower1,
@@ -9714,7 +9709,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     cout << "waiting for FPGA..." << endl;
     int dSize = tb.Daq_GetSize(  );
 
-    //tb.Daq_Stop(); // avoid extra (noise) data
+    tb.Daq_Stop(); // avoid extra (noise) data
 
     gettimeofday( &tv, NULL );
     long s2 = tv.tv_sec;        // seconds since 1.1.1970
@@ -12625,8 +12620,6 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 #endif
   tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
-  tb.uDelay( 100 );
 
   // all on:
 
@@ -12687,6 +12680,9 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     long s1 = tv.tv_sec;        // seconds since 1.1.1970
     long u1 = tv.tv_usec;       // microseconds
 
+    tb.Daq_Start(  );
+    tb.uDelay( 100 );
+
     try {
       done =
 	tb.LoopSingleRocAllPixelsDacScan( 0, mTrig, flags, dac, step, dacLower1, dacUpper1 );
@@ -12699,7 +12695,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     int dSize = tb.Daq_GetSize(  );
     cout << "DAQ size " << dSize << " words" << endl;
 
-    //tb.Daq_Stop(); // avoid extra (noise) data
+    tb.Daq_Stop(); // avoid extra (noise) data
 
     gettimeofday( &tv, NULL );
     long s2 = tv.tv_sec;        // seconds since 1.1.1970
@@ -13447,7 +13443,7 @@ CMD_PROC( readback )
     tb.Pg_Single(  );
     tb.uDelay( 20 );
   }
-  //tb.Daq_Stop();
+  tb.Daq_Stop();
 
   // read out data
   vector < uint16_t > data;
