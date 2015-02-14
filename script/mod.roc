@@ -16,6 +16,7 @@ modcaldel 22 33
 modtrim 32
 
 modmap 20
+modthrmap
 
 ctl 4
 modtune 22 33

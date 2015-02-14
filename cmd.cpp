@@ -3863,7 +3863,7 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
+CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
 {
   if( ierror ) return false;
   int val[16];
@@ -3880,17 +3880,18 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
     tb.SetDAC(Vana, 0);
   }
   tb.mDelay(300);
-  //1 roc optimized each time, reduce offset current by one
+  // 1 roc optimized each time, reduce offset current by one
   double corr =  ( double( nrocs ) - 1.0) / double( nrocs );
   double IAoff = tb.GetIA() * 1000 * corr;
 
   Log.section( "OPTIA", false );
   Log.printf( " Ia %i mA\n", target );
 
-
   const double slope = 6;       // 255 DACs / 40 mA
   const double eps = 0.25;
+
   for( int iroc = 0; iroc < 16; ++iroc ) {
+
     if( !roclist[iroc] ) continue;    
     tb.roc_I2cAddr( iroc );
     tb.SetDAC( Vana, val[iroc] );
@@ -3905,9 +3906,10 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
     //safe initial settings in case values are alrady goo
     dacval[iroc][Vana] = val[iroc];
     iaroc[iroc] = ia;
-    while( fabs( diff ) > eps && iter < 11 && val[iroc] > 0 && val[iroc] < 255 ) {
-    
-    
+
+    while( fabs( diff ) > eps && iter < 11 &&
+	   val[iroc] > 0 && val[iroc] < 255 ) {
+
       int stp = int ( fabs( slope * diff ) );
       if( stp == 0 )
 	stp = 1;
@@ -3926,27 +3928,34 @@ CMD_PROC( optiamod ) // DP  optia ia [mA] for one ROC
       diff = target + 0.1 - ia;
       iaroc[iroc] = ia;
       ++iter;      
-      cout << iter << ". " << val[iroc] << "  " << ia << "  " << diff << endl;            
-      
-    }
+      cout << iter << ". " << val[iroc] << "  " << ia << "  " << diff << endl;
+
+    } // while
+
     Log.flush(  );
     tb.SetDAC( Vana, 0 );
     tb.mDelay( 200 );
-    cout << "set Vana back to 0 for next ROC (save Vana = " << val[iroc] << " ia " << iaroc[iroc]  <<  ") "<<endl;
+    cout << "set Vana back to 0 for next ROC (save Vana = " << val[iroc]
+	 << " ia " << iaroc[iroc]  <<  ") " << endl;
 
-  }
+  } // rocs
+
   double sumia = 0;
   for( int iroc = 0; iroc < 16; ++iroc ) {
     if( !roclist[iroc] ) continue;
     tb.roc_I2cAddr(iroc);
     tb.SetDAC( Vana,  dacval[iroc][Vana]);
     tb.mDelay( 200 );    
-    cout << "ROC " << iroc << " set Vana to " << val[iroc] << " ia " << iaroc[iroc]  << endl;
+    cout << "ROC " << iroc << " set Vana to " << val[iroc]
+	 << " ia " << iaroc[iroc]  << endl;
     sumia = sumia + iaroc[iroc];
   }
-  cout<<"sum of all rocs " << sumia << " with average " << sumia / nrocs << " per roc"<<endl;
+  cout<<"sum of all rocs " << sumia
+      << " with average " << sumia / nrocs << " per roc"
+      << endl;
   return true;
-}
+
+} // optiamod
 
 //------------------------------------------------------------------------------
 CMD_PROC( show )

@@ -69,10 +69,10 @@ tbmset $FA b00000000  OK
 tbmset $EC 9         Auto reset rate (x+1)*256
 tbmset $FC 9
 
-#tbmset $EE b10000000  160/400 MHz phase adjust  some ROCs missing
+#tbmset $EE b00000000  160/400 MHz phase adjust  OK
+tbmset $EE b00100000  160/400 MHz phase adjust  OK, also cold
 #tbmset $EE b01000000  160/400 MHz phase adjust  some ROCs missing
-#tbmset $EE b00100000  160/400 MHz phase adjust  OK
-tbmset $EE b00000000  160/400 MHz phase adjust  OK
+#tbmset $EE b10000000  160/400 MHz phase adjust  some ROCs missing
 
 tbmset $FE $00        Temp measurement control
 
