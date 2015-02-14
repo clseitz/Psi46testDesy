@@ -6,7 +6,7 @@ v2.05  bug fix for FLAG_FORCE_MASKED
 v2.06  load trim bits
 v2.07  setLoopTriggerDelay [us]
 v2.10  Daq_FillLevel, bool Loop... true = done, false = interrupt
-v2.11  (22.4.2014)
+v2.11  (22.4.2014 Simon)
 v2.14  (28.4.2014 Simon) SetLoopTriggerDelay [BC]
 v2.15  (12.5.2014 Simon) SetTrimValues uint8 instead int8
 v2.17  (13.5.2014 Simon) Faster Daq_FillLevel() in TriggerLoops
@@ -15,51 +15,37 @@ v2.19  (15.5.2014 Simon) FLAG_FORCE_MASKED is now default, overide with FLAG_FOR
 v2.20  (16.5.2014 Simon) triggerDelay auto calculation (for modules)
 V2.21  (21.5.2014 Simon) Pg_Triggers(uint32_t triggers, uint16_t period [BC])
 v2.22  ( 6.6.2014 Beat)  FW 2.3 with 32 bit transfer into RAM
+v3.00  ( 3.7.2014 Beat) Deser400 compact format
+v3.01  ( 4.7.2014 Simon) DacScans with step size argument
+v3.02  ( 8.7.2014 Beat) external clock and corrections
+v3.03  (10.7.2014 Simon) less delay in trigger loops
+v3.04  ( 4.9.2014 Simon) FLAG_FORCE_UNMASKED bug fix
+v3.05  ( 5.9.2014 Beat) GetVD_CAP, GetVD_Reg, GetVDAC_CAP
 
 --------------------------------------------------------------------------------
 
-update rpc_calls.cpp with tools:
+> upgrade dtb_v3.1.flash
 
-git clone https://github.com/psi46/pixel-dtb-firmware.git
-mv pixel-dtb-firmware/  pixel-dtb-firmware-2-22
-
-cd tools-16MB/rpcgen
-generate.sh ~/psi/dtb/pixel-dtb-firmware-2-22/software/dtb_expert/pixel_dtb.h
-
-cd tst222
-cp ../tools-16MB/rpcgen/rpc_calls.cpp .
-
-manually update pixel_dtb.h
-(compare to pxar/core/rpc/rpc_calls.h)
-
-make
-
-cp ../pixel-dtb-firmware-2-22/FLASH/dtb_v2.22.flash .
-
-> upgrade dtb_v2.22.flash
-
-psi46test for DTB V2.2 (20.6.2014)
-USB opened DTB_WS6RT9
 DTB DTB_WS6RT9 opened
 --- DTB info-------------------------------------
 Board id:    80
 HW version:  DTB1.2
-FW version:  2.2
-SW version:  2.21
+FW version:  3.1
+SW version:  3.2
 USB id:      DTB_WS6RT9
 MAC address: 40D855118050
 Hostname:    pixelDTB080
 Comment:     
 -------------------------------------------------
-PC  hash 333290928
-DTB hash 333290928
-RPC call hashes of PC and DTB match: 333290928
+PC  hash 392669958
+DTB hash 392669958
+RPC call hashes of PC and DTB match: 392669958
 
 > rpcinfo
 --- DTB RPC info ----------------------------------------
 RPC version:     2.0
 RPC timestamp:   
-Number of calls: 128
+Number of calls: 139
 Function calls:
     0: uint16_t GetRpcVersion();
     1: int32_t GetRpcCallId(string&);
@@ -94,105 +80,344 @@ Function calls:
    30: void Sig_SetOffset(uint8_t);
    31: void Sig_SetLVDS();
    32: void Sig_SetLCDS();
-   33: void SignalProbeD1(uint8_t);
-   34: void SignalProbeD2(uint8_t);
-   35: void SignalProbeA1(uint8_t);
-   36: void SignalProbeA2(uint8_t);
-   37: void SignalProbeADC(uint8_t, uint8_t);
-   38: void Pon();
-   39: void Poff();
-   40: void _SetVD(uint16_t);
-   41: void _SetVA(uint16_t);
-   42: void _SetID(uint16_t);
-   43: void _SetIA(uint16_t);
-   44: uint16_t _GetVD();
-   45: uint16_t _GetVA();
-   46: uint16_t _GetID();
-   47: uint16_t _GetIA();
-   48: void HVon();
-   49: void HVoff();
-   50: void ResetOn();
-   51: void ResetOff();
-   52: uint8_t GetStatus();
-   53: void SetRocAddress(uint8_t);
-   54: void Pg_SetCmd(uint16_t, uint16_t);
-   55: void Pg_SetCmdAll(vector<uint16_t>&);
-   56: void Pg_SetSum(uint16_t);
-   57: void Pg_Stop();
-   58: void Pg_Single();
-   59: void Pg_Trigger();
-   60: void Pg_Triggers(uint32_t, uint16_t);
-   61: void Pg_Loop(uint16_t);
-   62: uint32_t Daq_Open(uint32_t, uint8_t);
-   63: void Daq_Close(uint8_t);
-   64: void Daq_Start(uint8_t);
-   65: void Daq_Stop(uint8_t);
-   66: uint32_t Daq_GetSize(uint8_t);
-   67: uint8_t Daq_FillLevel(uint8_t);
-   68: uint8_t Daq_FillLevel();
-   69: uint8_t Daq_Read(HWvectorR&, uint32_t, uint8_t);
-   70: uint8_t Daq_Read(HWvectorR&, uint32_t, uint32_t&, uint8_t);
-   71: void Daq_Select_ADC(uint16_t, uint8_t, uint8_t, uint8_t);
-   72: void Daq_Select_Deser160(uint8_t);
-   73: void Daq_Select_Deser400();
-   74: void Daq_Deser400_Reset(uint8_t);
-   75: void Daq_Select_Datagenerator(uint16_t);
-   76: void Daq_DeselectAll();
-   77: void roc_I2cAddr(uint8_t);
-   78: void roc_ClrCal();
-   79: void roc_SetDAC(uint8_t, uint8_t);
-   80: void roc_Pix(uint8_t, uint8_t, uint8_t);
-   81: void roc_Pix_Trim(uint8_t, uint8_t, uint8_t);
-   82: void roc_Pix_Mask(uint8_t, uint8_t);
-   83: void roc_Pix_Cal(uint8_t, uint8_t, bool);
-   84: void roc_Col_Enable(uint8_t, bool);
-   85: void roc_Col_Mask(uint8_t);
-   86: void roc_Chip_Mask();
-   87: bool TBM_Present();
-   88: void tbm_Enable(bool);
-   89: void tbm_Addr(uint8_t, uint8_t);
-   90: void mod_Addr(uint8_t);
-   91: void tbm_Set(uint8_t, uint8_t);
-   92: bool tbm_Get(uint8_t, uint8_t&);
-   93: bool tbm_GetRaw(uint8_t, uint32_t&);
-   94: bool GetPixelAddressInverted();
-   95: void SetPixelAddressInverted(bool);
-   96: int32_t CountReadouts(int32_t);
-   97: int32_t CountReadouts(int32_t, int32_t);
-   98: int32_t CountReadouts(int32_t, int32_t, int32_t);
-   99: int32_t PH(int32_t, int32_t, int32_t, int16_t);
-  100: int32_t PixelThreshold(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, bool, bool);
-  101: bool test_pixel_address(int32_t, int32_t);
-  102: int8_t CalibratePixel(int16_t, int16_t, int16_t, int16_t&, int32_t&);
-  103: int8_t CalibrateDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
-  104: int8_t CalibrateDacDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
-  105: int16_t TrimChip(vector<int16_t>&);
-  106: int16_t CalibrateMap(int16_t, vectorR<int16_t>&, vectorR<int32_t>&, vectorR<uint32_t>&);
-  107: int16_t TriggerRow(int16_t, int16_t, vector<int16_t>&, int16_t);
-  108: bool TestColPixel(uint8_t, uint8_t, bool, vectorR<uint8_t>&);
-  109: void Ethernet_Send(string&);
-  110: uint32_t Ethernet_RecvPackets();
-  111: void LoopInterruptReset();
-  112: void SetLoopTriggerDelay(uint16_t);
-  113: bool SetI2CAddresses(vector<uint8_t>&);
-  114: bool SetTrimValues(uint8_t, vector<uint8_t>&);
-  115: bool LoopMultiRocAllPixelsCalibrate(vector<uint8_t>&, uint16_t, uint16_t);
-  116: bool LoopMultiRocOnePixelCalibrate(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t);
-  117: bool LoopSingleRocAllPixelsCalibrate(uint8_t, uint16_t, uint16_t);
-  118: bool LoopSingleRocOnePixelCalibrate(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t);
-  119: bool LoopMultiRocAllPixelsDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  120: bool LoopMultiRocOnePixelDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  121: bool LoopSingleRocAllPixelsDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  122: bool LoopSingleRocOnePixelDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
-  123: bool LoopMultiRocAllPixelsDacDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  124: bool LoopMultiRocOnePixelDacDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  125: bool LoopSingleRocAllPixelsDacDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  126: bool LoopSingleRocOnePixelDacDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
-  127: void VectorTest(vector<uint16_t>&, vectorR<uint16_t>&);
+   33: void Sig_SetRdaToutDelay(uint8_t);
+   34: void SignalProbeD1(uint8_t);
+   35: void SignalProbeD2(uint8_t);
+   36: void SignalProbeA1(uint8_t);
+   37: void SignalProbeA2(uint8_t);
+   38: void SignalProbeADC(uint8_t, uint8_t);
+   39: void Pon();
+   40: void Poff();
+   41: void _SetVD(uint16_t);
+   42: void _SetVA(uint16_t);
+   43: void _SetID(uint16_t);
+   44: void _SetIA(uint16_t);
+   45: uint16_t _GetVD();
+   46: uint16_t _GetVA();
+   47: uint16_t _GetID();
+   48: uint16_t _GetIA();
+   49: void HVon();
+   50: void HVoff();
+   51: void ResetOn();
+   52: void ResetOff();
+   53: uint8_t GetStatus();
+   54: void SetRocAddress(uint8_t);
+   55: void Pg_SetCmd(uint16_t, uint16_t);
+   56: void Pg_SetCmdAll(vector<uint16_t>&);
+   57: void Pg_SetSum(uint16_t);
+   58: void Pg_Stop();
+   59: void Pg_Single();
+   60: void Pg_Trigger();
+   61: void Pg_Triggers(uint32_t, uint16_t);
+   62: void Pg_Loop(uint16_t);
+   63: uint32_t Daq_Open(uint32_t, uint8_t);
+   64: void Daq_Close(uint8_t);
+   65: void Daq_Start(uint8_t);
+   66: void Daq_Stop(uint8_t);
+   67: uint32_t Daq_GetSize(uint8_t);
+   68: uint8_t Daq_FillLevel(uint8_t);
+   69: uint8_t Daq_FillLevel();
+   70: uint8_t Daq_Read(HWvectorR&, uint32_t, uint8_t);
+   71: uint8_t Daq_Read(HWvectorR&, uint32_t, uint32_t&, uint8_t);
+   72: void Daq_Select_ADC(uint16_t, uint8_t, uint8_t, uint8_t);
+   73: void Daq_Select_Deser160(uint8_t);
+   74: void Daq_Select_Deser400();
+   75: void Daq_Deser400_Reset(uint8_t);
+   76: void Daq_Deser400_OldFormat(bool);
+   77: void Daq_Select_Datagenerator(uint16_t);
+   78: void Daq_DeselectAll();
+   79: void roc_I2cAddr(uint8_t);
+   80: void roc_ClrCal();
+   81: void roc_SetDAC(uint8_t, uint8_t);
+   82: void roc_Pix(uint8_t, uint8_t, uint8_t);
+   83: void roc_Pix_Trim(uint8_t, uint8_t, uint8_t);
+   84: void roc_Pix_Mask(uint8_t, uint8_t);
+   85: void roc_Pix_Cal(uint8_t, uint8_t, bool);
+   86: void roc_Col_Enable(uint8_t, bool);
+   87: void roc_Col_Mask(uint8_t);
+   88: void roc_Chip_Mask();
+   89: bool TBM_Present();
+   90: void tbm_Enable(bool);
+   91: void tbm_Addr(uint8_t, uint8_t);
+   92: void mod_Addr(uint8_t);
+   93: void tbm_Set(uint8_t, uint8_t);
+   94: bool tbm_Get(uint8_t, uint8_t&);
+   95: bool tbm_GetRaw(uint8_t, uint32_t&);
+   96: bool GetPixelAddressInverted();
+   97: void SetPixelAddressInverted(bool);
+   98: int32_t CountReadouts(int32_t);
+   99: int32_t CountReadouts(int32_t, int32_t);
+  100: int32_t CountReadouts(int32_t, int32_t, int32_t);
+  101: int32_t PH(int32_t, int32_t, int32_t, int16_t);
+  102: int32_t PixelThreshold(int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t, bool, bool);
+  103: bool test_pixel_address(int32_t, int32_t);
+  104: int8_t CalibratePixel(int16_t, int16_t, int16_t, int16_t&, int32_t&);
+  105: int8_t CalibrateDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
+  106: int8_t CalibrateDacDacScan(int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, int16_t, vectorR<int16_t>&, vectorR<int32_t>&);
+  107: int16_t TrimChip(vector<int16_t>&);
+  108: int16_t CalibrateMap(int16_t, vectorR<int16_t>&, vectorR<int32_t>&, vectorR<uint32_t>&);
+  109: int16_t TriggerRow(int16_t, int16_t, vector<int16_t>&, int16_t);
+  110: bool TestColPixel(uint8_t, uint8_t, bool, vectorR<uint8_t>&);
+  111: void Ethernet_Send(string&);
+  112: uint32_t Ethernet_RecvPackets();
+  113: void LoopInterruptReset();
+  114: void SetLoopTriggerDelay(uint16_t);
+  115: bool SetI2CAddresses(vector<uint8_t>&);
+  116: bool SetTrimValues(uint8_t, vector<uint8_t>&);
+  117: bool LoopMultiRocAllPixelsCalibrate(vector<uint8_t>&, uint16_t, uint16_t);
+  118: bool LoopMultiRocOnePixelCalibrate(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t);
+  119: bool LoopSingleRocAllPixelsCalibrate(uint8_t, uint16_t, uint16_t);
+  120: bool LoopSingleRocOnePixelCalibrate(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t);
+  121: bool LoopMultiRocAllPixelsDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  122: bool LoopMultiRocAllPixelsDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  123: bool LoopMultiRocOnePixelDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  124: bool LoopMultiRocOnePixelDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  125: bool LoopSingleRocAllPixelsDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  126: bool LoopSingleRocAllPixelsDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  127: bool LoopSingleRocOnePixelDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t);
+  128: bool LoopSingleRocOnePixelDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  129: bool LoopMultiRocAllPixelsDacDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  130: bool LoopMultiRocAllPixelsDacDacScan(vector<uint8_t>&, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  131: bool LoopMultiRocOnePixelDacDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  132: bool LoopMultiRocOnePixelDacDacScan(vector<uint8_t>&, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  133: bool LoopSingleRocAllPixelsDacDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  134: bool LoopSingleRocAllPixelsDacDacScan(uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  135: bool LoopSingleRocOnePixelDacDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  136: bool LoopSingleRocOnePixelDacDacScan(uint8_t, uint8_t, uint8_t, uint16_t, uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t);
+  137: void VectorTest(vector<uint16_t>&, vectorR<uint16_t>&);
+  138: uint16_t GetADC(uint8_t);
 
 --------------------------------------------------------------------------------
-11.8.2014
-git commit -m "cmd  takedata writes data file, tdscan for X-ray threshold method, scanvb for bias voltage scan with iseg"
+3.5.2014
+TBM ports:
+port 0 = ROC  0 -  3
+port 1 = ROC  4 -  7
+port 2 = ROC  8 - 11
+port 3 = ROC 12 - 15
+port 6 = ROC  0 - 15
 
 --------------------------------------------------------------------------------
- rsync -vrtpE * /media/Dell\ USB\ Portable\ HDD/psi/dtb/Psi46testDesy
+module data into FPGA:
+
+TBM header 12 bits = 3 words
+TBM data   16 bits = 4 words
+twice (TBM A and B)
+ROC header 12 bits = 3 words
+TBM trailer 12 bits
+TBM data    16 bits
+twice (TBM A and B)
+4 to 5 encoding
+2.5 ns (400 MHz)
+
+( (12+16)*2 + 12*16 + (12+16)*2 + (24*16)*0 ) * 2.5 * 5/4 = 950 ns
+
+arm 2 2
+( (12+16)*2 + 12*16 + (12+16)*2 + (24*16)*1 ) * 2.5 * 5/4 = 2150 ns
+
+arm 2:3 11
+( (12+16)*2 + 12*16 + (12+16)*2 + (24*16)*2 ) * 2.5 * 5/4 = 3350 ns
+
+
+--------------------------------------------------------------------------------
+DESER400N:
+per TBM channel:
+TBM header data  16 bits =  2 words (was 4)
+ROC header data   4 bits =  8 words (was 8) (for 8 ROCs)
+TBM trailer data 16 bits =  2 words (was 4)
+---------------------------------
+empty event      64 bits = 12 words (was 16)
+
+pixel data       24 bits =  2 words (was 6)
+
+event with 1 pixel / ROC:  28 words (was 64) (per TBM channel) factor 2.3 reduction
+
+
+data size per TBM channel:
+2 words TBM header data
+8 words ROC header data
+2 words per pixel
+2 words TBM trailer data
+=
+12 + 2*nPix words = 28 words for 1 px/ROC
+
+--------------------------------------------------------------------------------
+Fr 4.7.2014 test module with FW 3.0, SW 3.0
+
+modmap 100
+LoopMultiRocAllPixelsCalibrate takes 12.2948 s
+DAQ size channel 0 = 11'647'800 words
+DAQ size channel 1 = 11'647'822 words
+Daq_Read takes 9.02211 s = 4.9249 MiB/s
+
+ROC  0, hits 416000
+ROC  1, hits 416000
+ROC  2, hits 416000
+ROC  3, hits 416000
+ROC  4, hits 416000
+ROC  5, hits 415900
+ROC  6, hits 416000
+ROC  7, hits 416000
+ROC  8, hits 416000
+ROC  9, hits 416000
+ROC 10, hits 415911
+ROC 11, hits 416000
+ROC 12, hits 416000
+ROC 13, hits 416000
+ROC 14, hits 416000
+ROC 15, hits 416000
+test duration 23.5835 s
+
+--------------------------------------------------------------------------------
+Su 7.7.2014 test module with FW 3.0, SW 3.01
+
+modsc 10 step 1
+LoopMultiRocAllPixelDacScan takes 340.122 s
+Daq_Read takes 214.843 s = 4.57223 MiB/s
+DAQ size channel 0 = 260'630'002 words 
+TBM ch 0: events 10649600 (expect 10649600), ROC headers 85196800 (expect 85196800), pixels 66417401
+DAQ size channel 1 = 254'383'428 words 
+TBM ch 1: events 10649604 (expect 10649600), ROC headers 85196789 (expect 85196800), pixels 63294109
+test duration 564.218 s
+
+modsc 10 step 8
+LoopMultiRocAllPixelDacScan takes 43.9556 s
+Daq_Read takes 22.718 s = 4.94227 MiB/s
+DAQ size channel 0 = 29'982'960 words 
+TBM ch 0: events 1'331'200 (expect 1'331'200), ROC headers 10'649'600 (expect 10'649'600), pixels 7'004'280
+DAQ size channel 1 = 28'883'240 words 
+TBM ch 1: events 1'331'200 (expect 1'331'200), ROC headers 10'649'600 (expect 10'649'600), pixels 6'454'420
+test duration 68.0518 s
+
+
+--------------------------------------------------------------------------------
+Mo 14.7.2014 test module D0003 with FW 3.1, SW 3.03
+
+modtrim 40
+tdx (modtd 200)
+
+ROC  0, hits 261668
+ROC  1, hits 300351
+ROC  2, hits 211402
+ROC  3, hits 290034
+ROC  4, hits 273939
+ROC  5, hits 272423
+ROC  6, hits 283007
+ROC  7, hits 289208
+ROC  8, hits 274564
+ROC  9, hits 279824
+ROC 10, hits 275486
+ROC 11, hits 290018
+ROC 12, hits 306914
+ROC 13, hits 226585
+ROC 14, hits 299664
+ROC 15, hits 267720
+
+run duration   3934.74
+DAQ calls      17325
+events ch 0    247218423
+TBM headers 0  247218423
+TBM trailers 0 247218423
+ROC headers 0  1977737224
+events ch 1    247218423
+TBM headers 1  247218423
+TBM trailers 1 247218423
+ROC headers 1  1977738347
+words read     1647063534
+data rate      0.798407 MiB/s
+pixels         4402807 = 0.0178094 / event = 0.00111309 / event / ROC
+address errors 0
+
+
+--------------------------------------------------------------------------------
+30.7.2014 James Cameron
+chip 402, 309
+phdac 22 33 25 100
+upd 13 = RMS around 1 ADC
+tune with CtrlReg 0 gives larger ADC: 4, event above 10
+=> high gain gives excessive ADC errors
+
+try threshold method for Ag Ka, Kb: tdscan
+trim to Vcal 125, may need larger Ia for 300 series
+
+chip 309 gain tuned:
+
+  1  Vdig	    8
+  2  Vana	  160
+  3  Vsf	  130
+  4  Vcomp	    0
+  7  VwllPr	    1
+  9  VwllSh	    1
+ 10  VhldDel	  252
+ 11  Vtrim	  191
+ 12  VthrComp	   98
+ 13  VIBias_Bus	    1
+ 14  Vbias_sf	   14
+ 15  VoffsetOp	   80
+ 17  VoffsetRO	  140
+ 18  VIon	  111
+ 19  Vcomp_ADC	   40
+ 20  VIref_ADC	   60
+ 22  VIColOr	   20
+ 25  VCal	  255
+ 26  CalDel	  140
+ 31  VD 	 2500
+ 32  VA 	 1800
+253  CtrlReg	    4
+254  WBC	   99
+
+s309
+rddac tune
+rdtrim tune
+
+--------------------------------------------------------------------------------
+7.8.2014 FEC
+module 7
+bias -150, 6.6 uA light on
+           1.7 uA lights off
+
+--------------------------------------------------------------------------------
+X-ray targets: 2015
+Zn   0 deg
+Mo  90
+Ag 180
+Sn 270
+
+--------------------------------------------------------------------------------
+Sat/Sun 8./9.11.2014: add bare test
+- split commands into interactive part and utility function
+- bare command calls several utility functions
+
+color palette with darg green on top
+
+--------------------------------------------------------------------------------
+D0003-T290-trim33-thrmap.root
+D0003-T290-trim33-phmap-various-Vcal.root
+
+D0003-T280-trim33-maps.root
+  mod_thr_dist->SetFillStyle(3004)
+  root [21] mod_thr_dist->SetFillColor(8)
+  root [22] mod_thr_dist->SetLineColor(8)
+
+D0003-T298-trim33-maps.root
+
+--------------------------------------------------------------------------------
+D4009 at UniHH
+Peltier +17 deg
+Vbias -150
+> smd
+> modcaldel 22 33
+> modvthrcomp 40
+> modtrim 32
+> modmap 20
+> modthrmap
+> ctl 0; dacscanmod 25
+> ctl 4; dacscanmod 25
+Mo X-rays
+> modtd 1000
+
+--------------------------------------------------------------------------------
+to do:
+open DTB: photo
+module threshold map before/after trim
+
+--------------------------------------------------------------------------------

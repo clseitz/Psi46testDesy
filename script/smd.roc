@@ -51,30 +51,29 @@ tbmset $F2 b11000000
 tbmset $E8 9          Set PKAM Counter (x+1)*6.4us
 tbmset $F8 9
 
+tbmset $EA b00000000  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
+tbmset $FA b00000000  OK
+
 #tbmset $EA b10000000  delay_tin: no data
 #tbmset $FA b01000000  delay_TBM_Hdr/Trl: no data
 
 #tbmset $EA b01100100  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
-#tbmset $FA b01100100  like pXar: OK, but extra data after ROC 7, 15
+#tbmset $FA b01100100  like pXar: OK
 
 #tbmset $EA b01110110  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
-#tbmset $FA b01110110  OK, but extra data after ROC 7, 15
+#tbmset $FA b01110110  OK
 
 #tbmset $EA b11110110  delay_tin  delay_TBM_Hdr/Trl  delay_ROC_port1  port0
-#tbmset $FA b11110110  OK, but extra data after ROC 7, 15
-
-tbmset $EA b00000000  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
-tbmset $FA b00000000  OK, but extra data after ROC 7, 15
+#tbmset $FA b11110110  OK
 
 tbmset $EC 9         Auto reset rate (x+1)*256
 tbmset $FC 9
 
 #tbmset $EE b10000000  160/400 MHz phase adjust  some ROCs missing
 #tbmset $EE b01000000  160/400 MHz phase adjust  some ROCs missing
-#tbmset $EE b00100000  160/400 MHz phase adjust  OK, but extra data
-tbmset $EE b00000000  160/400 MHz phase adjust  OK, but extra data
-#tbmset $EE b00000010  160/400 MHz phase adjust  OK, but extra data
-#tbmset $EE b00000001  160/400 MHz phase adjust  OK, but extra data
+#tbmset $EE b00100000  160/400 MHz phase adjust  OK
+tbmset $EE b00000000  160/400 MHz phase adjust  OK
+
 tbmset $FE $00        Temp measurement control
 
 
