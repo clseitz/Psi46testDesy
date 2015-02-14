@@ -3230,7 +3230,80 @@ CMD_PROC( scanvb ) // bias voltage scan
   cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // scanvb
+
+//------------------------------------------------------------------------------
+CMD_PROC( ibvst ) // bias current vs time
+{
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec;  // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
+
+  Log.section( "IBVSTIME", true );
+
+  if( h11 )
+    delete h11;
+  h11 = new
+    TProfile( "bias_time",
+	      "bias vs time;time [s];sensor bias current [uA]",
+	      3600, 0, 3600, 0, 2000 );
+
+  double wait = 1; // [s]
+
+  double vb = iseg.getVoltage(  ); // measure Vbias, negative!
+
+  cout << "vbias " << setw(3) << vb << endl;
+
+  double runtime = 0;
+
+  while( !keypressed(  ) ) {
+
+    double duration = 0;
+    double uA = 0;
+
+    gettimeofday( &tv, NULL );
+    long s1 = tv.tv_sec;  // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
+
+    while( duration < wait ) {
+
+      uA = iseg.getCurrent() * 1E6; // [uA]
+
+      gettimeofday( &tv, NULL );
+      long s2 = tv.tv_sec;  // seconds since 1.1.1970
+      long u2 = tv.tv_usec; // microseconds
+      duration = s2 - s1 + ( u2 - u1 ) * 1e-6;
+      runtime = s2 - s0 + ( u2 - u0 ) * 1e-6;
+      cout << " " << uA;
+
+    }
+
+    cout << endl;
+    Log.printf( "%i %f\n", vb, uA );
+    h11->Fill( runtime, uA );
+    h11->Draw( "hist" );
+    c1->Update(  );
+
+  } // time
+
+  h11->Write(  );
+  h11->SetStats( 0 );
+  h11->Draw( "hist" );
+  c1->Update(  );
+  cout << "  histos 11" << endl;
+
+  Log.flush(  );
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec;  // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return true;
+
+} // ibvst
 
 //------------------------------------------------------------------------------
 CMD_PROC( showclk )
@@ -13763,6 +13836,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( dreadm,    "dreadm [channel]              Read Daq buffer and show as module data" );
 
   CMD_REG( scanvb,    "scanvb vmax [vstp]            bias voltage scan" );
+  CMD_REG( ibvst,     "ibvst                         bias current vs time, any key to stop" );
 
   CMD_REG( showclk,   "showclk                       show CLK signal" );
   CMD_REG( showctr,   "showctr                       show CTR signal" );
