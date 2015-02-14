@@ -4686,7 +4686,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 }
 
 //------------------------------------------------------------------------------
-// ROC utility function for Pixel PH and cnt, ROC or mod
+// utility function for Pixel PH and cnt, ROC or mod
 bool GetPixData( int roc, int col, int row, int nTrig,
                  int &nReadouts, double &PHavg, double &PHrms )
 {
@@ -7510,7 +7510,7 @@ CMD_PROC( modthrmap )
 } // modthrmap
 
 //------------------------------------------------------------------------------
-// Daniel Pitzl, DESY, 8.7.2014: set global threshold per ROC. works. adjust CalDel
+// Daniel Pitzl, DESY, 8.7.2014: set global threshold per ROC
 CMD_PROC( modvthrcomp )
 {
   int target;
@@ -7588,9 +7588,9 @@ CMD_PROC( modvthrcomp )
 
     // VthrComp has negative slope: higher = softer
 
-    int vstp = -1;              // towards harder threshold
+    int vstp = -1;      // towards harder threshold
     if( vmin > target )
-      vstp = 1; // towards softer threshold
+      vstp = 1;         // towards softer threshold
 
     int vthr = dacval[roc][VthrComp];
 
@@ -7606,6 +7606,7 @@ CMD_PROC( modvthrcomp )
 	   << endl;
       if( vstp * thr <= vstp * target or thr > 240) // signed
         break;
+
     } // vthr
 
     vthr -= 1; // margin towards harder threshold
@@ -7786,8 +7787,8 @@ CMD_PROC( modtrim )
 
   bool contTrim = true;
   int strt = 0;
-  int stop = 255;               // Vcal scan range
-  int step = 4;                 // coarse
+  int stop = 255; // Vcal scan range
+  int step = 4;   // coarse
 
   const int nTrig = 10;
   const int xtlk = 0;
@@ -7812,7 +7813,6 @@ CMD_PROC( modtrim )
 
     if( roclist[roc] == 0 )
       continue;
-    
 
     tb.roc_I2cAddr( roc );
     cout << "ROC " << roc << endl;
@@ -7844,7 +7844,6 @@ CMD_PROC( modtrim )
 
     cout << "max thr " << vmax << " at " << colmax << " " << rowmax << endl;
 
-
     tb.SetDAC( CtrlReg, 0 ); // this ROC, small Vcal
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7866,14 +7865,14 @@ CMD_PROC( modtrim )
       int thr = ThrPix( roc, colmax, rowmax, dac, step, nTrig );
 
       cout << setw( 3 ) << itrim << "  " << setw( 3 ) << thr << endl;
-      if( thr < target or thr > 240)
+      if( thr < target or thr > 254 ) // CS
         break;
 
     } // itrim
 
     itrim += 2; // margin
-    //safety if something failed go to default value 
-    if( itrim < 10 ) itrim = 130; 
+    // CS safety if something failed go to default value:
+    if( itrim < 10 ) itrim = 180; 
     tb.SetDAC( Vtrim, itrim );
     cout << "set Vtrim to " << itrim << endl;
     dacval[roc][Vtrim] = itrim;
@@ -9019,6 +9018,7 @@ CMD_PROC( effmap ) // single ROC response map ('PixelAlive')
   geteffmap( nTrig );
 
   return 1;
+
 }
 
 //------------------------------------------------------------------------------
@@ -9131,9 +9131,12 @@ CMD_PROC( effmask )
   cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // effmask
 
 //------------------------------------------------------------------------------
+// CS 2014: utility function for module response map
+
 void ModPixelAlive( int nTrig )
 {
   timeval tv;
