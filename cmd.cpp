@@ -7441,6 +7441,10 @@ CMD_PROC( modthrmap )
 {
   Log.section( "MODTHRMAP", true );
 
+  int cut;
+  if( !PAR_IS_INT( cut, 0, 255 ) )
+    cut = 20; // for printout
+
   timeval tv;
   gettimeofday( &tv, NULL );
   long s0 = tv.tv_sec;          // seconds since 1.1.1970
@@ -7477,6 +7481,18 @@ CMD_PROC( modthrmap )
                   8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
 
+  int sum = 0;
+  int nok = 0;
+  int su2 = 0;
+  int vmin = 255;
+  int vmax = 0;
+  int colmin = -1;
+  int rowmin = -1;
+  int rocmin = -1;
+  int colmax = -1;
+  int rowmax = -1;
+  int rocmax = -1;
+
   for( int roc = 0; roc < 16; ++roc ) {
     if( roclist[roc] == 0 )
       continue;
@@ -7489,10 +7505,67 @@ CMD_PROC( modthrmap )
 	  xm = 415 - xm; // rocs 8 9 A B C D E F
 	  ym = 159 - row; // 80..159
 	}
-	h11->Fill( modthr[roc][col][row] );
-	h21->Fill( xm, ym, modthr[roc][col][row] );
-      }
+	int thr = modthr[roc][col][row];
+	h11->Fill( thr );
+	h21->Fill( xm, ym, thr );
+	if( thr > 0 && thr < 255 ) {
+	  sum += thr;
+	  su2 += thr * thr;
+	  nok++;
+	}
+	else
+	  cout << "thr " << setw( 3 ) << thr
+	       << " for ROC col row trim "
+	       << setw( 2 ) << roc
+	       << setw( 3 ) << col
+	       << setw( 3 ) << row
+	       << setw( 3 ) << modtrm[roc][col][row]
+	       << endl;
+
+	if( thr < cut )
+	  cout << "thr " << setw( 3 ) << thr
+	       << " for ROC col row trim "
+	       << setw( 2 ) << roc
+	       << setw( 3 ) << col
+	       << setw( 3 ) << row
+	       << setw( 3 ) << modtrm[roc][col][row]
+	       << endl;
+
+	if( thr > 0 && thr < vmin ) {
+	  vmin = thr;
+	  colmin = col;
+	  rowmin = row;
+	  rocmin = roc;
+	}
+
+	if( thr > vmax && thr < 255 ) {
+	  vmax = thr;
+	  colmax = col;
+	  rowmax = row;
+	  rocmax = roc;
+	}
+
+      } // rows
+
   } // rocs
+
+  cout << "  valid thresholds " << nok << endl;
+  if( nok > 0 ) {
+    cout << "  min thr " << vmin
+	 << " at ROC" << setw( 2 ) << rocmin
+	 << " col " << setw( 2 ) << colmin
+	 << " row " << setw( 2 ) << rowmin
+	 << endl;
+    cout << "  max thr " << vmax
+	 << " at ROC" << setw( 2 ) << rocmax
+	 << " col " << setw( 2 ) << colmax
+	 << " row " << setw( 2 ) << rowmax
+	 << endl;
+    double mid = ( double ) sum / ( double ) nok;
+    double rms = sqrt( ( double ) su2 / ( double ) nok - mid * mid );
+    cout << "  mean thr " << mid << endl;
+    cout << "  thr rms  " << rms << endl;
+  }
 
   h11->Write(  );
   h21->Write(  );
@@ -7565,7 +7638,8 @@ CMD_PROC( modvthrcomp )
       for( int col = 0; col < 52; ++col ) {
 
         int thr = modthr[roc][col][row];
-        if( thr < vmin && thr != 0 ) {
+	if( thr < 11 ) continue; // ignore
+        if( thr < vmin ) {
           vmin = thr;
           colmin = col;
           rowmin = row;
@@ -13913,7 +13987,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
   CMD_REG( modtune,   "modtune col row               tune gain and offset" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
-  CMD_REG( modthrmap, "modthrmap                     module threshold map" );
+  CMD_REG( modthrmap, "modthrmap [cut]               module threshold map" );
 
   CMD_REG( takedata,  "takedata period               readout 40 MHz/period (stop: s enter)" );
   CMD_REG( tdscan,    "tdscan vmin vmax              take data vs VthrComp" );
