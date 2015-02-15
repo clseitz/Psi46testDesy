@@ -8056,6 +8056,111 @@ CMD_PROC( modtrim )
 } // modtrim
 
 //------------------------------------------------------------------------------
+// Daniel Pitzl, DESY, 15.2.2015, adjust trimbits of weak pixels
+CMD_PROC( modtrimbits )
+{
+  // analyze latest mod thr map:
+
+  int sum = 0;
+  int nok = 0;
+  int su2 = 0;
+
+  for( int roc = 0; roc < 16; ++roc ) {
+    if( roclist[roc] == 0 )
+      continue;
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row ) {
+	int thr = modthr[roc][col][row];
+	if( thr > 0 && thr < 255 ) {
+	  sum += thr;
+	  su2 += thr * thr;
+	  nok++;
+	}
+	else
+	  cout << "thr " << setw( 3 ) << thr
+	       << " for ROC col row trim "
+	       << setw( 2 ) << roc
+	       << setw( 3 ) << col
+	       << setw( 3 ) << row
+	       << setw( 3 ) << modtrm[roc][col][row]
+	       << endl;
+
+      } // rows
+
+  } // rocs
+
+  cout << "valid thresholds " << nok << endl;
+
+  if( nok < 2 ) return false;
+
+  double mid = ( double ) sum / ( double ) nok;
+  double rms = sqrt( ( double ) su2 / ( double ) nok - mid * mid );
+  cout << "mean thr " << mid << endl;
+  cout << "thr rms  " << rms << endl;
+
+  double cut = mid - 3*rms;
+
+  // treat weak pixels:
+
+  for( int roc = 0; roc < 16; ++roc ) {
+    if( roclist[roc] == 0 )
+      continue;
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row ) {
+	int thr = modthr[roc][col][row];
+	if( thr == 0 )
+	  cout << "thr " << setw( 3 ) << thr
+	       << " for roc col row trim "
+	       << setw( 2 ) << roc
+	       << setw( 3 ) << col
+	       << setw( 3 ) << row
+	       << setw( 3 ) << modtrm[roc][col][row]
+	       << endl;
+	else if( thr == 255 )
+	  cout << "thr " << setw( 3 ) << thr
+	       << " for roc col row trim "
+	       << setw( 2 ) << roc
+	       << setw( 3 ) << col
+	       << setw( 3 ) << row
+	       << setw( 3 ) << modtrm[roc][col][row]
+	       << endl;
+	else if( thr < cut ) {
+	  int trim = modtrm[roc][col][row];
+	  cout << "roc col row trim thr"
+	       << setw( 3 ) << roc
+	       << setw( 3 ) << col
+	       << setw( 3 ) << row
+	       << setw( 3 ) << trim
+	       << setw( 3 ) << thr
+	       << endl;
+	  int step = 1;
+	  int nTrig = 16;
+	  tb.roc_I2cAddr( roc );
+	  tb.SetDAC( CtrlReg, 0 ); // small Vcal
+	  while( thr < cut && trim < 15 ) {
+	    ++trim;
+	    modtrm[roc][col][row] = trim; // will be used next
+	    int thr = ThrPix( roc, col, row, Vcal, step, nTrig );
+	    modthr[roc][col][row] = thr; // update
+	    cout << "roc col row trim thr"
+		 << setw( 3 ) << roc
+		 << setw( 3 ) << col
+		 << setw( 3 ) << row
+		 << setw( 3 ) << trim
+		 << setw( 3 ) << thr
+		 << endl;
+	  } // harden
+	  tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
+	} // weak
+      } // rows
+
+  } // rocs
+
+  return true;
+
+} // modtrimbits
+
+//------------------------------------------------------------------------------
 CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
 {
   if( ierror ) return false;
@@ -9213,11 +9318,6 @@ CMD_PROC( effmask )
 
 void ModPixelAlive( int nTrig )
 {
-  timeval tv;
-  gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
-
   for( int roc = 0; roc < 16; ++roc )
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row ) {
@@ -9271,6 +9371,7 @@ void ModPixelAlive( int nTrig )
   bool done = 0;
   double dtloop = 0;
   double dtread = 0;
+  timeval tv;
 
   while( done == 0 ) {
 
@@ -13731,8 +13832,9 @@ CMD_PROC( bare ) // bare module test
   unsigned int ntry = 0;
   while( !ok && ntry < 20 ) {
     ok = setcaldel( col, row, nTrig );
-    col = ( ++col % 50 ) + 1; // 28, 30, 32..50, 2, 4, 
-    row = ( ++row % 78 ) + 1; // 42, 44, 46..78, 2, 4, 
+    // % has higher precedence than +
+    col = (col+1) % 50 + 1; // 28, 30, 32..50, 2, 4, 
+    row = (row+1) % 78 + 1; // 42, 44, 46..78, 2, 4, 
     ++ntry;
   }
   if( !ok ) return 0;
@@ -13985,6 +14087,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( modthrdac, "modthrdac col row dac         Threshold vs DAC one pixel" );
   CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
+  CMD_REG( modtrimbits, "modtrimbits                   adjust weak trim bits" );
   CMD_REG( modtune,   "modtune col row               tune gain and offset" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
   CMD_REG( modthrmap, "modthrmap [cut]               module threshold map" );
