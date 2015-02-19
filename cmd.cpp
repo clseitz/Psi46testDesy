@@ -3808,7 +3808,6 @@ bool setia( int target )
   double ia = tb.GetIA(  ) * 1E3; // [mA]
 
   const double slope = 6; // 255 DACs / 40 mA
-
   const double eps = 0.5; // convergence, for DTB
 
   double tia = target + 0.5*eps; // besser zuviel als zuwenig
@@ -3872,23 +3871,25 @@ CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
   int target;
   PAR_INT( target, 10, 80 );
 
+  // set all VA to zero:
+
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc ) {
     if( roclist[iroc] ) ++nrocs;
     val[iroc] = dacval[iroc][Vana];
     tb.roc_I2cAddr(iroc);
-    tb.SetDAC(Vana, 0);
+    tb.SetDAC( Vana, 0 );
   }
   tb.mDelay(300);
   // 1 roc optimized each time, reduce offset current by one
   double corr =  ( double( nrocs ) - 1.0) / double( nrocs );
-  double IAoff = tb.GetIA() * 1000 * corr;
+  double IAoff = tb.GetIA() * 1000 * corr; // [mA]
 
   Log.section( "OPTIA", false );
   Log.printf( " Ia %i mA\n", target );
 
-  const double slope = 6;       // 255 DACs / 40 mA
-  const double eps = 0.25;
+  const double slope = 6; // 255 DACs / 40 mA
+  const double eps = 0.5; // DTB
 
   for( int iroc = 0; iroc < 16; ++iroc ) {
 
@@ -3897,7 +3898,7 @@ CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
     tb.SetDAC( Vana, val[iroc] );
     tb.mDelay( 300 );
     double ia = tb.GetIA(  ) * 1E3 - IAoff; // [mA]
-    double diff = target + 0.1 - ia; // besser zuviel als zuwenig
+    double diff = target + 0.5*eps - ia; // besser zuviel als zuwenig
     int iter = 0;
     tb.roc_I2cAddr(iroc);
     //initial values
