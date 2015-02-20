@@ -1,21 +1,46 @@
 
 # bootstrap ROC: set DACs
 
-optia 25 # set Vana for target Ia [mA]
-
-allon
-vthrcomp # Id vs VthrComp: noise peak
-mask
+optia 24  # set Vana for target Ia [mA]
 
 ctl 4
+caldel 22 33  # set CalDel (from one pixel)
 
-caldel 2 2 # set CalDel (from one pixel)
+ctl 0
+effdac 22 33 25  # one pix threshold, shows start value
 
-# noisemap # set VthrComp below noise
+vthrcomp 36 55  # set global threshold to min 36, start 55
 
-tune  # set gain and offset
+trim 30 36      # trim to 30, start guess 36
 
-#ctl 0
-#thrmap
+ctl 4
+caldel 22 33
+
+effmap 100     #
+
+-- check trim for low eff pixels:
+
+trimbits
+
+-- pixi col row
+-- pixt col row trim
+
+thrmap 30
+
+ctl 4
+tune 22 33 # set gain and offset
+
+phmap 100
 
 show
+ctl 4
+wdac ia25-trim30
+wtrim ia25-trim30
+
+-- gain cal:
+
+ctl 4
+dacscanroc 25 16
+
+ctl 0
+dacscanroc 25 16
