@@ -20,6 +20,7 @@
 #include "TCanvas.h"
 #include <TStyle.h>
 #include <TH1D.h>
+#include <TF1.h>
 #include <TH2D.h>
 #include <TProfile.h>
 #include <TProfile2D.h>
@@ -105,6 +106,7 @@ TH2D *h22;
 TH2D *h23;
 TH2D *h24;
 TH2D *h25;
+
 
 Iseg iseg;
 
@@ -5235,7 +5237,6 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
 
   return true;
 }
-
 //------------------------------------------------------------------------------
 // utility function: single pixel dac scan, ROC or module
 bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
@@ -5827,7 +5828,7 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
     int nstp = nReadouts.size(  );
     cout << "DAC steps " << nstp << endl;
 
-    // analyze:
+    // analyzqe:
 
     int nm = 0;
     int i0 = 0;
@@ -5839,7 +5840,6 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
 
       cout << " " << cnt;
       Log.printf( "%i %i\n", j, cnt );
-
       if( cnt > nm ) {
         nm = cnt;
         i0 = j; // begin of plateau
@@ -6852,6 +6852,206 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     } // col
 
   } // roc
+
+   if( nTrig < 0 && dac == 12 ) { // BB test for module
+
+    if( h12 )
+      delete h12;
+    h12 = new TH1D( "CalsVthrPlateauWidth",
+		    "Width of VthrComp plateau for cals;width of VthrComp plateau for cals [DAC];pixels",
+		    151, -0.5, 150.5 );
+    h12->Sumw2();
+
+    if( h24 )
+      delete h24;
+    h24 = new TH2D( "BBtestMap",
+		    "BBtest map;col;row;cals VthrComp response plateau width",
+		    8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
+
+    if( h25 )
+      delete h25;
+    h25 = new TH2D( "BBqualityMap",
+		    "BBtest quality map;col;row;dead good missing",
+		    8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
+
+    // Localize the missing Bump from h22
+
+    int nbinx = h22->GetNbinsX(  ); // pix
+    int nbiny = h22->GetNbinsY(  ); // dac
+
+    int nActive;
+    int nMissing;
+    int nIneff;
+
+    nActive = 0;
+    nMissing = 0;
+    nIneff = 0;
+
+    int ipx;
+
+    // pixels:
+
+    // get width of Vthrcomp plateu distribution and fit it
+    for( int ibin = 1; ibin <= nbinx; ++ibin ) {
+
+      ipx = h22->GetXaxis(  )->GetBinCenter( ibin );
+      int roc = ipx / ( 80 * 52 );
+      ipx = ipx - roc * ( 80 * 52);
+      // max response:
+
+      int imax;
+      imax = 0;
+      for( int j = 1; j <= nbiny; ++j ) {
+	int cnt = h22->GetBinContent( ibin, j );
+	if( cnt > imax )
+	  imax = cnt;
+      }
+
+      if( imax < mTrig / 2 ) {
+	++nIneff;
+      }
+      else {
+ 
+	// Search for the Plateau
+
+	int iEnd = 0;
+	int iBegin = 0;
+
+	// search for DAC response plateau:
+
+	for( int jbin = 0; jbin <= nbiny; ++jbin ) {
+
+	  int idac = h22->GetYaxis(  )->GetBinCenter( jbin );
+
+	  int cnt = h22->GetBinContent( ibin, jbin );
+
+	  if( cnt >= imax / 2 ) {
+	    iEnd = idac; // end of plateau
+	    if( iBegin == 0 )
+	      iBegin = idac; // begin of plateau
+	  }
+	}
+
+	// cout << "Bin: " << ibin << " Plateau Begins and End in  " << iBegin << " - " << iEnd << endl;
+	// narrow plateau is from noise
+
+	h12->Fill( iEnd - iBegin );
+
+      }
+    }
+    TF1 *gausFit = new TF1("gausFit","gaus", 30, 70);
+    h12->Fit(gausFit,"qr");
+    float cutval = gausFit->GetParameter(1) - 5*gausFit->GetParameter(2);
+
+    cout << "cutoff for bad bumps (5 sigma away from mean of good bumps): " << cutval << endl;
+    Log.printf( "cutoff for bad bumps (5 sigma away from mean of good bumps): %f", cutval );      
+
+    for( int ibin = 1; ibin <= nbinx; ++ibin ) {
+
+      ipx = h22->GetXaxis(  )->GetBinCenter( ibin );
+      int roc = ipx / ( 80 * 52 );
+      ipx = ipx - roc * ( 80 * 52);
+      // max response:
+
+      int imax;
+      imax = 0;
+      for( int j = 1; j <= nbiny; ++j ) {
+	int cnt = h22->GetBinContent( ibin, j );
+	if( cnt > imax )
+	  imax = cnt;
+      }
+
+      if( imax < mTrig / 2 ) {
+	++nIneff;
+	cout << "Dead pixel at roc row col: " << roc << " " << ipx % 80
+	     << " " << ipx / 80 << endl;
+      }
+      else {
+ 
+	// Search for the Plateau
+
+	int iEnd = 0;
+	int iBegin = 0;
+
+	// search for DAC response plateau:
+
+	for( int jbin = 0; jbin <= nbiny; ++jbin ) {
+
+	  int idac = h22->GetYaxis(  )->GetBinCenter( jbin );
+
+	  int cnt = h22->GetBinContent( ibin, jbin );
+
+	  if( cnt >= imax / 2 ) {
+	    iEnd = idac; // end of plateau
+	    if( iBegin == 0 )
+	      iBegin = idac; // begin of plateau
+	  }
+	}
+
+	// cout << "Bin: " << ibin << " Plateau Begins and End in  " << iBegin << " - " << iEnd << endl;
+	// narrow plateau is from noise
+
+	int row = ipx % 80;
+	int col = ipx / 80;
+	int l = roc % 8; // 0..7
+	int m = roc / 8; // 0..1
+	int xm = 52 * l + col; // 0..415 rocs 0 1 2 3 4 5 6 7
+	if( m == 1 )
+	  xm = 415 - xm; // rocs 8 9 A B C D E F
+	int ym = 159 * m + ( 1 - 2 * m ) * row; // 0..159
+
+	h24->Fill(  xm, ym, iEnd - iBegin );
+
+	if( iEnd - iBegin < cutval ) {
+
+	  ++nMissing;
+	  cout << "[Missing Bump at roc row col:] " << roc << " " << ipx % 80
+	       << " " << ipx / 80 << endl;
+	  Log.printf( "[Missing Bump at roc row col:] %i %i %i\n", roc , ipx % 80, ipx / 80 );
+	  h25->Fill( xm, ym, 2 ); // red
+	}
+	else {
+	  ++nActive;
+	  h25->Fill( xm, ym, 1 ); // green
+	} // plateau width
+
+      } // active imax
+
+    } // x-bins
+
+    h12->Write(  );
+
+    // save the map in the log file
+
+    for( int ibin = 1; ibin <= h24->GetNbinsX(  ); ++ibin ) {
+      for( int jbin = 1; jbin <= h24->GetNbinsY(  ); ++jbin ) {
+	int c_val = h24->GetBinContent( ibin, jbin );
+	Log.printf( " %i", c_val );
+	//cout << ibin << " " << jbin << " " << c_val << endl;
+      } //row
+      Log.printf( "\n" );
+    } // col
+    Log.flush(  );
+
+    Log.printf( "Number of Active bump bonds [above trig/2]: %i\n", nActive );
+    Log.printf( "Number of Missing bump bonds: %i\n", nMissing );
+    Log.printf( "Number of Dead pixel: %i\n", nIneff );
+
+    cout << "Number of Active bump bonds: " << nActive << endl;
+    cout << "Number of Missing bump bonds: " << nMissing << endl;
+    cout << "Number of Dead pixel: " << nIneff << endl;
+
+    h24->Write(  );
+
+    h25->SetStats( 0 );
+    h25->SetMinimum(0);
+    h25->SetMaximum(2);
+    h25->Draw( "colz" );
+    c1->Update(  );
+    cout << "  histos 11, 12, 21, 22, 23, 24, 25" << endl;
+
+  } // BB test
+  
 
   // De-allocate memory to prevent memory leak
 
