@@ -15,7 +15,7 @@
 #include <sstream> // stringstream
 #include <utility>
 
-#include "TROOT.h" //  
+#include "TROOT.h" //  gROOT
 #include "TFile.h" //
 #include "TCanvas.h"
 #include <TStyle.h>
@@ -60,11 +60,11 @@ const uint32_t Blocksize = 4 * 1024 * 1024; //
 //int deserPhase =  4; //  4    4     5    6        5
 //int deserPhase =  5; //  FEC 30 cm cable
 
-int dacval[16][256];            // DP
+int dacval[16][256];
 string dacName[256];
 
-int Chip = 400;
-int Module = 3;
+int Chip = 599;
+int Module = 4001;
 
 int ierror = 0;
 
@@ -257,7 +257,7 @@ CMD_PROC( scan ) // scan for DTB on USB
       tb->Close(  );
     }
 
-  delete tb;                    // not permanentely opened
+  delete tb; // not permanentely opened
 
   return true;
 }
@@ -614,7 +614,7 @@ CMD_PROC( clk ) // clock phase delay (relative to what?)
   tb.Sig_SetDelay( SIG_CLK, ns, duty );
   tb.Sig_SetDelay( SIG_CTR, ns, duty );
   tb.Sig_SetDelay( SIG_SDA, ns + 15, duty );
-  tb.Sig_SetDelay( SIG_TIN, ns + 5, duty );
+  tb.Sig_SetDelay( SIG_TIN, ns +  5, duty );
   tbState.SetClockPhase( ns );
   DO_FLUSH;
   return true;
@@ -633,7 +633,7 @@ CMD_PROC( sda ) // I2C data delay
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(rda)
+CMD_PROC( rda )
 {
   int ns;
   PAR_INT( ns, 0, 32 );
@@ -940,12 +940,21 @@ CMD_PROC( hvon )
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( vb )
+CMD_PROC( vb ) // set ISEG bias voltage
 {
   int value;
-  PAR_INT( value, 0, 200 );
+  PAR_INT( value, 0, 400 ); // software limit [V]
   iseg.setVoltage( value );
   Log.printf( "[SETVB] -%i\n", value );
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC( getvb ) // measure back bias voltage
+{
+  double vb = iseg.getVoltage();
+  cout << "bias voltage " << vb << " V" << endl;
+  Log.printf( "VB %f V\n", vb );
   return true;
 }
 
@@ -957,6 +966,170 @@ CMD_PROC( getib ) // get bias current
   Log.printf( "IB %f A\n", ib );
   return true;
 }
+
+//------------------------------------------------------------------------------
+CMD_PROC( scanvb ) // bias voltage scan
+{
+  int vmax;
+  if( !PAR_IS_INT( vmax, 1, 400 ) )
+    vmax = 150;
+  int vstp;
+  if( !PAR_IS_INT( vstp, 1, 100 ) )
+    vstp = 5;
+
+  int vmin = vstp;
+
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
+
+  int nstp = (vmax-vmin)/vstp + 1;
+
+  Log.section( "SCANBIAS", true );
+
+  if( h11 )
+    delete h11;
+  h11 = new
+    TProfile( "bias_scan",
+	      "bias scan;bias voltage [V];sensor bias current [uA]",
+	      nstp, 0 - 0.5*vstp, vmax + 0.5*vstp );
+  h11->SetStats( 10 );
+
+  double wait = 2; // [s]
+
+  for( int vb = vmin; vb <= vmax; vb += vstp ) {
+
+    iseg.setVoltage( vb );
+
+    double diff = vstp;
+    int niter = 0;
+    while( fabs( diff ) > 0.1 && niter < 11 ) {
+      double vm = iseg.getVoltage(  ); // measure Vbias, negative!
+      diff = fabs(vm) - vb;
+      ++niter;
+    }
+
+    cout << "vbias " << setw(3) << vb << ": ";
+
+    gettimeofday( &tv, NULL );
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
+
+    double duration = 0;
+    double uA = 0;
+
+    while( duration < wait ) {
+
+      uA = iseg.getCurrent() * 1E6; // [uA]
+
+      gettimeofday( &tv, NULL );
+      long s2 = tv.tv_sec; // seconds since 1.1.1970
+      long u2 = tv.tv_usec; // microseconds
+      duration = s2 - s1 + ( u2 - u1 ) * 1e-6;
+
+      cout << " " << uA;
+
+    }
+
+    cout << endl;
+    Log.printf( "%i %f\n", vb, uA );
+    h11->Fill( vb, uA );
+
+    h11->Draw( "hist" );
+    c1->Update(  );
+
+  } // bias scan
+
+  iseg.setVoltage( vmin ); // for safety
+
+  h11->Write(  );
+  h11->Draw( "hist" );
+  c1->Update(  );
+  cout << "  histos 11" << endl;
+
+  Log.flush(  );
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return true;
+
+} // scanvb
+
+//------------------------------------------------------------------------------
+CMD_PROC( ibvst ) // bias current vs time
+{
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
+
+  Log.section( "IBVSTIME", true );
+
+  if( h11 )
+    delete h11;
+  h11 = new
+    TProfile( "bias_time",
+	      "bias vs time;time [s];sensor bias current [uA]",
+	      3600, 0, 3600, 0, 2000 );
+
+  double wait = 1; // [s]
+
+  double vb = iseg.getVoltage(  ); // measure Vbias, negative!
+
+  cout << "vbias " << setw(3) << vb << endl;
+
+  double runtime = 0;
+
+  while( !keypressed(  ) ) {
+
+    double duration = 0;
+    double uA = 0;
+
+    gettimeofday( &tv, NULL );
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
+
+    while( duration < wait ) {
+
+      uA = iseg.getCurrent() * 1E6; // [uA]
+
+      gettimeofday( &tv, NULL );
+      long s2 = tv.tv_sec; // seconds since 1.1.1970
+      long u2 = tv.tv_usec; // microseconds
+      duration = s2 - s1 + ( u2 - u1 ) * 1e-6;
+      runtime = s2 - s0 + ( u2 - u0 ) * 1e-6;
+      cout << " " << uA;
+
+    }
+
+    cout << endl;
+    Log.printf( "%i %f\n", vb, uA );
+    h11->Fill( runtime, uA );
+    h11->Draw( "hist" );
+    c1->Update(  );
+
+  } // time
+
+  h11->Write(  );
+  h11->SetStats( 0 );
+  h11->Draw( "hist" );
+  c1->Update(  );
+  cout << "  histos 11" << endl;
+
+  Log.flush(  );
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return true;
+
+} // ibvst
 
 //------------------------------------------------------------------------------
 CMD_PROC( hvoff )
@@ -1136,10 +1309,6 @@ CMD_PROC( chip )
     gainFileName = "phroc-c402-trim30.dat";
   if( Chip == 405 )
     gainFileName = "phroc-c405-trim30.dat";
-  if( Chip == 350 ) // for Module d0003
-    gainFileName = "D0003-phcal-trim32.dat";
-  if( Module == 4016 )
-    gainFileName = "D4016-trim32-chill17-gaincal.dat";
 
   if( gainFileName.length(  ) > 0 ) {
 
@@ -1150,44 +1319,21 @@ CMD_PROC( chip )
       haveGain = 1;
       cout << "gainFile: " << gainFileName << endl;
 
-      if( Chip == 350 ) { // Module D0003
+      char ih[99];
+      int icol;
+      int irow;
+      int roc = 0;
 
-	int roc;
-	int icol;
-	int irow;
-
-	while( gainFile >> roc ) {
-	  gainFile >> icol;
-	  gainFile >> irow;
-	  gainFile >> p0[roc][icol][irow];
-	  gainFile >> p1[roc][icol][irow];
-	  gainFile >> p2[roc][icol][irow];
-	  gainFile >> p3[roc][icol][irow];
-	  gainFile >> p4[roc][icol][irow];
-	  gainFile >> p5[roc][icol][irow];
-	}
-
-      } // Module
-
-      else { // single ROC
-
-	char ih[99];
-	int icol;
-	int irow;
-	int roc = 0;
-
-	while( gainFile >> ih ) {
-	  gainFile >> icol;
-	  gainFile >> irow;
-	  gainFile >> p0[roc][icol][irow];
-	  gainFile >> p1[roc][icol][irow];
-	  gainFile >> p2[roc][icol][irow];
-	  gainFile >> p3[roc][icol][irow];
-	  gainFile >> p4[roc][icol][irow];
-	  gainFile >> p5[roc][icol][irow];
-	}
-
-      } // single ROC
+      while( gainFile >> ih ) {
+	gainFile >> icol;
+	gainFile >> irow;
+	gainFile >> p0[roc][icol][irow];
+	gainFile >> p1[roc][icol][irow];
+	gainFile >> p2[roc][icol][irow];
+	gainFile >> p3[roc][icol][irow];
+	gainFile >> p4[roc][icol][irow];
+	gainFile >> p5[roc][icol][irow];
+      }
 
     } // gainFile open
 
@@ -1214,6 +1360,52 @@ CMD_PROC( module )
     tb.Daq_Deser400_OldFormat( false ); // DESY has TBM08b/a
     cout << "TBM08abc with new format" << endl;
   }
+
+  string gainFileName;
+
+  if( Module == 4016 )
+    gainFileName = "D4016-trim32-chill17-gaincal.dat"; // E-lab
+  if( Module == 4016 )
+    gainFileName = "D4016-trim32UHH2-gaincal.dat"; // UHH X-rays
+
+  if( Module == 4017 )
+    //gainFileName = "D4017-ia24-trim32-chiller15-tuned-gaincal.dat";
+    gainFileName = "D4017-ia24-trim32-chiller15-Vcomp_ADC1-gaincal.dat";
+
+  if( Module == 4509 )
+    gainFileName = "K4509_trim32_chiller15_gaincalib.dat"; // KIT
+
+  if( Module == 1405 )
+    gainFileName = "P1405-trim32-chiller15-gaincal.dat"; // PSI
+
+  if( gainFileName.length(  ) > 0 ) {
+
+    ifstream gainFile( gainFileName.c_str(  ) );
+
+    if( gainFile ) {
+
+      haveGain = 1;
+      cout << "gainFile: " << gainFileName << endl;
+
+      int roc;
+      int icol;
+      int irow;
+
+      while( gainFile >> roc ) {
+	gainFile >> icol;
+	gainFile >> irow;
+	gainFile >> p0[roc][icol][irow];
+	gainFile >> p1[roc][icol][irow];
+	gainFile >> p2[roc][icol][irow];
+	gainFile >> p3[roc][icol][irow];
+	gainFile >> p4[roc][icol][irow];
+	gainFile >> p5[roc][icol][irow];
+      }
+
+    } // gainFile open
+
+  } // gainFileName
+
   return true;
 }
 
@@ -1298,7 +1490,7 @@ double PHtoVcal( double ph, uint16_t roc, uint16_t col, uint16_t row )
     Ared = -0.1; // avoid overflow
   }
 
-  double a3 = p3[roc][col][row];     // negative
+  double a3 = p3[roc][col][row]; // negative
 
   if( a3 > 0 )
     a3 = -a3; // sign changed
@@ -1654,7 +1846,7 @@ CMD_PROC( dsize )
 }
 
 //------------------------------------------------------------------------------
-void DecodeTbmHeader( unsigned int raw )
+void DecodeTbmHeader08( unsigned int raw )
 {
   int evNr = raw >> 8;
   int stkCnt = raw & 6;
@@ -1665,7 +1857,7 @@ void DecodeTbmHeader( unsigned int raw )
 }
 
 //------------------------------------------------------------------------------
-void DecodeTbmTrailer( unsigned int raw )
+void DecodeTbmTrailer08( unsigned int raw )
 {
   int dataId = ( raw >> 6 ) & 0x3;
   int data = raw & 0x3f;
@@ -1676,6 +1868,29 @@ void DecodeTbmTrailer( unsigned int raw )
       ( raw & 0x0800 ) ? '1' : '0', ( raw & 0x0400 ) ? '1' : '0',
       ( raw & 0x0200 ) ? '1' : '0', ( raw & 0x0100 ) ? '1' : '0', dataId,
       data );
+}
+
+//------------------------------------------------------------------------------
+void DecodeTbmHeader( unsigned int raw ) // 08ab
+{
+  int data = raw & 0x3f;
+  int dataId = ( raw >> 6 ) & 0x3;
+  int evNr = raw >> 8;
+  printf( "  EV(%3i) D%i(%2i)", evNr, dataId, data );
+}
+
+//------------------------------------------------------------------------------
+void DecodeTbmTrailer( unsigned int raw ) // 08b
+{
+  int stkCnt = raw & 0x3f;
+  printf
+    ( "  NTP(%c) RST(%c) RSR(%c) SYE(%c) SYT(%c) CTC(%c) CAL(%c) SF(%c) PKR(%c) ARS(%c) STKCNT(%2i)",
+      ( raw & 0x8000 ) ? '1' : '0', ( raw & 0x4000 ) ? '1' : '0',
+      ( raw & 0x2000 ) ? '1' : '0', ( raw & 0x1000 ) ? '1' : '0',
+      ( raw & 0x0800 ) ? '1' : '0', ( raw & 0x0400 ) ? '1' : '0',
+      ( raw & 0x0200 ) ? '1' : '0', ( raw & 0x0100 ) ? '1' : '0',
+      ( raw & 0x0080 ) ? '1' : '0', ( raw & 0x0040 ) ? '1' : '0',
+      stkCnt );
 }
 
 //------------------------------------------------------------------------------
@@ -1856,9 +2071,9 @@ CMD_PROC( dread ) // daq read and print as ROC data
 
   int size = data.size(  );
 
-  cout << "words read: " << size << " = " << ( size - nrocs -
-                                               tbmData ) /
-    2 << " pixels" << endl;
+  cout << "words read: " << size
+       << " = " << ( size - nrocs - tbmData ) / 2 << " pixels"
+       << endl;
   cout << "words remaining in DTB memory: " << words_remaining << endl;
 
   for( int i = 0; i < size; ++i ) {
@@ -1948,7 +2163,7 @@ CMD_PROC( dread ) // daq read and print as ROC data
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 21" << endl;
+  cout << "  histos 21" << endl;
 
   // hit map:
   /*
@@ -2068,8 +2283,8 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // run number from file:
 
@@ -2086,7 +2301,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 
   // output file:
 
-  ostringstream fname;          // output string stream
+  ostringstream fname; // output string stream
 
   fname << "run" << run << ".out";
 
@@ -2191,8 +2406,8 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
     rst += remaining;
 
     gettimeofday( &tv, NULL );
-    long s9 = tv.tv_sec;        // seconds since 1.1.1970
-    long u9 = tv.tv_usec;       // microseconds
+    long s9 = tv.tv_sec; // seconds since 1.1.1970
+    long u9 = tv.tv_usec; // microseconds
     duration = s9 - s0 + ( u9 - u0 ) * 1e-6;
 
     if( duration - tprev > 0.999 ) {
@@ -2340,7 +2555,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 10, 11, 12, 21, 22" << endl;
+  cout << "  histos 10, 11, 12, 21, 22" << endl;
 
   cout << endl;
   cout << "duration    " << duration << endl;
@@ -2374,8 +2589,8 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   if( h10 )
     delete h10;
@@ -2455,8 +2670,8 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
     tb.uDelay( 1000 );
 
     gettimeofday( &tv, NULL );
-    long s1 = tv.tv_sec;        // seconds since 1.1.1970
-    long u1 = tv.tv_usec;       // microseconds
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
 
     for( int k = 0; k < nTrig; ++k ) {
       tb.Pg_Single(  );
@@ -2469,16 +2684,16 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
     tb.Daq_GetSize(  ); // read statement ends trig block for timer
 
     gettimeofday( &tv, NULL );
-    long s2 = tv.tv_sec;          // seconds since 1.1.1970
-    long u2 = tv.tv_usec;         // microseconds
+    long s2 = tv.tv_sec; // seconds since 1.1.1970
+    long u2 = tv.tv_usec; // microseconds
     double dt = s2 - s1 + ( u2 - u1 ) * 1e-6;
     dttrig += s2 - s1 + ( u2 - u1 ) * 1e-6;
 
     tb.Daq_Read( data, Blocksize, remaining );
 
     gettimeofday( &tv, NULL );
-    long s3 = tv.tv_sec;          // seconds since 1.1.1970
-    long u3 = tv.tv_usec;         // microseconds
+    long s3 = tv.tv_sec; // seconds since 1.1.1970
+    long u3 = tv.tv_usec; // microseconds
     double dtr = s3 - s2 + ( u3 - u2 ) * 1e-6;
     dtread += s3 - s2 + ( u3 - u2 ) * 1e-6;
 
@@ -2565,15 +2780,15 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
   h13->Write(  );
   h21->Write(  );
   h22->Write(  );
-  cout << "histos 10, 11, 12, 13, 21, 22" << endl;
+  cout << "  histos 10, 11, 12, 13, 21, 22" << endl;
 
   h13->Draw( "hist" );
   c1->Update(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 }
@@ -2591,8 +2806,8 @@ CMD_PROC( onevst ) // pulse one pixel vs time
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   uint32_t remaining;
   vector < uint16_t > data;
@@ -2663,8 +2878,8 @@ CMD_PROC( onevst ) // pulse one pixel vs time
     tb.Flush(  );
 
     gettimeofday( &tv, NULL );
-    long s9 = tv.tv_sec;        // seconds since 1.1.1970
-    long u9 = tv.tv_usec;       // microseconds
+    long s9 = tv.tv_sec; // seconds since 1.1.1970
+    long u9 = tv.tv_usec; // microseconds
     duration = s9 - s0 + ( u9 - u0 ) * 1e-6;
 
     if( duration - tprev > 0.999 ) {
@@ -2760,7 +2975,7 @@ CMD_PROC( onevst ) // pulse one pixel vs time
   h11->Write(  );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11" << endl;
+  cout << "  histos 11" << endl;
 
   cout << endl;
   cout << "duration    " << duration << endl;
@@ -2781,7 +2996,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 //   modcaldel 44 66
 //   arm 44 66
 //   modtd 4000
-// source ord X-rays:
+// source or X-rays:
 //   stretch does not work with modules
 //   sm (caldel not needed for random triggers)
 //   tdx (contains allon, modtd 4000)
@@ -2791,8 +3006,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // run number from file:
 
@@ -2809,7 +3024,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 
   // output file:
 
-  ostringstream fname;          // output string stream
+  ostringstream fname; // output string stream
 
   fname << "run" << run << ".out";
 
@@ -2861,11 +3076,11 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     delete h21;
   //int n = 4; // fat pixels
   //int n = 2; // big pixels
-  int n = 1;                    // pixels
+  int n = 1; // pixels
   h21 = new TH2D( "ModuleHitMap",
                   "Module hit map;col;row;hits",
-                  8*52 / n, -0.5 * n, 8*52 - 0.5 * n,
-                  2*80 / n, -0.5 * n, 2*80 - 0.5 * n );
+                  8 * 52 / n, -0.5 * n, 8 * 52 - 0.5 * n,
+                  2 * 80 / n, -0.5 * n, 2 * 80 - 0.5 * n );
   gStyle->SetOptStat( 10 ); // entries
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
 
@@ -2873,8 +3088,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     delete h22;
   h22 = new TH2D( "ModulePHmap",
                   "Module PH map;col;row;sum PH [ADC]",
-                  8*52 / n, -0.5 * n, 8*52 - 0.5 * n,
-                  2*80 / n, -0.5 * n, 2*80 - 0.5 * n );
+                  8 * 52 / n, -0.5 * n, 8 * 52 - 0.5 * n,
+                  2 * 80 / n, -0.5 * n, 2 * 80 - 0.5 * n );
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, 0 );
@@ -2891,7 +3106,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 
   tb.Flush(  );
 
-  uint32_t trl = 0;             // need to remember from previous daq_read
+  uint32_t trl = 0; // need to remember from previous daq_read
   int nsec = 0;
 
   while( !keypressed(  ) ) {
@@ -2928,8 +3143,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     //if( ndq == 1 ) ldb = 1;
 
     gettimeofday( &tv, NULL );
-    long s2 = tv.tv_sec;        // seconds since 1.1.1970
-    long u2 = tv.tv_usec;       // microseconds
+    long s2 = tv.tv_sec; // seconds since 1.1.1970
+    long u2 = tv.tv_usec; // microseconds
     double dt = s2 - s0 + ( u2 - u0 ) * 1e-6;
 
     if( ldb || int ( dt ) > nsec ) {
@@ -3047,7 +3262,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 	    ++npxev;
             NN[kroc][x][y] += 1;
             PH[kroc][x][y] += ph;
-	    int l = kroc % 8;   // 0..7
+	    int l = kroc % 8; // 0..7
 	    int xm = 52 * l + x; // 0..415  rocs 0 1 2 3 4 5 6 7
 	    int ym = y; // 0..79
 	    if( kroc > 7 ) {
@@ -3097,8 +3312,8 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   } // while
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   double dt = s9 - s0 + ( u9 - u0 ) * 1e-6;
 
   tb.Pg_Stop(  ); // stop triggers, necessary for clean re-start
@@ -3115,12 +3330,13 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   h22->Write(  );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 11, 12, 13, 21, 22" << endl;
+  cout << "  histos 11, 12, 13, 21, 22" << endl;
 
   cout << endl;
   for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
     int roc = enabledrocslist[iroc];
-    cout << "ROC " << setw( 2 ) << roc << ", hits " << PX[roc] << endl;
+    cout << "ROC " << setw( 2 ) << roc
+	 << ", hits " << PX[roc] << endl;
   }
   cout << endl;
   cout << "run            " << run << endl;
@@ -3144,168 +3360,10 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
        << " = " << ( double ) npx / nev[0] / 16 << " / event / ROC" << endl;
   cout << "address errors " << nrr << endl;
   cout << "written to " << fname.str(  ) << endl;
+
   return true;
 
 } // modtd
-
-//------------------------------------------------------------------------------
-CMD_PROC( scanvb ) // bias voltage scan
-{
-  int vmax;
-  PAR_INT( vmax, 0, 400 );
-  int vstp;
-  if( !PAR_IS_INT( vstp, 1, 100 ) )
-    vstp = 5;
-
-  int vmin = vstp;
-
-  timeval tv;
-  gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
-
-  int nstp = (vmax-vmin)/vstp + 1;
-
-  Log.section( "SCANBIAS", true );
-
-  if( h11 )
-    delete h11;
-  h11 = new
-    TProfile( "bias_scan",
-	      "bias scan;bias voltage [V];sensor bias current [uA]",
-	      nstp, 0 - 0.5*vstp, vmax + 0.5*vstp );
-  h11->Sumw2();
-
-  double wait = 2; // [s]
-
-  for( int vb = vmin; vb <= vmax; vb += vstp ) {
-
-    iseg.setVoltage( vb );
-
-    double diff = vstp;
-    while( fabs( diff ) > 0.1 ) {
-      double vm = iseg.getVoltage(  ); // measure Vbias, negative!
-      diff = fabs(vm) - vb;
-    }
-
-    cout << "vbias " << setw(3) << vb << ": ";
-
-    gettimeofday( &tv, NULL );
-    long s1 = tv.tv_sec;        // seconds since 1.1.1970
-    long u1 = tv.tv_usec;       // microseconds
-
-    double duration = 0;
-    double uA = 0;
-
-    while( duration < wait ) {
-
-      uA = iseg.getCurrent() * 1E6; // [uA]
-
-      gettimeofday( &tv, NULL );
-      long s2 = tv.tv_sec;        // seconds since 1.1.1970
-      long u2 = tv.tv_usec;       // microseconds
-      duration = s2 - s1 + ( u2 - u1 ) * 1e-6;
-
-      cout << " " << uA;
-
-    }
-
-    cout << endl;
-    Log.printf( "%i %f\n", vb, uA );
-    h11->Fill( vb, uA );
-
-  } // bias scan
-
-  iseg.setVoltage( vmin ); // for safety
-
-  h11->Write(  );
-  h11->SetStats( 0 );
-  h11->Draw( "hist" );
-  c1->Update(  );
-  cout << "histos 11" << endl;
-
-  Log.flush(  );
-
-  gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
-
-  return true;
-
-} // scanvb
-
-//------------------------------------------------------------------------------
-CMD_PROC( ibvst ) // bias current vs time
-{
-  timeval tv;
-  gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;  // seconds since 1.1.1970
-  long u0 = tv.tv_usec; // microseconds
-
-  Log.section( "IBVSTIME", true );
-
-  if( h11 )
-    delete h11;
-  h11 = new
-    TProfile( "bias_time",
-	      "bias vs time;time [s];sensor bias current [uA]",
-	      3600, 0, 3600, 0, 2000 );
-
-  double wait = 1; // [s]
-
-  double vb = iseg.getVoltage(  ); // measure Vbias, negative!
-
-  cout << "vbias " << setw(3) << vb << endl;
-
-  double runtime = 0;
-
-  while( !keypressed(  ) ) {
-
-    double duration = 0;
-    double uA = 0;
-
-    gettimeofday( &tv, NULL );
-    long s1 = tv.tv_sec;  // seconds since 1.1.1970
-    long u1 = tv.tv_usec; // microseconds
-
-    while( duration < wait ) {
-
-      uA = iseg.getCurrent() * 1E6; // [uA]
-
-      gettimeofday( &tv, NULL );
-      long s2 = tv.tv_sec;  // seconds since 1.1.1970
-      long u2 = tv.tv_usec; // microseconds
-      duration = s2 - s1 + ( u2 - u1 ) * 1e-6;
-      runtime = s2 - s0 + ( u2 - u0 ) * 1e-6;
-      cout << " " << uA;
-
-    }
-
-    cout << endl;
-    Log.printf( "%i %f\n", vb, uA );
-    h11->Fill( runtime, uA );
-    h11->Draw( "hist" );
-    c1->Update(  );
-
-  } // time
-
-  h11->Write(  );
-  h11->SetStats( 0 );
-  h11->Draw( "hist" );
-  c1->Update(  );
-  cout << "  histos 11" << endl;
-
-  Log.flush(  );
-
-  gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;  // seconds since 1.1.1970
-  long u9 = tv.tv_usec; // microseconds
-  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
-
-  return true;
-
-} // ibvst
 
 //------------------------------------------------------------------------------
 CMD_PROC( showclk )
@@ -3356,7 +3414,7 @@ CMD_PROC( showclk )
   tb.Flush(  );
 
   int n = 20 * nSamples;
-  vector < double >values( n );
+  vector < double > values( n );
   int x = 0;
   for( k = 0; k < nSamples; ++k )
     for( i = 0; i < 20; ++i ) {
@@ -3419,7 +3477,7 @@ CMD_PROC( showctr )
   tb.Flush(  );
 
   int n = 20 * nSamples;
-  vector < double >values( n );
+  vector < double > values( n );
   int x = 0;
   for( k = 0; k < nSamples; ++k )
     for( i = 0; i < 20; ++i ) {
@@ -3484,7 +3542,7 @@ CMD_PROC( showsda )
   tb.Flush(  );
 
   int n = 20 * nSamples;
-  vector < double >values( n );
+  vector < double > values( n );
   int x = 0;
   for( k = 0; k < nSamples; ++k )
     for( i = 0; i < 20; ++i ) {
@@ -3598,7 +3656,7 @@ CMD_PROC( tbmdis )
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( tbmsel )
+CMD_PROC( tbmsel ) // normal: tbmsel 31 6
 {
   int hub, port;
   PAR_INT( hub, 0, 31 );
@@ -3633,7 +3691,7 @@ CMD_PROC( tbmset )
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(tbmget)
+CMD_PROC( tbmget )
 {
   int reg;
   PAR_INT( reg, 0, 255 );
@@ -3649,21 +3707,29 @@ CMD_PROC(tbmget)
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC(tbmgetraw)
+CMD_PROC( tbmgetraw )
 {
   int reg;
-  PAR_INT(reg,0,255);
+  PAR_INT( reg, 0, 255 );
 
   uint32_t value;
-  if( tb.tbm_GetRaw(reg,value) ) {
-    printf( "value = 0x%02X (Hub=%2i; Port=%i; Reg=0x%02X; inv=0x%X; stop=%c)\n",
-	   value & 0xff, (value>>19)&0x1f, (value>>16)&0x07,
-	   (value>>8)&0xff, (value>>25)&0x1f, (value&0x1000)?'1':'0' );
+
+  tb.Sig_SetLCDS(  ); // TBM sends RDA as LCDS, ROC sends token as LVDS
+
+  for( int idel = 0; idel < 19; ++idel ) {
+    tb.Sig_SetRdaToutDelay( idel ); // 0..19
+    if( tb.tbm_GetRaw( reg, value ) ) {
+      printf( "value = 0x%02X (Hub=%2i; Port=%i; Reg=0x%02X; inv=0x%X; stop=%c)\n",
+	      value & 0xff, (value>>19) & 0x1f, (value>>16) & 0x07,
+	      ( value>>8) & 0xff, (value>>25) & 0x1f, (value & 0x1000) ? '1' : '0' );
+    }
+    else
+      puts( "error\n" );
   }
-  else
-    puts( "error\n" );
+
   return true;
-}
+
+} // tbmgetraw
 
 //------------------------------------------------------------------------------
 CMD_PROC( dac ) // e.g. dac 25 222 [8]
@@ -3690,7 +3756,26 @@ CMD_PROC( dac ) // e.g. dac 25 222 [8]
 
   DO_FLUSH;
   return true;
-}
+
+} // dac
+
+//------------------------------------------------------------------------------
+CMD_PROC( vdig )
+{
+  int value;
+  PAR_INT( value, 0, 15 );
+  for( int i = 0; i < 16; ++i )
+    if( roclist[i] ) {
+      tb.roc_I2cAddr( i );
+      tb.SetDAC( Vdig, value );
+      dacval[i][Vdig] = value;
+      Log.printf( "[SETDAC] %i  %i\n", Vdig, value );
+    }
+
+  DO_FLUSH;
+  return true;
+
+} // vdig
 
 //------------------------------------------------------------------------------
 CMD_PROC( vana )
@@ -3861,7 +3946,7 @@ CMD_PROC( optia ) // DP  optia ia [mA] for one ROC
 
   return setia( target );
 
-}
+} // optia
 
 //------------------------------------------------------------------------------
 CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
@@ -3895,7 +3980,7 @@ CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
 
   for( int iroc = 0; iroc < 16; ++iroc ) {
 
-    if( !roclist[iroc] ) continue;    
+    if( !roclist[iroc] ) continue;
     tb.roc_I2cAddr( iroc );
     tb.SetDAC( Vana, val[iroc] );
     tb.mDelay( 300 );
@@ -3930,7 +4015,7 @@ CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
       Log.printf( "[SETDAC] %i  %i\n", Vana, val[iroc] );
       diff = target + 0.1 - ia;
       iaroc[iroc] = ia;
-      ++iter;      
+      ++iter;
       cout << iter << ". " << val[iroc] << "  " << ia << "  " << diff << endl;
 
     } // while
@@ -3948,7 +4033,7 @@ CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
     if( !roclist[iroc] ) continue;
     tb.roc_I2cAddr(iroc);
     tb.SetDAC( Vana,  dacval[iroc][Vana]);
-    tb.mDelay( 200 );    
+    tb.mDelay( 200 );
     cout << "ROC " << iroc << " set Vana to " << val[iroc]
 	 << " ia " << iaroc[iroc]  << endl;
     sumia = sumia + iaroc[iroc];
@@ -4009,8 +4094,7 @@ CMD_PROC( show1 ) // print one DAC for all ROCs
 }
 
 //------------------------------------------------------------------------------
-
-bool writedac(string desc)
+bool writedac( string desc )
 {
   //string globalName = gROOT->GetFile()->GetName(); 
   //int sizeName = globalName.size();
@@ -4023,7 +4107,7 @@ bool writedac(string desc)
     if( roclist[iroc] )
       ++nrocs;
 
-  ostringstream fname;          // output string stream
+  ostringstream fname; // output string stream
 
   if( nrocs == 1 )
     fname << "dacParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
@@ -4047,13 +4131,12 @@ bool writedac(string desc)
 }
 
 //------------------------------------------------------------------------------
-
 CMD_PROC( wdac ) // write DACs to file
 {
   char cdesc[80];
   PAR_STRING( cdesc, 80 );
   string desc = cdesc;
-  writedac(cdesc);
+  writedac( cdesc );
   return true;
 }
 
@@ -4069,7 +4152,7 @@ CMD_PROC( rddac ) // read DACs from file
     if( roclist[iroc] )
       ++nrocs;
 
-  ostringstream fname;          // output string stream
+  ostringstream fname; // output string stream
 
   if( nrocs == 1 )
     fname << "dacParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
@@ -4127,7 +4210,7 @@ CMD_PROC( wtrim ) // write trim bits to file
     if( roclist[iroc] )
       ++nrocs;
 
-  ostringstream fname;          // output string stream
+  ostringstream fname; // output string stream
 
   if( nrocs == 1 )
     fname << "trimParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
@@ -4160,7 +4243,7 @@ CMD_PROC( rdtrim ) // read trim bits from file
     if( roclist[iroc] )
       ++nrocs;
 
-  ostringstream fname;          // output string stream
+  ostringstream fname; // output string stream
 
   if( nrocs == 1 )
     fname << "trimParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
@@ -4176,11 +4259,11 @@ CMD_PROC( rdtrim ) // read trim bits from file
   cout << "read trim values from " << fname.str(  ) << endl;
   Log.printf( "[RDTRIM] %s\n", fname.str(  ).c_str(  ) );
 
-  string Pix;                   // dummy
+  string Pix; // dummy
   int icol;
   int irow;
   int itrm;
-  vector < uint8_t > trimvalues( 4160 );
+  vector < uint8_t > trimvalues( 4160 ); // 0..15
   for( size_t roc = 0; roc < 16; ++roc )
     if( roclist[roc] ) {
       for( int col = 0; col < 52; ++col )
@@ -4210,9 +4293,9 @@ CMD_PROC( rdtrim ) // read trim bits from file
 int32_t dacStrt( int32_t num )  // min DAC range
 {
   if(      num == VDx )
-    return 1500; // ROC looses settings at lower voltage
+    return 1800; // ROC looses settings at lower voltage
   else if( num == VAx )
-    return 500; // [mV]
+    return  800; // [mV]
   else
     return 0;
 }
@@ -4303,7 +4386,7 @@ CMD_PROC( pixi ) // info
   int32_t roc = 0;
   int32_t col;
   int32_t row;
-  //PAR_INT( roc, 0, 15 );
+  PAR_INT( roc, 0, 15 );
   PAR_INT( col, 0, 51 );
   PAR_INT( row, 0, 79 );
   if( roclist[roc] ) {
@@ -4322,7 +4405,7 @@ CMD_PROC( pixt ) // set trim bits
   int32_t col;
   int32_t row;
   int32_t trm;
-  //PAR_INT( roc, 0, 15 );
+  PAR_INT( roc, 0, 15 );
   PAR_INT( col, 0, 51 );
   PAR_INT( row, 0, 79 );
   PAR_INT( trm, 0, 15 );
@@ -4521,7 +4604,7 @@ CMD_PROC( daci ) // currents vs dac
   h11->SetStats( 0 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11, 12" << endl;
+  cout << "  histos 11, 12" << endl;
 
   return true;
 }
@@ -4539,7 +4622,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
 
   int32_t dacstop = dacStop( VthrComp );
   int32_t nstp = dacstop + 1;
-  vector < double >yvec( nstp, 0.0 );
+  vector < double > yvec( nstp, 0.0 );
   double ymax = 0;
   int32_t imax = 0;
 
@@ -4601,7 +4684,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
   h11->SetStats( 0 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11" << endl;
+  cout << "  histos 11" << endl;
 
   cout << "peak " << ymax << " mA" << " at " << imax << endl;
 
@@ -4673,7 +4756,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
   cout << "max d22 " << maxd22 << " at " << maxi22 << endl;
   cout << "max d29 " << maxd29 << " at " << maxi29 << endl;
 
-  int32_t val = maxi22 - 8;     // safety for digV2.1
+  int32_t val = maxi22 - 8; // safety for digV2.1
   val = maxi29 - 30; // safety for digV2
   if( val < 0 )
     val = 0;
@@ -4715,7 +4798,7 @@ bool GetPixData( int roc, int col, int row, int nTrig,
   } // col x
   tb.SetTrimValues( roc, trimvalues ); // load into FPGA
 
-  int tbmch = roc / 8;          // 0 or 1
+  int tbmch = roc / 8; // 0 or 1
 
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
@@ -4796,7 +4879,7 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 	  uint16_t ph = dec.GetPH(  );
 
 	  if( ix == col && iy == row ) {
-	    cnt++;
+	    ++cnt;
 	    phsum += ph;
 	    phsu2 += ph * ph;
 	  }
@@ -4831,7 +4914,7 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 
     for( size_t i = 0; i < data.size(  ); ++i ) {
 
-      int d = data[i] & 0xfff;  // 12 bits data
+      int d = data[i] & 0xfff; // 12 bits data
       int v = ( data[i] >> 12 ) & 0xe; // 3 flag bits: e = 14 = 1110
 
       uint32_t ph = 0;
@@ -5012,7 +5095,7 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
       even = 0;
       if( evt > 0 )
         cout << endl;
-      evt++;
+      ++evt;
       cout << "evt " << setw( 2 ) << evt;
     }
     else if( even ) { // merge 2 words into one pixel int:
@@ -5032,7 +5115,7 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
         cout << " pix " << setw( 2 ) << ix << setw( 3 ) << iy << setw( 4 ) << ph;
 
         if( ix == col && iy == row ) {
-          cnt++;
+          ++cnt;
           phsum += ph;
           phsu2 += ph * ph;
           vcsum += vc;
@@ -5068,7 +5151,7 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
   h11->SetStats( 111111 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11" << endl;
+  cout << "  histos 11" << endl;
 
   return true;
 }
@@ -5151,7 +5234,7 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
 
     if( ( data[i] & 0xffc ) == 0x7f8 ) { // ROC header
       even = 0;
-      evt++;
+      ++evt;
       pixels.clear(  );
       php[0] = -1;
       php[1] = -1;
@@ -5177,14 +5260,14 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
         double vc = PHtoVcal( ph, 0, ix, iy );
 
         if( ix == col && iy == row ) {
-          cnt[0]++;
+          ++cnt[0];
           phsum[0] += ph;
           phsu2[0] += ph * ph;
           vcsum[0] += vc;
           php[0] = ph;
         }
         else if( ix == col && iy == row2 ) {
-          cnt[1]++;
+          ++cnt[1];
           phsum[1] += ph;
           phsu2[1] += ph * ph;
           vcsum[1] += vc;
@@ -5198,7 +5281,7 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
 
         if( data[i + 1] & 0x4000 && php[0] > 0 && php[1] > 0 ) {
           ppsum += php[0] * php[1];
-          n2++;
+          ++n2;
         } // event end
 
       } // data size
@@ -5241,7 +5324,7 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
 // utility function: single pixel dac scan, ROC or module
 bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
                  const uint8_t dac, const uint8_t stp, const int16_t nTrig,
-		 vector < int16_t >  & nReadouts,
+		 vector < int16_t > & nReadouts,
                  vector < double > & PHavg, vector < double > & PHrms )
 {
   bool ldb = 0;
@@ -5251,11 +5334,10 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   int trim = modtrm[roc][col][row];
   tb.roc_Pix_Trim( col, row, trim );
   tb.roc_Pix_Cal( col, row, false );
-  tb.Flush(  );
 
   vector < uint8_t > trimvalues( 4160 );
-  for( int x = 0; x < 52; x++ ) {
-    for( int y = 0; y < 80; y++ ) {
+  for( int x = 0; x < 52; ++x ) {
+    for( int y = 0; y < 80; ++y ) {
       int trim = modtrm[roc][x][y];
       int i = 80 * x + y;
       trimvalues[i] = trim;
@@ -5264,7 +5346,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   tb.SetTrimValues( roc, trimvalues ); // load into FPGA
   if( ldb ) cout << "[DacScanPix] loaded trim values to FPGA" << endl;
 
-  int tbmch = roc / 8;          // 0 or 1
+  int tbmch = roc / 8; // 0 or 1
 
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
@@ -5278,9 +5360,9 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
     tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
   else {
     tb.Daq_Select_Deser400(  );
-    tb.Daq_Deser400_Reset( 3 ); // no effect
+    tb.Daq_Deser400_Reset( 3 );
   }
-  tb.uDelay( 100 ); // 1000 does not help
+  tb.uDelay( 100 );
   tb.Daq_Start( tbmch );
   tb.uDelay( 100 );
   tb.Flush(  );
@@ -5375,6 +5457,8 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
       int32_t nstp = ( dacstop - dacstrt ) / stp + 1;
 
+      if( ldb ) cout << "  expect " << nstp << " dac steps" << endl;
+
       int nmin = mTrig;
       int nmax = 0;
 
@@ -5386,18 +5470,19 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
         for( int k = 0; k < mTrig; ++k ) {
 
-	  //cout << setw(5) << pos;
+	  if( ldb ) cout << setw(5) << pos;
           int hdr;
           vector < PixelReadoutData > vpix = GetEvent( data, pos, hdr ); // analyzer
-	  //cout << " " << hex << pix.hdr << dec << " " << pix.n << endl;
-          for( size_t ipx = 0; ipx < vpix.size(  ); ++ipx )
+          for( size_t ipx = 0; ipx < vpix.size(  ); ++ipx ) {
+	    if( ldb ) cout << " " << hex << vpix[ipx].hdr
+			   << dec << " " << vpix[ipx].n << endl;
             if( vpix[ipx].x == col && vpix[ipx].y == row ) {
               ++cnt;
               int ph = vpix[ipx].p;
               phsum += ph;
               phsu2 += ph * ph;
             }
-
+	  }
         } // trig
 
         nReadouts.push_back( cnt );
@@ -5407,7 +5492,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
           nmin = cnt;
 
         double ph = -1.0;
-        double rms = -0.1;
+        double rms = 0.0;
         if( cnt > 0 ) {
           ph = ( double ) phsum / cnt;
           rms = sqrt( ( double ) phsu2 / cnt - ph * ph );
@@ -5416,6 +5501,10 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
         PHrms.push_back( rms );
 
       } // dacs
+
+      if( ldb ) cout << "  final data pos " << pos << endl;
+      if( ldb ) cout << "  nReadouts.size " << nReadouts.size(  ) << endl;
+      if( ldb ) cout << "  min max responses " << nmin << " " << nmax << endl;
 
       int thr = nmin + ( nmax - nmin ) / 2; // 50% level
       int thrup = dacstrt;
@@ -5436,7 +5525,8 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
       if( ldb )
 	cout << "  responses min " << nmin << " max " << nmax
 	     << ", step above 50% at " << thrup
-	     << ", step below 50% at " << thrdn << endl;
+	     << ", step below 50% at " << thrdn
+	     << endl;
 
     } // try
 
@@ -5471,7 +5561,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
     for( size_t i = 0; i < data.size(  ); ++i ) {
 
-      int d = data[i] & 0xfff;  // 12 bits data
+      int d = data[i] & 0xfff; // 12 bits data
       int v = ( data[i] >> 12 ) & 0xe; // 3 flag bits: e = 14 = 1110
 
       uint32_t ph = 0;
@@ -5537,7 +5627,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
         if( event % mTrig == mTrig - 1 ) {
           nReadouts.push_back( cnt );
 	  double ph = -1.0;
-	  double rms = -0.1;
+	  double rms = 0.0;
 	  if( cnt > 0 ) {
 	    ph = ( double ) phsum / cnt;
 	    rms = sqrt( ( double ) phsu2 / cnt - ph * ph );
@@ -5569,8 +5659,6 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
   return true;
 }
-
-
 
 //------------------------------------------------------------------------------
 bool setcaldel( int col, int row, int nTrig )
@@ -5682,8 +5770,8 @@ CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   const int vdac = dacval[0][CalDel];
   const int vctl = dacval[0][CtrlReg];
@@ -5776,14 +5864,14 @@ CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 21" << endl;
+  cout << "  histos 21" << endl;
   //c1->SetLeftMargin(defaultLeftMargin);
   //c1->SetRightMargin(defaultRightMargin);
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 }
@@ -5800,15 +5888,17 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   int mm[16];
 
   for( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
+
     int roc = enabledrocslist[iroc];
     if( roclist[roc] == 0 )
       continue;
+
     cout << endl << setw( 2 ) << "ROC " << roc << endl;
 
     // scan caldel:
@@ -5828,7 +5918,7 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
     int nstp = nReadouts.size(  );
     cout << "DAC steps " << nstp << endl;
 
-    // analyzqe:
+    // analyze:
 
     int nm = 0;
     int i0 = 0;
@@ -5840,6 +5930,7 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
 
       cout << " " << cnt;
       Log.printf( "%i %i\n", j, cnt );
+
       if( cnt > nm ) {
         nm = cnt;
         i0 = j; // begin of plateau
@@ -5877,9 +5968,9 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 }
@@ -5911,12 +6002,12 @@ int ThrPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   }
 
   int thr = 0;
-  for( int j = 0; j < nstp; ++j ){
+  for( int j = 0; j < nstp; ++j )
     if( nReadouts.at( j ) <= 0.5 * nmx )
       thr = j; // overwritten until passed
-    if( nReadouts.at( j ) > 0.5 * nmx )
-      break; // get out once we have a threshold
-  }
+    else
+      break; // beyond threshold 18.11.2014
+
   return thr;
 }
 
@@ -5930,8 +6021,8 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // one pix per ROC:
 
@@ -5962,7 +6053,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
   tb.Daq_Start( 0 );
   tb.Daq_Start( 1 );
 
-  uint16_t flags = 0;           // or flags = FLAG_USE_CALS;
+  uint16_t flags = 0; // or flags = FLAG_USE_CALS;
   //flags |= 0x0010; // FLAG_FORCE_MASK (needs trims)
 
   int dac = Vcal;
@@ -5971,8 +6062,8 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
   int nstp = dacstop - dacstrt + 1;
 
   gettimeofday( &tv, NULL );
-  long s1 = tv.tv_sec;          // seconds since 1.1.1970
-  long u1 = tv.tv_usec;         // microseconds
+  long s1 = tv.tv_sec; // seconds since 1.1.1970
+  long u1 = tv.tv_usec; // microseconds
 
   try {
     tb.LoopMultiRocOnePixelDacScan( rocAddress, col, row, nTrig, flags, dac,
@@ -5983,17 +6074,16 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     return 0;
   }
 
-  cout << "        waiting for FPGA..." << endl;
   int dSize[2];
   dSize[0] = tb.Daq_GetSize( 0 );
   dSize[1] = tb.Daq_GetSize( 1 );
 
   gettimeofday( &tv, NULL );
-  long s2 = tv.tv_sec;          // seconds since 1.1.1970
-  long u2 = tv.tv_usec;         // microseconds
+  long s2 = tv.tv_sec; // seconds since 1.1.1970
+  long u2 = tv.tv_usec; // microseconds
   double dt = s2 - s1 + ( u2 - u1 ) * 1e-6;
 
-  cout << "        LoopMultiRocOnePixelDacScan takes " << dt << " s"
+  cout << "\tLoopMultiRocOnePixelDacScan takes " << dt << " s"
        << " = " << dt / 16 / nstp / nTrig * 1e6 << " us / pix" << endl;
 
   // read and unpack data:
@@ -6004,10 +6094,9 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
 
-    cout << "        DAQ size channel " << tbmch
+    cout << "\tDAQ size channel " << tbmch
 	 << " = " << dSize[tbmch] << " words " << endl;
 
-    //cout << "DAQ_Stop..." << endl;
     tb.Daq_Stop( tbmch );
 
     vector < uint16_t > data;
@@ -6016,7 +6105,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     try {
       uint32_t rest;
       tb.Daq_Read( data, Blocksize, rest, tbmch );
-      cout << "        data size " << data.size(  )
+      cout << "\tdata size " << data.size(  )
 	   << ", remaining " << rest << endl;
       while( rest > 0 ) {
         vector < uint16_t > dataB;
@@ -6024,7 +6113,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
         tb.uDelay( 5000 );
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
         data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "        data size " << data.size(  )
+        cout << "\tdata size " << data.size(  )
 	     << ", remaining " << rest << endl;
         dataB.clear(  );
       }
@@ -6039,7 +6128,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     bool ldb = 0;
 
     uint32_t nev = 0;
-    uint32_t nrh = 0;           // ROC headers
+    uint32_t nrh = 0; // ROC headers
     uint32_t npx = 0;
     uint32_t raw = 0;
     uint32_t hdr = 0;
@@ -6053,7 +6142,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
     for( size_t i = 0; i < data.size(  ); ++i ) {
 
-      int d = data[i] & 0xfff;  // 12 bits data
+      int d = data[i] & 0xfff; // 12 bits data
       int v = ( data[i] >> 12 ) & 0xe; // 3 flag bits
 
       uint32_t ph = 0;
@@ -6137,7 +6226,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
     } // data
 
-    cout << "        TBM ch " << tbmch
+    cout << "\tTBM ch " << tbmch
 	 << ": events " << nev
 	 << " (expect " << nstp * nTrig << ")"
 	 << ", ROC headers " << nrh
@@ -6147,10 +6236,10 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
   } // tbmch
 
   gettimeofday( &tv, NULL );
-  long s3 = tv.tv_sec;          // seconds since 1.1.1970
-  long u3 = tv.tv_usec;         // microseconds
+  long s3 = tv.tv_sec; // seconds since 1.1.1970
+  long u3 = tv.tv_usec; // microseconds
   double dtr = s3 - s2 + ( u3 - u2 ) * 1e-6;
-  cout << "        Daq_Read takes " << dtr << " s"
+  cout << "\tDaq_Read takes " << dtr << " s"
        << " = " << 2 * ( dSize[0] + dSize[1] ) / dtr / 1024 / 1024 << " MiB/s"
        << endl;
 
@@ -6159,7 +6248,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     if( roclist[roc] == 0 )
       continue;
 
-    cout << "        ROC " << setw( 2 ) << roc << ":" << endl;
+    cout << "\tROC " << setw( 2 ) << roc << ":" << endl;
 
     int nmx = 0;
     for( int idc = 0; idc < nstp; ++idc )
@@ -6186,7 +6275,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
       //cout<< " idc:"<< idc << " i10: "<< i10<< " i50: "<< i50<< " i90: "<< i90<<endl;
     }
     cout << endl;
-    cout << "thr " << i50 << ", width " << i90 - i10 << endl;
+    cout << "thr " << i50 << ", rms " << (i90 - i10)/2.5631 << endl;
   }
 
   // all off:
@@ -6214,9 +6303,9 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -6233,7 +6322,7 @@ int GetEff( int &n01, int &n50, int &n99 )
   n99 = 0;
 
   uint16_t nTrig = 10;
-  uint16_t flags = 0;           // normal CAL
+  uint16_t flags = 0; // normal CAL
 
   //flags = 0x0002; // FLAG_USE_CALS;
   if( flags > 0 )
@@ -6349,8 +6438,8 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // all pix per ROC:
 
@@ -6431,13 +6520,15 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   bool done = 0;
   double dtloop = 0;
   double dtread = 0;
+  int loop = 0;
 
   while( done == 0 ) { // FPGA sends blocks of data
 
-    cout << "loop..." << endl << flush;
+    ++loop;
+    cout << "\tloop " << loop << endl << flush;
 
     gettimeofday( &tv, NULL );
-    long s1 = tv.tv_sec;  // seconds since 1.1.1970
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
     long u1 = tv.tv_usec; // microseconds
 
     tb.Daq_Start( 0 );
@@ -6460,14 +6551,13 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
       return 0;
     }
 
-    cout << ( done ? "done" : "not done" ) << endl;
+    cout << ( done ? "\tdone" : "\tnot done" ) << endl;
 
     gettimeofday( &tv, NULL );
-    long s2 = tv.tv_sec;        // seconds since 1.1.1970
-    long u2 = tv.tv_usec;       // microseconds
+    long s2 = tv.tv_sec; // seconds since 1.1.1970
+    long u2 = tv.tv_usec; // microseconds
     dtloop += s2 - s1 + ( u2 - u1 ) * 1e-6;
 
-    cout << "        waiting for FPGA..." << endl;
     int dSize[2];
     dSize[0] = tb.Daq_GetSize( 0 );
     dSize[1] = tb.Daq_GetSize( 1 );
@@ -6476,10 +6566,9 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
     for( int tbmch = 0; tbmch < 2; ++tbmch ) {
 
-      cout << "        DAQ size channel " << tbmch
+      cout << "\tDAQ size channel " << tbmch
 	   << " = " << dSize[tbmch] << " words " << endl;
 
-      //cout << "DAQ_Stop..." << endl;
       tb.Daq_Stop( tbmch );
 
       vector < uint16_t > dataB;
@@ -6490,16 +6579,20 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
         data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                             dataB.end(  ) );
-        cout << "        data[" << tbmch << "] size " << data[tbmch].size(  )
-	     << ", remaining " << rest << endl;
+        cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+	  //<< ", remaining " << rest
+	     << " of " << data[tbmch].capacity(  )
+	     << endl;
         while( rest > 0 ) {
           dataB.clear(  );
           //tb.uDelay( 5000 );
           tb.Daq_Read( dataB, Blocksize, rest, tbmch );
           data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                               dataB.end(  ) );
-          cout << "        data[" << tbmch << "] size " << data[tbmch].size(  )
-	       << ", remaining " << rest << endl;
+          cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+	    //<< ", remaining " << rest
+	       << " of " << data[tbmch].capacity(  )
+	       << endl;
         }
       }
       catch( CRpcError & e ) {
@@ -6510,15 +6603,14 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     } // TBM ch
 
     gettimeofday( &tv, NULL );
-    long s3 = tv.tv_sec;        // seconds since 1.1.1970
-    long u3 = tv.tv_usec;       // microseconds
+    long s3 = tv.tv_sec; // seconds since 1.1.1970
+    long u3 = tv.tv_usec; // microseconds
     dtread += s3 - s2 + ( u3 - u2 ) * 1e-6;
 
   } // while FPGA not done
 
-  cout << "        LoopMultiRocAllPixelDacScan takes " << dtloop
-       << " s" << endl;
-  cout << "        Daq_Read takes " << dtread << " s"
+  cout << "\tLoopMultiRocAllPixelDacScan takes " << dtloop << " s" << endl;
+  cout << "\tDaq_Read takes " << dtread << " s"
        << " = " << 2 * ( data[0].size(  ) + data[1].size(  ) ) /
     dtread / 1024 / 1024 << " MiB/s" << endl;
 
@@ -6559,14 +6651,14 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
           amp[i][j][k][l] = 0;
 
   bool ldb = 0;
-  long countLoop = -1; 
+  long countLoop = -1;
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
-    countLoop = -1; 
-    cout << "        DAQ size channel " << tbmch
+    countLoop = -1;
+    cout << "\tDAQ size channel " << tbmch
 	 << " = " << data[tbmch].size(  ) << " words " << endl;
 
     uint32_t nev = 0;
-    uint32_t nrh = 0;           // ROC headers
+    uint32_t nrh = 0; // ROC headers
     uint32_t npx = 0;
     uint32_t raw = 0;
     uint32_t hdr = 0;
@@ -6643,9 +6735,9 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 	{
 	  long xi = (countLoop / mTrig ) / nstp ;
 	  int row = ( xi ) % 80;
-	  int col = (xi - row) / 80;	
+	  int col = (xi - row) / 80;
 	  
-	  if( col!= x or row!=y ) {
+	  if( col != x or row != y ) {
 	    addressmatch = false;
 	    if( ldb ) {
 	      cout << " pixel address mismatch " << endl;
@@ -6681,7 +6773,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
     } // data
 
-    cout << "        TBM ch " << tbmch
+    cout << "\tTBM ch " << tbmch
 	 << ": events " << nev
 	 << " (expect " << 4160 * nstp * mTrig << ")"
 	 << ", ROC headers " << nrh
@@ -6739,14 +6831,14 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     delete h22;
   if( nTrig < 0 ) // cals
     h22 = new TH2D( Form( "cals_N_DAC%02i_map", dac ),
-		    Form( "cals N vs %s map;pixel;%s [DAC];readouts",
+		    Form( "cals N vs %s map;pixel;%s [DAC];cals responses",
 			  dacName[dac].c_str(  ),
 			  dacName[dac].c_str(  ) ),
 		    16*4160, -0.5, 16*4160-0.5,
 		    nstp, dacstrt - 0.5*step, dacstop + 0.5*step );
   else
     h22 = new TH2D( Form( "N_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
-		    Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];readouts",
+		    Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];responses",
 			  dacName[dac].c_str(  ), ctl, cal,
 			  dacName[dac].c_str(  ) ),
 		    16*4160, -0.5, 16*4160-0.5,
@@ -6784,7 +6876,8 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     if( roclist[roc] == 0 )
       continue;
 
-    cout << "ROC " << setw( 2 ) << roc << ":" << endl;
+    if( ldb )
+      cout << "ROC " << setw( 2 ) << roc << ":" << endl;
 
     for( int col = 0; col < 52; ++col ) {
 
@@ -6799,8 +6892,8 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
         int i50 = 0;
         int i90 = 0;
         bool ldb = 0;
-        if( col == 22 && row == 33 )
-          ldb = 0; // one example pix
+        if( col == 22 && row == -33 )
+          ldb = 1; // one example pix
 
         for( int idc = 0; idc < nstp; ++idc ) {
 
@@ -6829,23 +6922,23 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
           cout << endl;
         if( ldb )
           cout << "thr " << i50
-	       << ", width " << i90 - i10 << endl;
+	       << ", rms " << (i90 - i10)/2.5631*step << endl;
 
         if( dac == 25 && nTrig > 0 && dacval[roc][CtrlReg] == 0 )
 	  modthr[roc][col][row] = i50;
 
         h11->Fill( nmx );
         h14->Fill( i50 );
-        h15->Fill( i90 - i10 );
-        int l = roc % 8;        // 0..7
-        int m = roc / 8;        // 0..1
-        int xm = 52 * l + col;  // 0..415  rocs 0 1 2 3 4 5 6 7
+        h15->Fill( (i90 - i10)/2.5631*step );
+        int l = roc % 8; // 0..7
+        int m = roc / 8; // 0..1
+        int xm = 52 * l + col; // 0..415  rocs 0 1 2 3 4 5 6 7
         if( m == 1 )
           xm = 415 - xm; // rocs 8 9 A B C D E F
         int ym = 159 * m + ( 1 - 2 * m ) * row; // 0..159
         h23->Fill( xm, ym, nmx );
         h24->Fill( xm, ym, i50 );
-        h25->Fill( xm, ym, i90 - i10 );
+        h25->Fill( xm, ym, (i90 - i10)/2.5631*step );
 
       } // row
 
@@ -6944,7 +7037,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     float cutval = gausFit->GetParameter(1) - 5*gausFit->GetParameter(2);
 
     cout << "cutoff for bad bumps (5 sigma away from mean of good bumps): " << cutval << endl;
-    Log.printf( "cutoff for bad bumps (5 sigma away from mean of good bumps): %f", cutval );      
+    Log.printf( "cutoff for bad bumps (5 sigma away from mean of good bumps): %f", cutval );
 
     for( int ibin = 1; ibin <= nbinx; ++ibin ) {
 
@@ -7051,7 +7144,6 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     cout << "  histos 11, 12, 21, 22, 23, 24, 25" << endl;
 
   } // BB test
-  
 
   // De-allocate memory to prevent memory leak
 
@@ -7085,7 +7177,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   h25->Write(  );
   h23->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 11, 14, 15, 21 big, 22 big, 23, 24, 25" << endl;
+  cout << "  histos 11, 14, 15, 21 big, 22 big, 23, 24, 25" << endl;
 
   // all off:
 
@@ -7112,9 +7204,9 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -7300,14 +7392,16 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
   double dtloop = 0;
   double dtread = 0;
   timeval tv;
+  int loop = 0;
 
   while( done == 0 ) {
 
-    cout << "\tloop..." << endl << flush;
+    ++loop;
+    cout << "\tloop " << loop << endl << flush;
 
     gettimeofday( &tv, NULL );
-    long s1 = tv.tv_sec;        // seconds since 1.1.1970
-    long u1 = tv.tv_usec;       // microseconds
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
 
     tb.Daq_Start( 0 );
     tb.Daq_Start( 1 );
@@ -7332,11 +7426,10 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     cout << ( done ? "\tdone" : "\tnot done" ) << endl;
 
     gettimeofday( &tv, NULL );
-    long s2 = tv.tv_sec;        // seconds since 1.1.1970
-    long u2 = tv.tv_usec;       // microseconds
+    long s2 = tv.tv_sec; // seconds since 1.1.1970
+    long u2 = tv.tv_usec; // microseconds
     dtloop += s2 - s1 + ( u2 - u1 ) * 1e-6;
 
-    cout << "\twaiting for FPGA..." << endl;
     int dSize[2];
     dSize[0] = tb.Daq_GetSize( 0 );
     dSize[1] = tb.Daq_GetSize( 1 );
@@ -7360,7 +7453,9 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
         data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                             dataB.end(  ) );
         cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
-	     << ", remaining " << rest << endl;
+	  //<< ", remaining " << rest
+	     << " of " << data[tbmch].capacity(  )
+	     << endl;
         while( rest > 0 ) {
           dataB.clear(  );
           tb.uDelay( 5000 );
@@ -7368,7 +7463,9 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
           data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                               dataB.end(  ) );
           cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
-	       << ", remaining " << rest << endl;
+	    //<< ", remaining " << rest
+	       << " of " << data[tbmch].capacity(  )
+	       << endl;
         }
       }
       catch( CRpcError & e ) {
@@ -7379,8 +7476,8 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     } // TBM ch
 
     gettimeofday( &tv, NULL );
-    long s3 = tv.tv_sec;        // seconds since 1.1.1970
-    long u3 = tv.tv_usec;       // microseconds
+    long s3 = tv.tv_sec; // seconds since 1.1.1970
+    long u3 = tv.tv_usec; // microseconds
     dtread += s3 - s2 + ( u3 - u2 ) * 1e-6;
 
   } // while not done
@@ -7420,14 +7517,14 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 	 << " = " << data[tbmch].size(  ) << " words " << endl;
 
     uint32_t nev = 0;
-    uint32_t nrh = 0;           // ROC headers
+    uint32_t nrh = 0; // ROC headers
     uint32_t npx = 0;
     uint32_t raw = 0;
     uint32_t hdr = 0;
     uint32_t trl = 0;
     int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
     int32_t kroc = 0;//enabledrocslist[0];
-    uint8_t idc = 0;            // 0..255
+    uint8_t idc = 0; // 0..255
 
     // nDAC * nTrig * ( TBM header, 8 * ( ROC header, one pixel ), TBM trailer )
 
@@ -7591,7 +7688,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
           cout << endl;
         if( ldb )
           cout << "\tthr " << i50 * step
-	       << ", width " << ( i90 - i10 ) * step << endl;
+	       << ", rms " << ( (i90 - i10)/2.5631 ) * step << endl;
 
         modthr[roc][col][row] = i50 * step;
 
@@ -7638,9 +7735,13 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 } // ModThrMap
 
 //------------------------------------------------------------------------------
-CMD_PROC( modthrmap )
+CMD_PROC( modthrmap ) // modthrmap [new] [cut]
 {
   Log.section( "MODTHRMAP", true );
+
+  int New;
+  if( !PAR_IS_INT( New, 0, 1 ) )
+    New = 1; // measure new map
 
   int cut;
   if( !PAR_IS_INT( cut, 0, 255 ) )
@@ -7648,12 +7749,12 @@ CMD_PROC( modthrmap )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   int strt = 0;
-  int stop = 127;               // Vcal scan range, 255 = overflow
-  int step = 1;                 // fine
+  int stop = 127; // Vcal scan range, 255 = overflow
+  int step = 1; // fine
   int nstp = ( stop - strt ) / step + 1;
 
   const int nTrig = 10;
@@ -7664,7 +7765,8 @@ CMD_PROC( modthrmap )
        << strt << " to " << stop
        << " in steps of " << step << " with " << nTrig << " triggers" << endl;
 
-  ModThrMap( strt, stop, step, nTrig, xtlk, cals ); // fills modthr
+  if( New )
+    ModThrMap( strt, stop, step, nTrig, xtlk, cals ); // fills modthr
 
   if( h11 )
     delete h11;
@@ -7699,7 +7801,7 @@ CMD_PROC( modthrmap )
       continue;
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row ) {
-	int l = roc % 8;   // 0..7
+	int l = roc % 8; // 0..7
 	int xm = 52 * l + col; // 0..415  rocs 0 1 2 3 4 5 6 7
 	int ym = row; // 0..79
 	if( roc > 7 ) {
@@ -7712,7 +7814,7 @@ CMD_PROC( modthrmap )
 	if( thr > 0 && thr < 255 ) {
 	  sum += thr;
 	  su2 += thr * thr;
-	  nok++;
+	  ++nok;
 	}
 	else
 	  cout << "thr " << setw( 3 ) << thr
@@ -7772,11 +7874,11 @@ CMD_PROC( modthrmap )
   h21->Write(  );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11, 21" << endl;
+  cout << "  histos 11, 21" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -7794,15 +7896,15 @@ CMD_PROC( modvthrcomp )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // take threshold map, find softest pixel
 
   int strt = 0;
-  int stop = 255;               // Vcal scan range
-  int step = 4;                 // coarse
+  int stop = 255; // Vcal scan range
+  int step = 4; // coarse
 
   const int nTrig = 10;
   const int xtlk = 0;
@@ -7863,9 +7965,9 @@ CMD_PROC( modvthrcomp )
 
     // VthrComp has negative slope: higher = softer
 
-    int vstp = -1;      // towards harder threshold
+    int vstp = -1; // towards harder threshold
     if( vmin > target )
-      vstp = 1;         // towards softer threshold
+      vstp = 1; // towards softer threshold
 
     int vthr = dacval[roc][VthrComp];
 
@@ -7879,12 +7981,12 @@ CMD_PROC( modvthrcomp )
 
       cout << "VthrComp " << setw( 3 ) << vthr << " thr " << setw( 3 ) << thr
 	   << endl;
-      if( vstp * thr <= vstp * target or thr > 240) // signed
+      if( vstp * thr <= vstp * target or thr > 240 ) // signed
         break;
 
     } // vthr
 
-    vthr -= 1; // margin towards harder threshold
+    vthr -= 1; // safety margin towards harder threshold
     tb.SetDAC( VthrComp, vthr );
     cout << "set VthrComp to " << vthr << endl;
     dacval[roc][VthrComp] = vthr;
@@ -7904,8 +8006,8 @@ CMD_PROC( modvthrcomp )
   }
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -8021,8 +8123,8 @@ CMD_PROC( modtrim )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // activate ROCs:
@@ -8044,7 +8146,7 @@ CMD_PROC( modtrim )
 
     for( int row = 79; row >= 0; --row )
       for( int col = 0; col < 52; ++col ) {
-        int trim = 15;          // no trim
+        int trim = 15; // no trim
         modtrm[roc][col][row] = trim;
         int i = 80 * col + row;
         trimvalues[i] = trim;
@@ -8063,7 +8165,7 @@ CMD_PROC( modtrim )
   bool contTrim = true;
   int strt = 0;
   int stop = 255; // Vcal scan range
-  int step = 4;   // coarse
+  int step = 4; // coarse
 
   const int nTrig = 10;
   const int xtlk = 0;
@@ -8081,6 +8183,23 @@ CMD_PROC( modtrim )
       continue;
     printThrMap( 0, roc, nok );
   }
+
+  if( h11 )
+    delete h11;
+  h11 = new
+    TH1D( "mod_thr_dist_bits_15",
+	  "Module threshold distribution bits 15;threshold [small Vcal DAC];pixels",
+	  64, -2, 254 ); // 255 = overflow
+  h11->Sumw2();
+
+  for( size_t roc = 0; roc < 16; ++roc )
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row )
+	h11->Fill( modthr[roc][col][row] );
+
+  h11->Draw( "hist" );
+  c1->Update(  );
+  h11->Write(  );
 
   cout << endl;
 
@@ -8141,7 +8260,7 @@ CMD_PROC( modtrim )
 
       cout << setw( 3 ) << itrim << "  " << setw( 3 ) << thr << endl;
       if( thr < target or thr > 254 ) // CS
-        break;
+	break; // done
 
     } // itrim
 
@@ -8172,7 +8291,7 @@ CMD_PROC( modtrim )
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // iterate trim bits:
-  
+
   if( contTrim ) {
 
     for( int roc = 0; roc < 16; ++roc ) {
@@ -8194,12 +8313,46 @@ CMD_PROC( modtrim )
 
     // printThrMap( 0, roc, nok );
 
+    if( h12 )
+      delete h12;
+    h12 = new
+      TH1D( "mod_thr_dist_bits_7",
+	    "Module threshold distribution bits 7;threshold [small Vcal DAC];pixels",
+	    64, -2, 254 ); // 255 = overflow
+    h12->Sumw2();
+
+    for( size_t roc = 0; roc < 16; ++roc )
+      for( int col = 0; col < 52; ++col )
+	for( int row = 0; row < 80; ++row )
+	  h12->Fill( modthr[roc][col][row] );
+
+    h12->Draw( "hist" );
+    c1->Update(  );
+    h12->Write(  );
+
     int correction = 4;
     step = 4;
 
     ModTrimStep( target, correction, step, nTrig, xtlk, cals ); // fills modtrm, fills modthr
 
     //printThrMap( 0, roc, nok );
+
+    if( h13 )
+      delete h13;
+    h13 = new
+      TH1D( "mod_thr_dist_bits_7_4",
+	    "Module threshold distribution bits 7 4;threshold [small Vcal DAC];pixels",
+	    64, -2, 254 ); // 255 = overflow
+    h13->Sumw2();
+
+    for( size_t roc = 0; roc < 16; ++roc )
+      for( int col = 0; col < 52; ++col )
+	for( int row = 0; row < 80; ++row )
+	  h13->Fill( modthr[roc][col][row] );
+
+    h13->Draw( "hist" );
+    c1->Update(  );
+    h13->Write(  );
 
     correction = 2;
     step = 2;
@@ -8208,6 +8361,23 @@ CMD_PROC( modtrim )
 
     //printThrMap( 0, roc, nok );
 
+    if( h14 )
+      delete h14;
+    h14 = new
+      TH1D( "mod_thr_dist_bits_7_4_2",
+	    "Module threshold distribution bits 7 4 2;threshold [small Vcal DAC];pixels",
+	    127, -1, 253 ); // 255 = overflow
+    h14->Sumw2();
+
+    for( size_t roc = 0; roc < 16; ++roc )
+      for( int col = 0; col < 52; ++col )
+	for( int row = 0; row < 80; ++row )
+	  h14->Fill( modthr[roc][col][row] );
+
+    h14->Draw( "hist" );
+    c1->Update(  );
+    h14->Write(  );
+
     correction = 1;
     step = 1;
 
@@ -8215,12 +8385,46 @@ CMD_PROC( modtrim )
 
     //printThrMap( 0, roc, nok );
 
+    if( h15 )
+      delete h15;
+    h15 = new
+      TH1D( "mod_thr_dist_bits_7_4_2_1",
+	    "Module threshold distribution bits 7 4 2 1;threshold [small Vcal DAC];pixels",
+	    255, -0.5, 254.5 ); // 255 = overflow
+    h15->Sumw2();
+
+    for( size_t roc = 0; roc < 16; ++roc )
+      for( int col = 0; col < 52; ++col )
+	for( int row = 0; row < 80; ++row )
+	  h15->Fill( modthr[roc][col][row] );
+
+    h15->Draw( "hist" );
+    c1->Update(  );
+    h15->Write(  );
+
     correction = 1;
     step = 1;
 
     ModTrimStep( target, correction, step, nTrig, xtlk, cals ); // fills modtrm, fills modthr
 
     //printThrMap( 0, roc, nok );
+
+    if( h16 )
+      delete h16;
+    h16 = new
+      TH1D( "mod_thr_dist_bits_7_4_2_1_1",
+	    "Module threshold distribution bits 7 4 2 1 1;threshold [small Vcal DAC];pixels",
+	    255, -0.5, 254.5 ); // 255 = overflow
+    h16->Sumw2();
+
+    for( size_t roc = 0; roc < 16; ++roc )
+      for( int col = 0; col < 52; ++col )
+	for( int row = 0; row < 80; ++row )
+	  h16->Fill( modthr[roc][col][row] );
+
+    h16->Draw( "hist" );
+    c1->Update(  );
+    h16->Write(  );
 
     cout << "SetTrimValues in FPGA" << endl;
 
@@ -8243,15 +8447,16 @@ CMD_PROC( modtrim )
 	}
       tb.SetTrimValues( roc, trimvalues );
     }
+
   } // contTrim
-  
- tb.Flush(  );
- 
+
+  tb.Flush(  );
+
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
-  
+
   return true;
 
 } // modtrim
@@ -8275,7 +8480,7 @@ CMD_PROC( modtrimbits )
 	if( thr > 0 && thr < 255 ) {
 	  sum += thr;
 	  su2 += thr * thr;
-	  nok++;
+	  ++nok;
 	}
 	else
 	  cout << "thr " << setw( 3 ) << thr
@@ -8341,7 +8546,7 @@ CMD_PROC( modtrimbits )
 	  while( thr < cut && trim < 15 ) {
 	    ++trim;
 	    modtrm[roc][col][row] = trim; // will be used next
-	    int thr = ThrPix( roc, col, row, Vcal, step, nTrig );
+	    thr = ThrPix( roc, col, row, Vcal, step, nTrig );
 	    modthr[roc][col][row] = thr; // update
 	    cout << "roc col row trim thr"
 		 << setw( 3 ) << roc
@@ -8365,6 +8570,8 @@ CMD_PROC( modtrimbits )
 CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
 {
   if( ierror ) return false;
+
+  bool ldb = 0;
 
   int col, row, dac;
   PAR_INT( col, 0, 51 );
@@ -8391,8 +8598,8 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   vector < int16_t > nReadouts; // size 0
   vector < double >PHavg;
@@ -8405,15 +8612,13 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
 
   int nstp = nReadouts.size(  );
 
-  //cout << "  after DacScanPix: nReadouts.size() = " << nstp << endl;
-  //cout << "  after DacScanPix: PHavg.size() = " << PHavg.size() << endl;
-  //cout << "  after DacScanPix: PHrms.size() = " << PHrms.size() << endl;
+  if( ldb ) cout << "nstp " << nstp << endl;
 
   if( h10 )
     delete h10;
   h10 = new
     TH1D( Form( "N_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
-          Form( "responses vs %s ROC %i col %i row %i;%s [DAC];<PH> [ADC]",
+          Form( "responses vs %s ROC %i col %i row %i;%s [DAC];responses",
                 dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h10->Sumw2();
@@ -8479,27 +8684,31 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
   for( int32_t i = 0; i < nstp; ++i ) {
 
     int idac = dacStrt( dac ) + i * stp;
+    if( ldb ) cout << i << " " << idac << flush;
+
+    int nn = nReadouts.at( i );
+    if( ldb ) cout << " " << nn << flush;
 
     double ph = PHavg.at( i );
-    //cout << setw(4) << ((ph > -0.1 ) ? int(ph+0.5) : -1) << "(" << setw(3) << nReadouts.at(i) << ")";
+    if( ldb ) cout << " " << ph << flush;
+
     Log.printf( " %i", ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 );
 
     if( ph > -0.5 && ph < phmin )
       phmin = ph;
 
-    h10->Fill( idac, nReadouts.at( i ) );
+    h10->Fill( idac, nn );
 
-    if( nReadouts.at( i ) > 0 ) {
+    if( nn > 0 ) {
       h11->Fill( idac, ph );
+      if( ldb ) cout  << " " << PHrms.at( i ) << flush;
       h13->Fill( idac, PHrms.at( i ) );
-      double vc = PHtoVcal( ph, 0, col, row );
+      double vc = PHtoVcal( ph, roc, col, row );
       h12->Fill( idac, vc );
-      //cout << setw(3) << idac << "  " << ph << "  " << vc << endl;
+      if( ldb ) cout << "  " << vc;
     }
-
-  } // dacs i
-
-  //cout << endl;
+    if( ldb ) cout << endl;
+  } // dacs
   Log.printf( "\n" );
   Log.flush(  );
 
@@ -8512,19 +8721,19 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
   h11->SetStats( 0 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 10, 11, 12, 13" << endl;
+  cout << "  histos 10, 11, 12, 13" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
 } // phdac
 
 //------------------------------------------------------------------------------
-CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
+CMD_PROC( calsdac ) // calsdac col row dac [nTrig] [roc] (cals PH vs dac)
 {
   int col, row, dac;
   PAR_INT( col, 0, 51 );
@@ -8540,6 +8749,10 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
   if( !PAR_IS_INT( nTrig, 1, 65500 ) )
     nTrig = 10;
 
+  int roc = 0;
+  if( !PAR_IS_INT( roc, 0, 15 ) )
+    roc = 0;
+
   int stp = 1;
 
   Log.section( "CALSDAC", false );
@@ -8547,8 +8760,8 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   vector < int16_t > nReadouts; // size 0
   vector < double >PHavg;
@@ -8559,9 +8772,9 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
 
   tb.SetDAC( CtrlReg, 4 ); // want large Vcal
 
-  DacScanPix( 0, col, row, dac, stp, -nTrig, nReadouts, PHavg, PHrms ); // negative nTrig = cals
+  DacScanPix( roc, col, row, dac, stp, -nTrig, nReadouts, PHavg, PHrms ); // negative nTrig = cals
 
-  tb.SetDAC( CtrlReg, dacval[0][CtrlReg] ); // restore
+  tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
   tb.Flush(  );
 
   int nstp = nReadouts.size(  );
@@ -8569,18 +8782,18 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
   if( h11 )
     delete h11;
   h11 = new
-    TH1D( Form( "cals_dac%02i_%02i_%02i", dac, col, row ),
-          Form( "CALS vs  %s col %i row %i;%s [DAC];<CALS> [ADC]",
-                dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
+    TH1D( Form( "cals_dac%02i_%02i_%02i_%02i", dac, roc, col, row ),
+          Form( "CALS vs %s roc %i col %i row %i;%s [DAC];<CALS> [ADC]",
+                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h11->Sumw2();
 
   if( h12 )
     delete h12;
   h12 = new
-    TH1D( Form( "resp_cals_dac%02i_%02i_%02i", dac, col, row ),
-          Form( "CALS responses vs  %s col %i row %i;%s [DAC];responses",
-                dacName[dac].c_str(  ), col, row, dacName[dac].c_str(  ) ),
+    TH1D( Form( "resp_cals_dac%02i_%02i_%02i_%02i", dac, roc, col, row ),
+          Form( "CALS responses vs %s roc %i col %i row %i;%s [DAC];cals responses",
+                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h12->Sumw2();
 
@@ -8612,12 +8825,12 @@ CMD_PROC( calsdac ) // calsdac col row dac (cals PH vs dac)
   h12->SetStats( 0 );
   h12->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11, 12" << endl;
+  cout << "  histos 11, 12" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -8642,8 +8855,8 @@ int effvsdac( int col, int row, int dac, int stp, int nTrig, int roc )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   vector < int16_t > nReadouts; // size 0
   vector < double >PHavg;
@@ -8693,7 +8906,7 @@ int effvsdac( int col, int row, int dac, int stp, int nTrig, int roc )
   Log.flush(  );
 
   if( dac == Vcal )
-    cout << "  thr " << i50 << ", width " << i90 - i10 << endl;
+    cout << "  thr " << i50 << ", sigma " << (i90 - i10)/2.5631*stp << endl;
 
   h11->Write(  );
   h11->SetStats( 0 );
@@ -8702,8 +8915,8 @@ int effvsdac( int col, int row, int dac, int stp, int nTrig, int roc )
   cout << "  histos 11" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return i50;
@@ -8754,8 +8967,8 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   Log.section( "THRDAC", false );
   Log.printf( " pixel %i %i DAC %i\n", col, row, dac );
@@ -8838,7 +9051,7 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
   h11->Write(  );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11" << endl;
+  cout << "  histos 11" << endl;
 
   tb.roc_Col_Enable( col, 0 );
   tb.roc_ClrCal(  );
@@ -8854,9 +9067,9 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
   tb.Flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -8878,8 +9091,8 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   Log.section( "MODTHRDAC", false );
   Log.printf( " pixel %i %i DAC %i\n", col, row, dac );
@@ -8890,7 +9103,7 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
   tb.SetDAC( CtrlReg, 0 ); // small Vcal
   tb.Flush(  );
 
-  int nTrig = 20;               // for S-curve
+  int nTrig = 20; // for S-curve
   int step = 1;
   //bool xtlk = 0;
   //bool cals = 0;
@@ -8943,7 +9156,7 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
   h11->Write(  );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11" << endl;
+  cout << "  histos 11" << endl;
 
   tb.SetDAC( dac, vdac ); // restore dac value
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] );
@@ -8951,17 +9164,18 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
   tb.Flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // modthrdac
 
 //------------------------------------------------------------------------------
 // utility function for ROC PH and eff map
-bool GetRocData( int nTrig, vector < int16_t > &nReadouts,
-                 vector < double >&PHavg, vector < double >&PHrms )
+bool GetRocData( int nTrig, vector < int16_t > & nReadouts,
+                 vector < double > & PHavg, vector < double > & PHrms )
 {
   uint16_t flags = 0;
   if( nTrig < 0 )
@@ -9015,16 +9229,20 @@ bool GetRocData( int nTrig, vector < int16_t > &nReadouts,
 
   try {
     uint32_t rest;
-    tb.Daq_Read( data, Blocksize, rest ); // 32768 gives zero
+    tb.Daq_Read( data, Blocksize, rest );
     cout << "  data size " << data.size(  )
-	 << ", remaining " << rest << endl;
+      //<< ", remaining " << rest
+	 << " of " << data.capacity(  )
+	 << endl;
     while( rest > 0 ) {
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest );
       data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
       cout << "  data size " << data.size(  )
-	   << ", remaining " << rest << endl;
+	//<< ", remaining " << rest
+	   << " of " << data.capacity(  )
+	   << endl;
       dataB.clear(  );
     }
   }
@@ -9101,11 +9319,13 @@ bool GetRocData( int nTrig, vector < int16_t > &nReadouts,
   } // col
 
   return 1;
-}
+
+} // getrocdata
+
 //------------------------------------------------------------------------------
 // utility function for ROC PH and eff map inverse -masked
-bool GetRocDataMasked( int nTrig, vector < int16_t > &nReadouts,
-                 vector < double >&PHavg, vector < double >&PHrms )
+bool GetRocDataMasked( int nTrig, vector < int16_t > & nReadouts,
+                 vector < double > & PHavg, vector < double > & PHrms )
 {
   uint16_t flags = 0;
   if( nTrig < 0 )
@@ -9181,7 +9401,7 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > &nReadouts,
 
   try {
     uint32_t rest;
-    tb.Daq_Read( data, Blocksize, rest ); // 32768 gives zero
+    tb.Daq_Read( data, Blocksize, rest );
     cout << "  data size " << data.size(  )
 	 << ", remaining " << rest << endl;
     while( rest > 0 ) {
@@ -9274,7 +9494,8 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > &nReadouts,
       tb.SetTrimValues( iroc, trimvaluesSave ); // load into FPGA
 
   return 1;
-}
+
+} // getrocdatamasked
 
 //------------------------------------------------------------------------------
 bool geteffmap( int nTrig )
@@ -9290,8 +9511,8 @@ bool geteffmap( int nTrig )
   
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // measure:
 
@@ -9305,11 +9526,11 @@ bool geteffmap( int nTrig )
   GetRocData( nTrig, nReadouts, PHavg, PHrms );
 
   gettimeofday( &tv, NULL );
-  long s2 = tv.tv_sec;          // seconds since 1.1.1970
-  long u2 = tv.tv_usec;         // microseconds
+  long s2 = tv.tv_sec; // seconds since 1.1.1970
+  long u2 = tv.tv_usec; // microseconds
   double dt = s2 - s0 + ( u2 - u0 ) * 1e-6;
 
-  cout << "LoopSingleRocAllPixelsCalibrate takes " << dt << " s"
+  cout << "\tLoopSingleRocAllPixelsCalibrate takes " << dt << " s"
        << " = " << dt / 4160 / nTrig * 1e6 << " us / pix" << endl;
 
   if( h11 )
@@ -9373,40 +9594,41 @@ bool geteffmap( int nTrig )
   cout << "  histos 11, 21" << endl;
 
   cout << endl;
-  cout << " >0% pixels: " << nok << endl;
+  cout << " >0% pixels: " << nok << ", dead " << 4160-nok << endl;
   cout << ">50% pixels: " << nActive << endl;
   cout << "100% pixels: " << nPerfect << endl;
 
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // geteffmap
 
 //------------------------------------------------------------------------------
 CMD_PROC( effmap ) // single ROC response map ('PixelAlive')
 {
   if( ierror ) return false;
 
-  int nTrig;                    // DAQ size 1'248'000 at nTrig = 100 if fully efficient
+  int nTrig; // DAQ size 1'248'000 at nTrig = 100 if fully efficient
   PAR_INT( nTrig, 1, 65000 );
 
   geteffmap( nTrig );
 
   return 1;
 
-}
+} // effmap
 
 //------------------------------------------------------------------------------
 CMD_PROC( effmask )
 {
   if( ierror ) return false;
 
-  int nTrig;                    // DAQ size 1'248'000 at nTrig = 100 if fully efficient
+  int nTrig; // DAQ size 1'248'000 at nTrig = 100 if fully efficient
   PAR_INT( nTrig, 1, 65000 );
 
   const int vctl = dacval[0][CtrlReg];
@@ -9419,8 +9641,8 @@ CMD_PROC( effmask )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // measure:
 
@@ -9431,13 +9653,11 @@ CMD_PROC( effmask )
   PHavg.reserve( 4160 );
   PHrms.reserve( 4160 );
 
-  cout << "        waiting for FPGA..." << endl;
-
   GetRocDataMasked( nTrig, nReadouts, PHavg, PHrms );
 
   gettimeofday( &tv, NULL );
-  long s2 = tv.tv_sec;          // seconds since 1.1.1970
-  long u2 = tv.tv_usec;         // microseconds
+  long s2 = tv.tv_sec; // seconds since 1.1.1970
+  long u2 = tv.tv_usec; // microseconds
   double dt = s2 - s0 + ( u2 - u0 ) * 1e-6;
 
   cout << "        LoopSingleRocAllPixelsCalibrate takes " << dt << " s"
@@ -9497,7 +9717,7 @@ CMD_PROC( effmask )
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "histo 21" << endl;
+  cout << "  histo 21" << endl;
 
   cout << endl;
   cout << " Pixels Masked and Responding: " << nError << endl;
@@ -9506,9 +9726,9 @@ CMD_PROC( effmask )
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -9558,7 +9778,7 @@ void ModPixelAlive( int nTrig )
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
 
-  uint16_t flags = 0;           // or flags = FLAG_USE_CALS;
+  uint16_t flags = 0; // or flags = FLAG_USE_CALS;
 
   //flags |= 0x0100; // FLAG_FORCE_UNMASKED: noisy
 
@@ -9572,15 +9792,17 @@ void ModPixelAlive( int nTrig )
   bool done = 0;
   double dtloop = 0;
   double dtread = 0;
+  int loop = 0;
   timeval tv;
 
   while( done == 0 ) {
 
-    cout << "        loop..." << endl << flush;
+    ++loop;
+    cout << "\tloop " << loop << endl << flush;
 
     gettimeofday( &tv, NULL );
-    long s1 = tv.tv_sec;        // seconds since 1.1.1970
-    long u1 = tv.tv_usec;       // microseconds
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
 
     tb.Daq_Start( 0 );
     tb.Daq_Start( 1 );
@@ -9594,14 +9816,13 @@ void ModPixelAlive( int nTrig )
       return;
     }
 
-    cout << "        " << ( done ? "done" : "not done" ) << endl;
+    cout << ( done ? "\tdone" : "\tnot done" ) << endl;
 
     gettimeofday( &tv, NULL );
-    long s2 = tv.tv_sec;        // seconds since 1.1.1970
-    long u2 = tv.tv_usec;       // microseconds
+    long s2 = tv.tv_sec; // seconds since 1.1.1970
+    long u2 = tv.tv_usec; // microseconds
     dtloop += s2 - s1 + ( u2 - u1 ) * 1e-6;
 
-    cout << "        waiting for FPGA..." << endl;
     int dSize[2];
     dSize[0] = tb.Daq_GetSize( 0 );
     dSize[1] = tb.Daq_GetSize( 1 );
@@ -9610,7 +9831,7 @@ void ModPixelAlive( int nTrig )
 
     for( int tbmch = 0; tbmch < 2; ++tbmch ) {
 
-      cout << "        DAQ size channel " << tbmch
+      cout << "\tDAQ size channel " << tbmch
 	   << " = " << dSize[tbmch] << " words " << endl;
 
       //cout << "DAQ_Stop..." << endl;
@@ -9625,16 +9846,20 @@ void ModPixelAlive( int nTrig )
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
         data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                             dataB.end(  ) );
-        cout << "        data[" << tbmch << "] size " << data[tbmch].size(  )
-	     << ", remaining " << rest << endl;
+        cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+	  //<< ", remaining " << rest
+	     << " of " << data[tbmch].capacity(  )
+	     << endl;
         while( rest > 0 ) {
           dataB.clear(  );
           tb.uDelay( 5000 );
           tb.Daq_Read( dataB, Blocksize, rest, tbmch );
           data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
                               dataB.end(  ) );
-          cout << "        data[" << tbmch << "] size " << data[tbmch].size(  )
-	       << ", remaining " << rest << endl;
+          cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+	    //<< ", remaining " << rest
+	       << " of " << data[tbmch].capacity(  )
+	       << endl;
         }
       }
       catch( CRpcError & e ) {
@@ -9645,15 +9870,15 @@ void ModPixelAlive( int nTrig )
     } // tbmch
 
     gettimeofday( &tv, NULL );
-    long s3 = tv.tv_sec;        // seconds since 1.1.1970
-    long u3 = tv.tv_usec;       // microseconds
+    long s3 = tv.tv_sec; // seconds since 1.1.1970
+    long u3 = tv.tv_usec; // microseconds
     dtread += s3 - s2 + ( u3 - u2 ) * 1e-6;
 
   } // while not done
 
-  cout << "        LoopMultiRocAllPixelsCalibrate takes "
+  cout << "\tLoopMultiRocAllPixelsCalibrate takes "
        << dtloop << " s" << endl;
-  cout << "        Daq_Read takes " << dtread << " s" << " = "
+  cout << "\tDaq_Read takes " << dtread << " s" << " = "
        << 2 * ( data[0].size(  ) + data[1].size(  ) ) / dtread / 1024 / 1024
        << " MiB/s" << endl;
 
@@ -9672,10 +9897,10 @@ void ModPixelAlive( int nTrig )
   // TBM channels:
 
   bool ldb = 0;
-  long countLoop = -1;    
+  long countLoop = -1;
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
-    countLoop = -1;    
-    cout << "        DAQ size channel " << tbmch
+    countLoop = -1;
+    cout << "\tDAQ size channel " << tbmch
 	 << " = " << data[tbmch].size(  ) << " words " << endl;
 
     uint32_t raw = 0;
@@ -9683,7 +9908,7 @@ void ModPixelAlive( int nTrig )
     uint32_t trl = 0;
     int32_t iroc = nrocsa * tbmch - 1; // will start at 0 or 8
     int32_t kroc = 0;
-    cout << "        nrocsa " << nrocsa << " nrocsb " << nrocsb << endl;
+    cout << "\tnrocsa " << nrocsa << " nrocsb " << nrocsb << endl;
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
     for( size_t i = 0; i < data[tbmch].size(  ); ++i ) {
@@ -9793,7 +10018,7 @@ void ModPixelAlive( int nTrig )
 
     } // data
 
-    cout << "        TBM ch " << tbmch
+    cout << "\tTBM ch " << tbmch
 	 << " events " << event
 	 << " = " << event / nTrig << " pixels / ROC" << endl;
 
@@ -9830,20 +10055,440 @@ void ModPixelAlive( int nTrig )
 } // ModPixelAlive
 
 //------------------------------------------------------------------------------
-CMD_PROC( modmap ) // pixelAlive for modules
+bool tunePHmod( int col, int row, int roc )
 {
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
-  int nTrig = 10;
+  cout << "[tunePHmod] for ROC " << roc << endl;
+
+  tb.roc_I2cAddr( roc );
+  tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  tb.Flush(  );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // scan Vcal for one pixel
+
+  int dac = Vcal;
+  int16_t nTrig = 16;
+
+  vector < int16_t > nReadouts; // size 0
+  vector < double >PHavg;
+  vector < double >PHrms;
+  nReadouts.reserve( 256 ); // size 0, capacity 256
+  PHavg.reserve( 256 );
+  PHrms.reserve( 256 );
+
+  DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
+
+  if( nReadouts.size(  ) < 256 ) {
+    cout << "only " << nReadouts.size(  ) << " Vcal points"
+	 << ". choose different pixel, check CalDel, check Ia, or give up"
+	 << endl;
+    return 0;
+  }
+
+  if( nReadouts.at( nReadouts.size(  ) - 1 ) < nTrig ) {
+    cout << "only " << nReadouts.at( nReadouts.size(  ) - 1 )
+	 << " responses at " << nReadouts.size(  ) - 1
+	 << ". choose different pixel, check CalDel, check Ia, or give up" <<
+      endl;
+    return 0;
+  }
+
+  // scan from end, search for smallest responding Vcal:
+
+  int minVcal = 255;
+
+  for( int idac = nReadouts.size(  ) - 1; idac >= 0; --idac )
+    if( nReadouts.at( idac ) == nTrig )
+      minVcal = idac;
+  cout << "min responding Vcal " << minVcal << endl;
+  minVcal += 1; // safety
+  minVcal += 1; // safety
+  minVcal += 1; // safety
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // offset and gain DACs:
+
+  int offsdac = VoffsetOp; // digV2 dac 15, positive slope
+  int gaindac = VIref_ADC; //       dac 20
+  if( Chip >= 400 ) {
+    offsdac = PHOffset; // digV2.1 dac 17, positive slope
+    gaindac = PHScale; //         dac 20
+  }
+
+  cout << "start offset dac " << offsdac
+       << " at " << dacval[roc][offsdac] << endl;
+  cout << "start gain   dac " << gaindac
+       << " at " << dacval[roc][gaindac] << endl;
+
+  // set gain to minimal (at DAC 255), to avoid overflow or underflow:
+
+  tb.SetDAC( gaindac, 255 );
+  tb.Flush(  );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // Scan col row PH vs offset at Vcal 255:
+
+  tb.SetDAC( Vcal, 255 ); // max Vcal
+  vector < double >PHmax;
+  PHmax.reserve( 256 );
+  nReadouts.clear(  );
+  PHrms.clear(  );
+  DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmax, PHrms );
+
+  // Scan col row PH vs offset at minVcal:
+
+  tb.SetDAC( Vcal, minVcal );
+  vector < double >PHmin;
+  PHmin.reserve( 256 );
+  nReadouts.clear(  );
+  PHrms.clear(  );
+  DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmin, PHrms );
+
+  // use offset to center PH at 132:
+
+  int offs = 0;
+  double phmid = 0;
+  for( size_t idac = 0; idac < PHmin.size(  ); ++idac ) {
+    double phmean = 0.5 * ( PHmin.at( idac ) + PHmax.at( idac ) );
+    if( fabs( phmean - 132 ) < fabs( phmid - 132 ) ) {
+      offs = idac;
+      phmid = phmean;
+    }
+  }
+
+  cout << "mid PH " << phmid << " at offset " << offs << endl;
+
+  tb.SetDAC( offsdac, offs );
+  tb.Flush(  );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // scan col row PH vs gain at Vcal 255 and at minVcal:
+
+  tb.SetDAC( Vcal, 255 );
+  vector < double >PHtop;
+  PHtop.reserve( 256 );
+  nReadouts.clear(  );
+  PHrms.clear(  );
+
+  DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHtop, PHrms );
+
+  tb.SetDAC( Vcal, minVcal );
+  vector < double >PHbot;
+  PHbot.reserve( 256 );
+  nReadouts.clear(  );
+  PHrms.clear(  );
+
+  DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHbot, PHrms );
+
+  // set gain:
+
+  int gain = PHtop.size(  ) - 1;
+  for( ; gain >= 1; --gain ) {
+    if( PHtop.at( gain ) > 233 )
+      break;
+    if( PHbot.at( gain ) < 22 )
+      break;
+  }
+  cout << "top PH " << PHtop.at( gain )
+       << " at gain " << gain
+       << " for Vcal 255" << " for pixel " << col << " " << row << endl;
+  cout << "bot PH " << PHbot.at( gain )
+       << " at gain " << gain
+       << " for Vcal " << minVcal << " for pixel " << col << " " << row << endl;
+
+  tb.SetDAC( gaindac, gain );
+  tb.Flush(  );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // check for all pixels:
+
+  tb.SetDAC( Vcal, 255 );
+  tb.Flush(  );
+
+  bool again = 0;
+
+  int colmax = 0;
+  int rowmax = 0;
+
+  do { // no overflows
+
+    ModPixelAlive( nTrig ); // fills modcnt and modamp
+
+    double phmax = 0;
+
+    for( int col = 0; col < 52; ++col ) {
+
+      for( int row = 0; row < 80; ++row ) {
+
+        if( modcnt[roc][col][row] < nTrig / 2 ) {
+          cout << "weak pixel " << col << " " << row << endl;
+        }
+        else {
+          double ph = 1.0*modamp[roc][col][row] / modcnt[roc][col][row];
+	  if( ph > phmax ) {
+	    phmax = ph;
+	    colmax = col;
+	    rowmax = row;
+	  }
+	}
+
+      } // row
+
+    } // col
+
+    cout << "max PH " << phmax << " at " << colmax << " " << rowmax << endl;
+
+    if( phmax > 252 && gain < 255 ) {
+
+      DacScanPix( roc, colmax, rowmax, gaindac, 1, nTrig, nReadouts, PHmax, PHrms );
+
+      // set gain:
+
+      int gain = PHmax.size(  ) - 1;
+      for( ; gain >= 1; --gain ) {
+	if( PHmax.at( gain ) > 233 )
+	  break;
+      }
+      cout << "max PH " << PHmax.at( gain )
+	   << " at gain " << gain
+	   << " for Vcal 255" << " for pixel " << colmax << " " << rowmax << endl;
+
+      gain += 1; // reduce gain
+      tb.SetDAC( gaindac, gain );
+      tb.Flush(  );
+
+      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
+
+      again = 1;
+
+    }
+    else
+      again = 0;
+
+  } while( again );
+
+  cout << "no overflows at " << dacName[gaindac] << " = " << gain << endl;
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // check all pixels for underflow at minVcal:
+
+  tb.SetDAC( Vcal, minVcal );
+  tb.Flush(  );
+
+  again = 0;
+
+  int colmin = 0;
+  int rowmin = 0;
+
+  do { // no underflows
+
+    ModPixelAlive( nTrig ); // fills modcnt and modamp
+
+    double phmin = 255;
+
+    for( int col = 0; col < 52; ++col ) {
+
+      for( int row = 0; row < 80; ++row ) {
+
+        if( modcnt[roc][col][row] < nTrig / 2 ) {
+          cout << "pixel " << col << " " << row << " below threshold at Vcal "
+	       << minVcal << endl;
+        }
+        else {
+          double ph = 1.0*modamp[roc][col][row] / modcnt[roc][col][row];
+          if( ph < phmin ) {
+            phmin = ph;
+            colmin = col;
+            rowmin = row;
+          }
+        }
+
+      } // row
+
+    } // col
+
+    cout << "min PH " << phmin << " at " << colmin << " " << rowmin << endl;
+
+    if( phmin < 3 && gain > 0 ) {
+
+      DacScanPix( roc, colmin, rowmin, gaindac, 1, nTrig, nReadouts, PHmin, PHrms );
+
+      // set gain:
+
+      int gain = PHmin.size(  ) - 1;
+      for( ; gain >= 1; --gain ) {
+	if( PHmin.at( gain ) < 23 )
+	  break;
+      }
+      cout << "min PH " << PHmin.at( gain )
+	   << " at gain " << gain
+	   << " for Vcal 255" << " for pixel " << colmin << " " << rowmin << endl;
+
+      gain += 1; // reduce gain
+      tb.SetDAC( gaindac, gain );
+      tb.Flush(  );
+
+      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
+
+      again = 1;
+
+    }
+    else
+      again = 0;
+
+  } while( again );
+
+  cout << "no underflows at " << dacName[gaindac] << " = " << gain << endl;
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // we have min and max.
+  // adjust gain and offset such that max-min = 200, mid = 132
+
+  cout << "ROC " << roc << endl;
+  cout << "min " << colmin << " " << rowmin << endl;
+  cout << "max " << colmax << " " << rowmax << endl;
+
+  again = 0;
+
+  do {
+
+    int cnt = 0;
+    double rms;
+
+    double phmin = 255;
+    bool measure = 1;
+    while( measure ) {
+      tb.SetDAC( Vcal, minVcal );
+      tb.Flush(  );
+      GetPixData( roc, colmin, rowmin, nTrig, cnt, phmin, rms );
+      cout << "min " << setw(2) << colmin << setw(3) << rowmin << " " << cnt
+	   << " " << phmin << endl;
+      if( cnt < nTrig/2 ) {
+	minVcal += 1; // safety
+	cout << "increase minVcal to " << minVcal << endl;
+      }
+      else
+	measure = 0; // done
+    }
+    tb.SetDAC( Vcal, 255 );
+    tb.Flush(  );
+    double phmax = 0;
+    GetPixData( roc, colmax, rowmax, nTrig, cnt, phmax, rms );
+    cout << "max " << setw(2) << colmax << setw(3) << rowmax << " " << phmax << endl;
+
+    again = 0;
+
+    double phmid = 0.5 * ( phmax + phmin );
+
+    cout << "PH mid " << phmid << endl;
+
+    if( phmid > 132 + 3 && offs > 0 ) { // 3 is margin of convergence
+      offs -= 1;
+      again = 1;
+    }
+    else if( phmid < 132 - 3 && offs < 255 ) {
+      offs += 1;
+      again = 1;
+    }
+    if( again ) {
+      tb.SetDAC( offsdac, offs );
+      tb.Flush(  );
+      cout << "offs dac " << dacName[offsdac] << " set to " << offs << endl;
+    }
+
+    double range = phmax - phmin;
+
+    cout << "PH rng " << range << endl;
+
+    if( range > 200 + 3 && gain < 255 ) { // 3 is margin of convergence
+      gain += 1; // reduce gain
+      again = 1;
+    }
+    else if( range < 200 - 3 && gain > 0 ) {
+      gain -= 1; // more gain
+      again = 1;
+    }
+    if( again ) {
+      tb.SetDAC( gaindac, gain );
+      tb.Flush(  );
+      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
+    }
+  } while( again );
+
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // done
+
+  cout << "ROC " << roc << endl;
+  cout << "min " << colmin << " " << rowmin << endl;
+  cout << "max " << colmax << " " << rowmax << endl;
+  cout << "final offs dac " << dacName[offsdac] << " set to " << offs << endl;
+  cout << "final gain dac " << dacName[gaindac] << " set to " << gain << endl;
+
+  dacval[roc][offsdac] = offs;
+  dacval[roc][gaindac] = gain;
+
+  Log.printf( "[SETDAC] %i  %i\n", gaindac, gain );
+  Log.printf( "[SETDAC] %i  %i\n", offsdac, offs );
+  Log.flush(  );
+
+  tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
+  tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
+  tb.Flush(  );
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return true;
+
+} // tunePHmod
+
+//------------------------------------------------------------------------------
+CMD_PROC( modtune ) // adjust PH gain and offset to fit into ADC range
+{
+  if( ierror ) return false;
+
+  int col, row;
+  PAR_INT( col, 0, 51 );
+  PAR_INT( row, 0, 79 );
+
+  int rocmin =  0;
+  int rocmax = 15;
+  int aroc;
+  if( !PAR_IS_INT( aroc, 0, 15 ) )
+    aroc = 16; // all
+  else {
+    rocmin = aroc;
+    rocmax = aroc;
+  }
+
+  for( int roc = rocmin; roc <= rocmax; ++roc )
+    tunePHmod( col, row, roc );
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC( modmap ) // pixelAlive for modules
+{
+  int nTrig = 20;
   if( !PAR_IS_INT( nTrig, 1, 65500 ) )
-    nTrig = 10;
+    nTrig = 20;
 
   Log.section( "MODMAP", false );
   Log.printf( " nTrig %i\n", nTrig );
   cout << "modmap with " << nTrig << " triggers" << endl;
+
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   ModPixelAlive( nTrig ); // fills modcnt and modamp
 
@@ -9896,13 +10541,19 @@ CMD_PROC( modmap ) // pixelAlive for modules
 			8 * 52, -0.5, 8 * 52 - 0.5,
 			2 * 80, -0.5, 2 * 80 - 0.5, -1, 256 );
 
+  int ND = 0;
 
   for( int roc = 0; roc < 16; ++roc ) {
+
     if( roclist[roc] == 0 )
       continue;
+
+    int nn = 0;
+    int nd = 0;
+
     for( int col = 0; col < 52; ++col )
       for( int row = 0; row < 80; ++row ) {
-	int l = roc % 8;   // 0..7
+	int l = roc % 8; // 0..7
 	int xm = 52 * l + col; // 0..415  rocs 0 1 2 3 4 5 6 7
 	int ym = row; // 0..79
 	if( roc > 7 ) {
@@ -9911,15 +10562,30 @@ CMD_PROC( modmap ) // pixelAlive for modules
 	}
 	double ph = modamp[roc][col][row] / nTrig;
 	double vc = PHtoVcal( ph , roc, col, row );
+	int nresponse = modcnt[roc][col][row];
+	if( nresponse == 0 )
+	  ++nd;
+	else if( nresponse >= nTrig/2 )
+	  ++nn;
 
-	h13->Fill( vc );
-	h11->Fill( modcnt[roc][col][row] );
-	h21->Fill( xm, ym, modcnt[roc][col][row] );
+	h11->Fill( nresponse );
 	h12->Fill( ph );
+	h13->Fill( vc );
+	h21->Fill( xm, ym, nresponse );
 	h22->Fill( xm, ym, ph );
 	h23->Fill( xm, ym, vc );
-      }
+
+      } // row
+
+    cout << "ROC " << setw( 2 ) << roc
+	 << ": active " << nn
+	 << ", dead " << nd
+	 << endl;
+    ND += nd;
+
   } // rocs
+
+  cout << "dead " << ND << endl;
 
   h11->Write(  );
   h12->Write(  );
@@ -9931,12 +10597,12 @@ CMD_PROC( modmap ) // pixelAlive for modules
   h21->SetMaximum( nTrig );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "histos 11, 12, 13, 21, 22, 23" << endl;
+  cout << "  histos 11, 12, 13, 21, 22, 23" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -10019,8 +10685,8 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   const int nTrig = 20;
 
@@ -10065,7 +10731,6 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
       h21->Fill( col, row, modthr[roc][col][row] );
     }
 
-  cout << endl;
   cout << " valid thr " << nok << endl;
 
   h11->Write(  );
@@ -10075,11 +10740,11 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
   gStyle->SetStatY( 0.60 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11, 21" << endl;
+  cout << "  histos 11, 21" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -10090,7 +10755,7 @@ CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
 CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
 {
   int stop = 255;
-  int ils = 0;                  // small Vcal
+  int ils = 0; // small Vcal
 
   if( !PAR_IS_INT( stop, 30, 255 ) ) {
     stop = 255;
@@ -10104,8 +10769,8 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   int roc = 0;
 
@@ -10131,7 +10796,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
   tb.uDelay( 1000 );
   tb.Flush(  );
 
-  uint16_t flags = 0;           // normal CAL
+  uint16_t flags = 0; // normal CAL
   if( ils )
     flags = 0x0002; // FLAG_USE_CALS;
   if( flags > 0 )
@@ -10170,8 +10835,8 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     cout << "loop..." << endl << flush;
 
     gettimeofday( &tv, NULL );
-    long s1 = tv.tv_sec;        // seconds since 1.1.1970
-    long u1 = tv.tv_usec;       // microseconds
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
 
     tb.Daq_Start(  );
     tb.uDelay( 100 );
@@ -10192,14 +10857,13 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
       return 0;
     }
 
-    cout << "waiting for FPGA..." << endl;
     int dSize = tb.Daq_GetSize(  );
 
     tb.Daq_Stop(); // avoid extra (noise) data
 
     gettimeofday( &tv, NULL );
-    long s2 = tv.tv_sec;        // seconds since 1.1.1970
-    long u2 = tv.tv_usec;       // microseconds
+    long s2 = tv.tv_sec; // seconds since 1.1.1970
+    long u2 = tv.tv_usec; // microseconds
     double dt = s2 - s1 + ( u2 - u1 ) * 1e-6;
     tloop += dt;
     cout << "LoopSingleRocAllPixelsDacScan takes " << dt << " s"
@@ -10231,8 +10895,8 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     }
 
     gettimeofday( &tv, NULL );
-    long s3 = tv.tv_sec;        // seconds since 1.1.1970
-    long u3 = tv.tv_usec;       // microseconds
+    long s3 = tv.tv_sec; // seconds since 1.1.1970
+    long u3 = tv.tv_usec; // microseconds
     double dtr = s3 - s2 + ( u3 - u2 ) * 1e-6;
     tread += dtr;
     cout << "Daq_Read takes " << tread << " s"
@@ -10336,8 +11000,8 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
       int i50 = 0;
       int i90 = 0;
       bool ldb = 0;
-      if( col == 22 && row == 22 )
-        ldb = 0; // one example pix
+      if( col == 22 && row == -22 )
+        ldb = 1; // one example pix
       for( int idc = 0; idc < nstp; ++idc ) {
         int ni = cnt[idc];
         if( ldb )
@@ -10352,10 +11016,10 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
       if( ldb )
         cout << endl;
       if( ldb )
-        cout << "thr " << i50 << ", width " << i90 - i10 << endl;
+        cout << "thr " << i50 << ", rms " << (i90 - i10)/2.5631 << endl;
       modthr[roc][col][row] = i50;
       h11->Fill( i50 );
-      h12->Fill( i90 - i10 );
+      h12->Fill( (i90 - i10)/2.5631 );
       h13->Fill( nmx );
 
     } // row
@@ -10377,12 +11041,12 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
   gStyle->SetStatY( 0.60 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11, 12, 13" << endl;
+  cout << "  histos 11, 12, 13" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -10474,8 +11138,8 @@ CMD_PROC( vthrcomp5 )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   const int nTrig = 20;
   const int thrLevel = nTrig / 2;
@@ -10629,11 +11293,11 @@ CMD_PROC( vthrcomp5 )
   tb.Flush(  );
 #endif
 
-  cout << "histos 10,11" << endl;
+  cout << "  histos 10,11" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -10657,8 +11321,8 @@ CMD_PROC( vthrcomp )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   const int nTrig = 20;
   const int thrLevel = nTrig / 2;
@@ -10801,11 +11465,11 @@ CMD_PROC( vthrcomp )
   tb.Flush(  );
 #endif
 
-  cout << "histos 10,11" << endl;
+  cout << "  histos 10,11" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -10829,8 +11493,8 @@ CMD_PROC( trim )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   const int nTrig = 20;
   const int thrLevel = nTrig / 2;
@@ -10856,7 +11520,7 @@ CMD_PROC( trim )
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // take threshold map, find hardest pixel
 
-    int tbits = 15;             // 15 = off
+    int tbits = 15; // 15 = off
 
     for( int row = 79; row >= 0; --row )
       for( int col = 0; col < 52; ++col )
@@ -11115,8 +11779,8 @@ CMD_PROC( trim )
 #endif
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -11133,8 +11797,8 @@ CMD_PROC( trimbits )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   const int nTrig = 100;
 
@@ -11172,7 +11836,8 @@ CMD_PROC( trimbits )
       int cnt = nReadouts.at( j );
       ++j;
 
-      if( cnt == nTrig )
+      //if( cnt == nTrig )
+      if( cnt >= 0.98 * nTrig )
         continue; // perfect
 
       int trm = modtrm[roc][col][row];
@@ -11218,8 +11883,8 @@ CMD_PROC( trimbits )
   } // col
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -11231,8 +11896,8 @@ bool tunePH( int col, int row, int roc )
 {
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   //tb.SetDAC( CtrlReg, 4 ); // large Vcal
   //tb.Flush(  );
@@ -11280,9 +11945,10 @@ bool tunePH( int col, int row, int roc )
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // offset and gain DACs:
 
-  int offsdac = VoffsetOp;      // digV2, positive slope
+  int offsdac = VoffsetOp; // digV2, positive slope
   int gaindac = VIref_ADC;
   if( Chip >= 400 ) {
+    //offsdac = VoffsetRO; // digV2.1, positive slope
     offsdac = PHOffset; // digV2.1, positive slope
     gaindac = PHScale;
   }
@@ -11589,13 +12255,13 @@ bool tunePH( int col, int row, int roc )
   tb.Flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
- 
+
   return true;
 
-} // tune
+} // tunePH
 
 //------------------------------------------------------------------------------
 CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
@@ -11608,373 +12274,6 @@ CMD_PROC( tune ) // adjust PH gain and offset to fit into ADC range
   PAR_INT( row, 0, 79 );
 
   tunePH( col, row, roc );
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-bool tunePHmod( int col, int row, int roc )
-{
-  timeval tv;
-  gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
-
-  tb.SetDAC( CtrlReg, 4 ); // large Vcal
-  tb.Flush(  );
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // scan Vcal for one pixel
-
-  int dac = Vcal;
-  int16_t nTrig = 9;
-
-  vector < int16_t > nReadouts; // size 0
-  vector < double >PHavg;
-  vector < double >PHrms;
-  nReadouts.reserve( 256 ); // size 0, capacity 256
-  PHavg.reserve( 256 );
-  PHrms.reserve( 256 );
-
-  // add: loop over ROCs
-
-  tb.roc_I2cAddr( roc );
-
-  DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
-
-  if( nReadouts.size(  ) < 256 ) {
-    cout << "only " << nReadouts.size(  ) << " Vcal points"
-	 << ". choose different pixel, check CalDel, check Ia, or give up"
-	 << endl;
-    return 0;
-  }
-
-  if( nReadouts.at( nReadouts.size(  ) - 1 ) < nTrig ) {
-    cout << "only " << nReadouts.at( nReadouts.size(  ) - 1 )
-	 << " responses at " << nReadouts.size(  ) - 1
-	 << ". choose different pixel, check CalDel, check Ia, or give up" <<
-      endl;
-    return 0;
-  }
-
-  // scan from end, search for smallest responding Vcal:
-
-  int minVcal = 255;
-
-  for( int idac = nReadouts.size(  ) - 1; idac >= 0; --idac )
-    if( nReadouts.at( idac ) == nTrig )
-      minVcal = idac;
-  cout << "min responding Vcal " << minVcal << endl;
-  minVcal += 1; // safety
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // offset and gain DACs:
-
-  int offsdac = VoffsetOp;      // digV2, positive slope
-  int gaindac = VIref_ADC;
-  if( Chip >= 400 ) {
-    offsdac = PHOffset; // digV2.1, positive slope
-    gaindac = PHScale;
-  }
-
-  cout << "start offset dac " << offsdac
-       << " at " << dacval[roc][offsdac] << endl;
-  cout << "start gain   dac " << gaindac
-       << " at " << dacval[roc][gaindac] << endl;
-
-  // set gain to minimal (at DAC 255), to avoid overflow or underflow:
-
-  tb.SetDAC( gaindac, 255 );
-  tb.Flush(  );
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // Scan PH vs offset at Vcal 255:
-
-  tb.SetDAC( Vcal, 255 ); // max Vcal
-  vector < double >PHmax;
-  PHmax.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
-  DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmax, PHrms );
-
-  // Scan PH vs offset at minVcal:
-
-  tb.SetDAC( Vcal, minVcal );
-  vector < double >PHmin;
-  PHmin.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
-  DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmin, PHrms );
-
-  // use offset to center PH at 132:
-
-  int offs = 0;
-  double phmid = 0;
-  for( size_t idac = 0; idac < PHmin.size(  ); ++idac ) {
-    double phmean = 0.5 * ( PHmin.at( idac ) + PHmax.at( idac ) );
-    if( fabs( phmean - 132 ) < fabs( phmid - 132 ) ) {
-      offs = idac;
-      phmid = phmean;
-    }
-  }
-
-  cout << "mid PH " << phmid << " at offset " << offs << endl;
-
-  tb.SetDAC( offsdac, offs );
-  tb.Flush(  );
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // scan PH vs gain at Vcal 255 and at minVcal
-
-  tb.SetDAC( Vcal, 255 );
-  vector < double >PHtop;
-  PHtop.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
-
-  DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHtop, PHrms );
-
-  tb.SetDAC( Vcal, minVcal );
-  vector < double >PHbot;
-  PHbot.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
-
-  DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHbot, PHrms );
-
-  // set gain:
-
-  int gain = PHtop.size(  ) - 1; // 255
-  for( ; gain >= 1; --gain ) {
-    if( PHtop.at( gain ) > 233 )
-      break;
-    if( PHbot.at( gain ) < 22 )
-      break;
-  }
-  cout << "top PH " << PHtop.at( gain )
-       << " at gain " << gain
-       << " for Vcal 255" << " for pixel " << col << " " << row << endl;
-  cout << "bot PH " << PHbot.at( gain )
-       << " at gain " << gain
-       << " for Vcal " << minVcal << " for pixel " << col << " " << row << endl;
-
-  tb.SetDAC( gaindac, gain );
-  tb.Flush(  );
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // check for all pixels:
-
-  tb.SetDAC( Vcal, 255 );
-  tb.Flush(  );
-
-  bool again = 0;
-
-  int colmax = 0;
-  int rowmax = 0;
-
-  do { // no overflows
-
-    ModPixelAlive( nTrig ); // fills modcnt and modamp
-
-    double phmax = 0;
-
-    for( int col = 0; col < 52; ++col ) {
-
-      for( int row = 0; row < 80; ++row ) {
-
-        if( modcnt[roc][col][row] < nTrig / 2 ) {
-          cout << "weak pixel " << col << " " << row << endl;
-        }
-        else {
-          double ph = 1.0*modamp[roc][col][row] / modcnt[roc][col][row];
-	  if( ph > phmax ) {
-	    phmax = ph;
-	    colmax = col;
-	    rowmax = row;
-	  }
-	}
-
-      } // row
-
-    } // col
-
-    cout << "max PH " << phmax << " at " << colmax << " " << rowmax << endl;
-
-    if( phmax > 252 && gain < 255 ) {
-
-      gain += 1; // reduce gain
-      tb.roc_I2cAddr( roc );
-      tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
-
-      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
-
-      again = 1;
-
-    }
-    else
-      again = 0;
-
-  } while( again );
-
-  cout << "no overflows at " << dacName[gaindac] << " = " << gain << endl;
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // check all pixels for underflow at minVcal:
-
-  tb.SetDAC( Vcal, minVcal );
-  tb.Flush(  );
-
-  again = 0;
-
-  int colmin = 0;
-  int rowmin = 0;
-
-  do { // no underflows
-
-    ModPixelAlive( nTrig ); // fills modcnt and modamp
-
-    double phmin = 255;
-
-    for( int col = 0; col < 52; ++col ) {
-
-      for( int row = 0; row < 80; ++row ) {
-
-        if( modcnt[roc][col][row] < nTrig / 2 ) {
-          cout << "pixel " << col << " " << row << " below threshold at Vcal "
-	       << minVcal << endl;
-        }
-        else {
-          double ph = 1.0*modamp[roc][col][row] / modcnt[roc][col][row];
-          if( ph < phmin ) {
-            phmin = ph;
-            colmin = col;
-            rowmin = row;
-          }
-        }
-
-      } // row
-
-    } // col
-
-    cout << "min PH " << phmin << " at " << colmin << " " << rowmin << endl;
-
-    if( phmin < 3 && gain > 0 ) {
-
-      gain += 1; // reduce gain
-      tb.roc_I2cAddr( roc );
-      tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
-
-      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
-
-      again = 1;
-
-    }
-    else
-      again = 0;
-
-  } while( again );
-
-  cout << "no underflows at " << dacName[gaindac] << " = " << gain << endl;
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // we have min and max.
-  // adjust gain and offset such that max-min = 200, mid = 132
-
-  again = 0;
-
-  do {
-
-    int cnt;
-    double rms;
-
-    tb.SetDAC( Vcal, minVcal );
-    tb.Flush(  );
-    double phmin = 255;
-    GetPixData( roc, colmin, rowmin, nTrig, cnt, phmin, rms );
-
-    tb.SetDAC( Vcal, 255 );
-    tb.Flush(  );
-    double phmax = 0;
-    GetPixData( roc, colmax, rowmax, nTrig, cnt, phmax, rms );
-
-    again = 0;
-
-    double phmid = 0.5 * ( phmax + phmin );
-
-    cout << "PH mid " << phmid << endl;
-
-    if( phmid > 132 + 3 && offs > 0 ) { // 3 is margin of convergence
-      offs -= 1;
-      again = 1;
-    }
-    else if( phmid < 132 - 3 && offs < 255 ) {
-      offs += 1;
-      again = 1;
-    }
-    if( again ) {
-      tb.SetDAC( offsdac, offs );
-      tb.Flush(  );
-      cout << "offs dac " << dacName[offsdac] << " set to " << offs << endl;
-    }
-
-    double range = phmax - phmin;
-
-    cout << "PH rng " << range << endl;
-
-    if( range > 200 + 3 && gain < 255 ) { // 3 is margin of convergence
-      gain += 1; // reduce gain
-      again = 1;
-    }
-    else if( range < 200 - 3 && gain > 0 ) {
-      gain -= 1; // more gain
-      again = 1;
-    }
-    if( again ) {
-      tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
-      cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
-    }
-  } while( again );
-
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // done
-
-  cout << "final offs dac " << dacName[offsdac] << " set to " << offs << endl;
-  cout << "final gain dac " << dacName[gaindac] << " set to " << gain << endl;
-
-  dacval[roc][offsdac] = offs;
-  dacval[roc][gaindac] = gain;
-
-  Log.printf( "[SETDAC] %i  %i\n", gaindac, gain );
-  Log.printf( "[SETDAC] %i  %i\n", offsdac, offs );
-  Log.flush(  );
-
-  tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
-  tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
-  tb.Flush(  );
-
-  gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
-
-  return true;
-
-} // tune
-
-//------------------------------------------------------------------------------
-CMD_PROC( modtune ) // adjust PH gain and offset to fit into ADC range
-{
-  if( ierror ) return false;
-
-  int col, row;
-  PAR_INT( col, 0, 51 );
-  PAR_INT( row, 0, 79 );
-
-  for( int roc = 0; roc < 16; ++roc )
-    tunePHmod( col, row, roc );
 
   return true;
 }
@@ -11997,8 +12296,8 @@ CMD_PROC( phmap ) // check gain tuning and calibration
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // measure:
 
@@ -12124,7 +12423,7 @@ CMD_PROC( phmap ) // check gain tuning and calibration
   h21->Write(  );
   h22->Write(  );
   h23->Write(  );
-  cout << "histos 11, 12, 13, 21, 22" << endl;
+  cout << "  histos 11, 12, 13, 21, 22" << endl;
 
   gStyle->SetOptStat( 111111 );
   gStyle->SetStatY( 0.60 );
@@ -12149,9 +12448,9 @@ CMD_PROC( phmap ) // check gain tuning and calibration
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -12171,8 +12470,8 @@ CMD_PROC( calsmap ) // test PH map through sensor
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // measure:
 
@@ -12230,7 +12529,7 @@ CMD_PROC( calsmap ) // test PH map through sensor
   gStyle->SetStatY( 0.60 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11" << endl;
+  cout << "  histos 11" << endl;
 
   cout << endl;
   cout << "CtrlReg " << dacval[0][CtrlReg]
@@ -12247,9 +12546,9 @@ CMD_PROC( calsmap ) // test PH map through sensor
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -12268,8 +12567,8 @@ CMD_PROC( bbtest ) // bump bond test
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   const int vctl = dacval[0][CtrlReg];
   tb.SetDAC( CtrlReg, 4 ); // large Vcal
@@ -12324,7 +12623,7 @@ CMD_PROC( bbtest ) // bump bond test
   double phmin = 256;
   double phmax = -1;
 
-  size_t j = 0;                 // index in data vectors
+  size_t j = 0; // index in data vectors
 
   for( int col = 0; col < 52; ++col ) {
     cout << endl << setw( 2 ) << col << " ";
@@ -12369,7 +12668,7 @@ CMD_PROC( bbtest ) // bump bond test
   h11->Write(  );
   h21->Write(  );
   h22->Write(  );
-  cout << "histos 11, 21, 22" << endl;
+  cout << "  histos 11, 21, 22" << endl;
 
   h21->SetStats( 0 );
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
@@ -12397,9 +12696,9 @@ CMD_PROC( bbtest ) // bump bond test
   }
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -12412,8 +12711,8 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // scan caldel:
 
@@ -12546,7 +12845,7 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
   h12->Draw( "hist" );
   c1->Update(  );
 
-  cout << "histos 11, 12" << endl;
+  cout << "  histos 11, 12" << endl;
 
   // analyze:
 
@@ -12558,7 +12857,7 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
 
     int idel = plx[j];
     //int nn = pl5[j]; // 50% active
-    int nn = pl9[j];            // 100% perfect
+    int nn = pl9[j]; // 100% perfect
     if( nn > nmax ) {
       nmax = nn;
       i0 = idel; // begin
@@ -12582,9 +12881,9 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
     tb.SetDAC( CalDel, val ); // back to default
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
 }
 
@@ -12603,8 +12902,8 @@ CMD_PROC( scanvthr )
 {
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   int vthrmin;
   PAR_INT( vthrmin, 0, 254 );
@@ -12724,17 +13023,18 @@ CMD_PROC( scanvthr )
   h15->Draw( "hist" );
   c1->Update(  );
 
-  cout << "histos 13, 14, 15" << endl;
+  cout << "  histos 13, 14, 15" << endl;
 
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "scan duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // scanvthr
 
 //------------------------------------------------------------------------------
 CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
@@ -12745,8 +13045,8 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   // scan vana:
 
@@ -12782,7 +13082,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
     delete h13;
   h13 = new
     TProfile( "perfect_vs_ia", "efficiency vs Ia;IA [mA];perfect pixels",
-	      800, 0, 80, -1, 9999 );
+	      80, 0, 80, -1, 9999 );
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
@@ -12917,7 +13217,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
     h12->Draw( "hist" );
     c1->Update(  );
   }
-  cout << "histos 11, 12, 13" << endl;
+  cout << "  histos 11, 12, 13" << endl;
 
   // analyze:
 
@@ -12929,7 +13229,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
 
     int idac = plx[j];
     //int nn = pl5[j]; // 50% active
-    int nn = pl9[j];            // 100% perfect
+    int nn = pl9[j]; // 100% perfect
     if( nn > nmax ) {
       nmax = nn;
       i0 = idac; // begin
@@ -12944,9 +13244,9 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
   tb.SetDAC( Vana, val ); // back to default
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -12962,8 +13262,8 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
   if( h11 )
     delete h11;
@@ -13081,12 +13381,12 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
   h11->SetStats( 0 );
   h11->Draw( "hist" );
   c1->Update(  );
-  cout << "histos 11, 14" << endl;
+  cout << "  histos 11, 14" << endl;
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
-  cout << "test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
 
@@ -13107,8 +13407,8 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
@@ -13172,8 +13472,8 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
   while( done == 0 ) {
 
     gettimeofday( &tv, NULL );
-    long s1 = tv.tv_sec;        // seconds since 1.1.1970
-    long u1 = tv.tv_usec;       // microseconds
+    long s1 = tv.tv_sec; // seconds since 1.1.1970
+    long u1 = tv.tv_usec; // microseconds
 
     tb.Daq_Start(  );
     tb.uDelay( 100 );
@@ -13193,8 +13493,8 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     tb.Daq_Stop(); // avoid extra (noise) data
 
     gettimeofday( &tv, NULL );
-    long s2 = tv.tv_sec;        // seconds since 1.1.1970
-    long u2 = tv.tv_usec;       // microseconds
+    long s2 = tv.tv_sec; // seconds since 1.1.1970
+    long u2 = tv.tv_usec; // microseconds
     double dt = s2 - s1 + ( u2 - u1 ) * 1e-6;
     tloop += dt;
     cout << "LoopSingleRocAllPixelsDacScan takes " << dt << " s"
@@ -13209,13 +13509,17 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
       tb.Daq_Read( dataB, Blocksize, rest );
       data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
       cout << "data size " << data.size(  )
-	   << ", remaining " << rest << endl;
+	//<< ", remaining " << rest
+	   << " of " << data.capacity(  )
+	   << endl;
       while( rest > 0 ) {
 	dataB.clear(  );
 	tb.Daq_Read( dataB, Blocksize, rest );
 	data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
 	cout << "data size " << data.size(  )
-	     << ", remaining " << rest << endl;
+	  //<< ", remaining " << rest
+	     << " of " << data.capacity(  )
+	     << endl;
       }
     }
     catch( CRpcError & e ) {
@@ -13224,8 +13528,8 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     }
 
     gettimeofday( &tv, NULL );
-    long s3 = tv.tv_sec;        // seconds since 1.1.1970
-    long u3 = tv.tv_usec;       // microseconds
+    long s3 = tv.tv_sec; // seconds since 1.1.1970
+    long u3 = tv.tv_usec; // microseconds
     double dtr = s3 - s2 + ( u3 - u2 ) * 1e-6;
     tread += dtr;
     cout << "Daq_Read takes " << tread << " s"
@@ -13283,14 +13587,14 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     delete h22;
   if( nTrig < 0 ) // cals
     h22 = new TH2D( Form( "cals_N_DAC%02i_map", dac ),
-		    Form( "cals N vs %s map;pixel;%s [DAC];readouts",
+		    Form( "cals N vs %s map;pixel;%s [DAC];cals responses",
 			  dacName[dac].c_str(  ),
 			  dacName[dac].c_str(  ) ),
 		    4160, -0.5, 4160-0.5,
 		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step );
   else
     h22 = new TH2D( Form( "N_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
-		    Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];readouts",
+		    Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];responses",
 			  dacName[dac].c_str(  ), ctl, cal,
 			  dacName[dac].c_str(  ) ),
 		    4160, -0.5, 4160-0.5,
@@ -13406,13 +13710,9 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     int nbinx = h22->GetNbinsX(  ); // pix
     int nbiny = h22->GetNbinsY(  ); // dac
 
-    int nActive;
-    int nMissing;
-    int nIneff;
-
-    nActive = 0;
-    nMissing = 0;
-    nIneff = 0;
+    int nActive = 0;
+    int nMissing = 0;
+    int nIneff = 0;
 
     int ipx;
 
@@ -13434,8 +13734,8 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
       if( imax < mTrig / 2 ) {
 	++nIneff;
-	cout << "Dead pixel at raw col: " << ipx % 80
-	     << " " << ipx / 80 << endl;
+	cout << "Dead pixel at col row " << ipx / 80
+	     << " " << ipx % 80 << endl;
       }
       else {
 
@@ -13468,14 +13768,14 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 	if( iEnd - iBegin < 35 ) {
 
 	  ++nMissing;
-	  cout << "[Missing Bump at raw col:] " << ipx % 80
-	       << " " << ipx / 80 << endl;
-	  Log.printf( "[Missing Bump at raw col:] %i %i\n", ibin % 80, ibin / 80 );
-	  h25->Fill( ipx / 80, ipx % 80, 2 ); // red
+	  cout << "Missing Bump at col row " << ipx / 80
+	       << " " << ipx % 80 << endl;
+	  Log.printf( "[Missing Bump at col row] %i %i\n", ibin / 80, ibin % 80 );
+	  h25->Fill( ipx / 80, ipx % 80, 1 ); // red
 	}
 	else {
 	  ++nActive;
-	  h25->Fill( ipx / 80, ipx % 80, 1 ); // green
+	  h25->Fill( ipx / 80, ipx % 80, 2 ); // green
 	} // plateau width
 
       } // active imax
@@ -13505,6 +13805,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     cout << "Number of Dead pixel: " << nIneff << endl;
 
     h24->Write(  );
+    h25->Write(  );
 
     h25->SetStats( 0 );
     h25->SetMinimum(0);
@@ -13516,8 +13817,8 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
   } // BB test
 
   else {
-    h21->SetStats( 0 );
-    h21->Draw( "colz" );
+    h22->SetStats( 0 );
+    h22->Draw( "colz" );
     c1->Update(  );
     cout << "  histos 11, 21, 22, 23" << endl;
   }
@@ -13525,8 +13826,8 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
   Log.flush(  );
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -13575,8 +13876,8 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
 
   timeval tv;
   gettimeofday( &tv, NULL );
-  long s0 = tv.tv_sec;          // seconds since 1.1.1970
-  long u0 = tv.tv_usec;         // microseconds
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
@@ -13593,9 +13894,9 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
   tb.roc_Pix_Trim( col, row, trim );
   tb.Flush(  );
 
-  uint16_t nTrig = 10;          // size = 4160 * 256 * nTrig * 3 words = 32 MW for 10 trig
+  uint16_t nTrig = 10; // size = 4160 * 256 * nTrig * 3 words = 32 MW for 10 trig
 
-  uint16_t flags = 0;           // normal CAL
+  uint16_t flags = 0; // normal CAL
 
   if( cals )
     flags = 0x0002; // FLAG_USE_CALS;
@@ -13624,8 +13925,8 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
   int32_t nstp2 = dacUpper2 - dacLower2 + 1;
 
   gettimeofday( &tv, NULL );
-  long s1 = tv.tv_sec;          // seconds since 1.1.1970
-  long u1 = tv.tv_usec;         // microseconds
+  long s1 = tv.tv_sec; // seconds since 1.1.1970
+  long u1 = tv.tv_usec; // microseconds
 
   // measure:
 
@@ -13652,8 +13953,8 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
   int dSize = tb.Daq_GetSize(  );
 
   gettimeofday( &tv, NULL );
-  long s2 = tv.tv_sec;          // seconds since 1.1.1970
-  long u2 = tv.tv_usec;         // microseconds
+  long s2 = tv.tv_sec; // seconds since 1.1.1970
+  long u2 = tv.tv_usec; // microseconds
   double dt = s2 - s1 + ( u2 - u1 ) * 1e-6;
 
   cout << "LoopSingleRocOnePixelDacDacScan takes " << dt << " s"
@@ -13680,14 +13981,18 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
     uint32_t rest;
     tb.Daq_Read( data, Blocksize, rest );
     cout << "data size " << data.size(  )
-	 << ", remaining " << rest << endl;
+      //<< ", remaining " << rest
+	 << " of " << data.capacity(  )
+	 << endl;
     while( rest > 0 ) {
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest );
       data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
       cout << "data size " << data.size(  )
-	   << ", remaining " << rest << endl;
+	//<< ", remaining " << rest
+	   << " of " << data.capacity(  )
+	   << endl;
       dataB.clear(  );
     }
   }
@@ -13697,8 +14002,8 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
   }
 
   gettimeofday( &tv, NULL );
-  long s3 = tv.tv_sec;          // seconds since 1.1.1970
-  long u3 = tv.tv_usec;         // microseconds
+  long s3 = tv.tv_sec; // seconds since 1.1.1970
+  long u3 = tv.tv_usec; // microseconds
   double dtr = s3 - s2 + ( u3 - u2 ) * 1e-6;
   cout << "Daq_Read takes " << dtr << " s"
        << " = " << 2 * dSize / dtr / 1024 / 1024 << " MiB/s" << endl;
@@ -13722,7 +14027,7 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
     delete h22;
   h22 = new
     TH2D( Form( "N_DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
-          Form( "N vs %s vs %s col %i row %i;%s [DAC];%s [DAC];readouts",
+          Form( "N vs %s vs %s col %i row %i;%s [DAC];%s [DAC];responses",
                 dacName[dac1].c_str(  ), dacName[dac2].c_str(  ), col, row,
                 dacName[dac1].c_str(  ), dacName[dac2].c_str(  ) ),
           nstp1, -0.5, nstp1 - 0.5, nstp2, -0.5, nstp2 - 0.5 );
@@ -13733,7 +14038,7 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
     TH2D( Form
           ( "N_Trig2DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
           Form
-          ( "N_Trig2 vs %s vs %s col %i row %i;%s [DAC];%s [DAC];readouts",
+          ( "Responses vs %s vs %s col %i row %i;%s [DAC];%s [DAC];responses",
             dacName[dac1].c_str(  ), dacName[dac2].c_str(  ), col, row,
             dacName[dac1].c_str(  ), dacName[dac2].c_str(  ) ), nstp1, -0.5,
           nstp1 - 0.5, nstp2, -0.5, nstp2 - 0.5 );
@@ -13870,8 +14175,8 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
   } // Tornado
 
   gettimeofday( &tv, NULL );
-  long s9 = tv.tv_sec;          // seconds since 1.1.1970
-  long u9 = tv.tv_usec;         // microseconds
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
   cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
@@ -14012,8 +14317,93 @@ CMD_PROC( readback )
 } // readback
 
 //------------------------------------------------------------------------------
-CMD_PROC( bare ) // bare module test
+CMD_PROC( oneroc ) // single ROC test
 {
+  int roc = 0;
+
+  int target = 30; // [IA [mA]
+  if( !setia( target ) ) return 0;
+
+  int ctl = dacval[roc][CtrlReg];
+
+  // caldel at large Vcal:
+
+  tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  dacval[roc][CtrlReg] = 4;
+
+  int nTrig = 100;
+  bool ok = 0;
+  unsigned int col = 26;
+  unsigned int row = 40;
+  unsigned int ntry = 0;
+  while( !ok && ntry < 20 ) {
+    ok = setcaldel( col, row, nTrig );
+    col = (col+1) % 50 + 1; // 28, 30, 32..50, 2, 4, 
+    row = (row+1) % 78 + 1; // 42, 44, 46..78, 2, 4, 
+    ++ntry;
+  }
+  if( !ok ) return 0;
+
+  // response map at large Vcal:
+
+  geteffmap( nTrig );
+
+  // threshold at small Vcal:
+
+  tb.SetDAC( CtrlReg, 0 ); // small Vcal
+  dacval[roc][CtrlReg] = 0;
+  int stp = 1;
+  int dac = Vcal;
+  ntry = 0;
+  int vthr = dacval[roc][VthrComp];
+  int thr = effvsdac( col, row, dac, stp, nTrig, roc );
+  target = 50; // Vcal threshold [DAC]
+
+  while( abs(thr-target) > 5 && ntry < 11 && vthr > 5 && vthr < 250 ) {
+
+    if( thr > target )
+      vthr += 5;
+    else
+      vthr -= 5;
+
+    tb.SetDAC( VthrComp, vthr );
+
+    dacval[roc][VthrComp] = vthr;
+
+    ok = setcaldel( col, row, nTrig ); // update CalDel
+
+    thr = effvsdac( col, row, dac, stp, nTrig, roc );
+
+    ++ntry;
+
+  } // vthr
+
+  tb.SetDAC( CtrlReg, 4 ); // large Vcal
+  dacval[roc][CtrlReg] = 4;
+
+  tunePH( col, row, roc ); // opt PHoffset, PHscale into ADC range
+
+  // S-curves, noise, gain, cal:
+
+  tb.SetDAC( CtrlReg, 0 ); // small Vcal
+  dacval[roc][CtrlReg] = 0;
+  dacscanroc( 25, 16, 1, 127 ); // dac nTrig step stop
+
+  tb.SetDAC( CtrlReg, ctl ); // restore
+  dacval[roc][CtrlReg] = ctl;
+  tb.Flush(  );
+
+  return ok;
+
+} // oneroc
+
+//------------------------------------------------------------------------------
+CMD_PROC( bare ) // bare module test, without or with Hansen bump height test
+{
+  int Hansen;
+  if( !PAR_IS_INT( Hansen, 0, 1 ) )
+    Hansen = 1;
+
   int roc = 0;
 
   int target = 30; // [IA [mA]
@@ -14053,7 +14443,7 @@ CMD_PROC( bare ) // bare module test
   ntry = 0;
   int vthr = dacval[roc][VthrComp];
   int thr = effvsdac( col, row, dac, stp, nTrig, roc );
-  target = 50;
+  target = 50; // Vcal threshold [DAC]
 
   while( abs(thr-target) > 5 && ntry < 11 && vthr > 5 && vthr < 250 ) {
 
@@ -14080,11 +14470,12 @@ CMD_PROC( bare ) // bare module test
   tunePH( col, row, roc ); // opt PHoffset, PHscale into ADC range
 
   // S-curves, noise, gain, cal:
-
-  tb.SetDAC( CtrlReg, 0 ); // small Vcal
-  dacval[roc][CtrlReg] = 0;
-  dacscanroc( 25, 25, 1, 127 ); // dac nTrig step stop
-
+  if( Hansen ) {
+    tb.SetDAC( CtrlReg, 0 ); // small Vcal
+    dacval[roc][CtrlReg] = 0;
+    cout << "[S-curves]" << endl;
+    dacscanroc( 25, 25, 1, 127 ); // dac nTrig step stop
+  }
   // cals:
 
   tb.SetDAC( CtrlReg, 4 ); // large Vcal
@@ -14092,8 +14483,11 @@ CMD_PROC( bare ) // bare module test
 
   dacdac( col, row, 26, 12 ); // sets CalDel and VthrComp for cals
 
-  //dacscanroc( 25, -25, 2, 255 ); // for bump height
-
+  if( Hansen ) {
+    cout << "[Hansen Test]" << endl;
+    dacscanroc( 25, -25, 2, 255 ); // for bump height
+  }
+  cout << "[Bump Bond Test]" << endl;
   dacscanroc( 12, -10, 1, 255 ); // cals, scan VthrComp, bump bond test
 
   tb.SetDAC( CtrlReg, ctl ); // restore
@@ -14101,11 +14495,12 @@ CMD_PROC( bare ) // bare module test
   tb.Flush(  );
 
   // write all dac values in a file with name from the root-file
+
   string globalName = gROOT->GetFile()->GetName(); 
   int sizeName = globalName.size();
-  string prefixName = globalName.substr(0,sizeName-5);
-  //
-  writedac(prefixName);
+  string prefixName = globalName.substr( 0, sizeName-5 );
+
+  writedac( prefixName );
 
   return ok;
 }
@@ -14113,11 +14508,13 @@ CMD_PROC( bare ) // bare module test
 //------------------------------------------------------------------------------
 void cmdHelp(  )
 {
-  fputs( "+-cmd commands ----------------------+\n"
-         "| help      list of commands         |\n"
-         "| exit      exit commander           |\n"
-         "| quit      exit commander           |\n"
-         "+------------------------------------+\n", stdout );
+  fputs(
+	"+-cmd commands --------------+\n"
+	"| help    list of commands   |\n"
+	"| exit    exit commander     |\n"
+	"| quit    quit commander     |\n"
+	"+----------------------------+\n"
+	, stdout );
 }
 
 //------------------------------------------------------------------------------
@@ -14196,7 +14593,10 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( hvon,      "hvon                          switch HV on" );
   CMD_REG( hvoff,     "hvoff                         switch HV off" );
   CMD_REG( vb,        "vb <V>                        set -Vbias in V" );
+  CMD_REG( getvb,     "getvb                         measure bias voltage" );
   CMD_REG( getib,     "getib                         measure bias current" );
+  CMD_REG( scanvb,    "scanvb vmax [vstp]            bias voltage scan" );
+  CMD_REG( ibvst,     "ibvst                         bias current vs time, any key to stop" );
 
   CMD_REG( reson,     "reson                         activate reset" );
   CMD_REG( resoff,    "resoff                        deactivate reset" );
@@ -14224,9 +14624,6 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( dread,     "dread                         Read Daq buffer and show as ROC data" );
   CMD_REG( dreadm,    "dreadm [channel]              Read Daq buffer and show as module data" );
 
-  CMD_REG( scanvb,    "scanvb vmax [vstp]            bias voltage scan" );
-  CMD_REG( ibvst,     "ibvst                         bias current vs time, any key to stop" );
-
   CMD_REG( showclk,   "showclk                       show CLK signal" );
   CMD_REG( showctr,   "showctr                       show CTR signal" );
   CMD_REG( showsda,   "showsda                       show SDA signal" );
@@ -14249,6 +14646,7 @@ void cmd(  )                    // called once from psi46test
 
   CMD_REG( select,    "select addr:range             set i2c address" );
   CMD_REG( dac,       "dac address value [roc]       set DAC" );
+  CMD_REG( vdig,      "vdig value                    set Vdig" );
   CMD_REG( vana,      "vana value                    set Vana" );
   CMD_REG( vtrim,     "vtrim value                   set Vtrim" );
   CMD_REG( vthr,      "vthr value                    set VthrComp" );
@@ -14264,8 +14662,8 @@ void cmd(  )                    // called once from psi46test
 
   CMD_REG( cole,      "cole <range>                  enable column" );
   CMD_REG( cold,      "cold <range>                  disable columns" );
-  CMD_REG( pixi,      "pixi col row                  show trim bits" );
-  CMD_REG( pixt,      "pixt col row trim             set trim bits" );
+  CMD_REG( pixi,      "pixi roc col row              show trim bits" );
+  CMD_REG( pixt,      "pixt roc col row trim         set trim bits" );
   CMD_REG( pixe,      "pixe <range> <range> <value>  trim pixel" );
   CMD_REG( pixd,      "pixd <range> <range>          mask pixel" );
   CMD_REG( cal,       "cal <range> <range>           enable calibrate pixel" );
@@ -14274,7 +14672,7 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( cald,      "cald                          clear calibrate" );
   CMD_REG( mask,      "mask                          mask all pixel and cols" );
   CMD_REG( fire,      "fire col row [nTrig]          single pulse and read" );
-  CMD_REG( fire2,     "fire col row [nTrig]          correlation" );
+  CMD_REG( fire2,     "fire col row [-][nTrig]       correlation" );
 
   CMD_REG( daci,      "daci dac                      current vs dac" );
   CMD_REG( vanaroc,   "vanaroc                       ROC efficiency scan vs Vana" );
@@ -14284,14 +14682,14 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( caldelroc, "caldelroc                     ROC CalDel efficiency scan" );
   CMD_REG( modcaldel, "modcaldel col row             CalDel efficiency scan for module" );
   CMD_REG( modpixsc,  "modpixsc col row ntrig        module pixel S-curve" );
-  CMD_REG( dacscanmod,"dacscanmod dac [ntrig] [step] [stop] module dac scan" );
+  CMD_REG( dacscanmod,"dacscanmod dac [-][ntrig] [step] [stop] module dac scan" );
   CMD_REG( modthrdac, "modthrdac col row dac         Threshold vs DAC one pixel" );
-  CMD_REG( modvthrcomp, "modvthrcomp target           set VthrComp on each ROC" );
+  CMD_REG( modvthrcomp, "modvthrcomp target            set VthrComp on each ROC" );
   CMD_REG( modtrim,   "modtrim target                set Vtrim and trim bits" );
   CMD_REG( modtrimbits, "modtrimbits                   adjust weak trim bits" );
-  CMD_REG( modtune,   "modtune col row               tune gain and offset" );
+  CMD_REG( modtune,   "modtune col row [roc]         tune PH gain and offset" );
   CMD_REG( modmap,    "modmap nTrig                  module map" );
-  CMD_REG( modthrmap, "modthrmap [cut]               module threshold map" );
+  CMD_REG( modthrmap, "modthrmap [new] [cut]         module threshold map" );
 
   CMD_REG( takedata,  "takedata period               readout 40 MHz/period (stop: s enter)" );
   CMD_REG( tdscan,    "tdscan vmin vmax              take data vs VthrComp" );
@@ -14307,13 +14705,13 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( thrmapsc,  "thrmapsc stop (4=cals)        threshold map" );
   CMD_REG( scanvthr,  "scanvthr vthrmin vthrmax [vthrstp]    threshold RMS vs VthrComp" );
 
-  CMD_REG( effdac,    "effdac col row dac [stp] [trg] [roc]  Efficiency vs DAC one pixel" );
-  CMD_REG( phdac,     "phdac  col row dac [stp] [trg] [roc]  PH vs DAC one pixel" );
+  CMD_REG( effdac,    "effdac col row dac [stp] [nTrig] [roc]  Efficiency vs DAC one pixel" );
+  CMD_REG( phdac,     "phdac col row dac [stp] [nTrig] [roc]  PH vs DAC one pixel" );
   CMD_REG( gaindac,   "gaindac                       calibrated PH vs Vcal" );
-  CMD_REG( calsdac,   "calsdac col row dac [nTrig]   cals vs DAC one pixel" );
+  CMD_REG( calsdac,   "calsdac col row dac [nTrig] [roc]  cals vs DAC one pixel" );
   CMD_REG( dacdac,    "dacdac col row dacx dacy [cals] DAC DAC scan" );
 
-  CMD_REG( dacscanroc,"dacscanroc dac [nTrig] [stp]  PH vs DAC, all pixels" );
+  CMD_REG( dacscanroc,"dacscanroc dac [-][nTrig] [stp]  PH vs DAC, all pixels" );
 
   CMD_REG( tune,      "tune col row                  tune gain and offset" );
   CMD_REG( phmap,     "phmap nTrig                   ROC PH map" );
@@ -14321,7 +14719,8 @@ void cmd(  )                    // called once from psi46test
   CMD_REG( effmap,    "effmap nTrig                  pixel alive map" );
   CMD_REG( effmask,   "effmask nTrig                 pixel alive map - all pixels are masked-" );
   CMD_REG( bbtest,    "bbtest nTrig                  CALS map = bump bond test" );
-  CMD_REG( bare,      "bare                          bare module ROC test" );
+  CMD_REG( oneroc,    "oneroc                        single ROC test" );
+  CMD_REG( bare,      "bare [Hansen]                 bare module ROC test" );
 
   cmdHelp(  );
 
@@ -14342,7 +14741,6 @@ void cmd(  )                    // called once from psi46test
         modtrm[roc][col][row] = 15;
 	modcnt[roc][col][row] = 0;
 	modamp[roc][col][row] = 0;
-
       }
 
   ierror = 0;
