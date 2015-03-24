@@ -13,4 +13,4 @@ sudo chmod 666 /proc/bus/usb/00*/*
 # intelligent:
 # modprobe -c  lists kernel config
 sudo modprobe -r ftdi_sio
-sudo modprobe -r usbserial
+#sudo modprobe -r usbserial
