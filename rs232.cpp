@@ -25,13 +25,13 @@
 
 using namespace std;
 
-bool ldb = 0;                   // DP
+bool ldb = 1;                   // DP
 
-int Cport[30], rs_error;
+int Cport[31], rs_error;
 
-struct termios new_port_settings, old_port_settings[30];
+struct termios new_port_settings, old_port_settings[31];
 
-char comports[30][16] = {
+char comports[31][19] = {
   "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS2", "/dev/ttyS3", "/dev/ttyS4",
   "/dev/ttyS5",
   "/dev/ttyS6", "/dev/ttyS7", "/dev/ttyS8", "/dev/ttyS9", "/dev/ttyS10",
@@ -40,17 +40,18 @@ char comports[30][16] = {
   "/dev/ttyUSB1", "/dev/ttyUSB2", "/dev/ttyUSB3", "/dev/ttyUSB4",
   "/dev/ttyUSB5",
   "/dev/ttyAMA0", "/dev/ttyAMA1", "/dev/ttyACM0", "/dev/ttyACM1",
-  "/dev/rfcomm0", "/dev/rfcomm1", "/dev/ircomm0", "/dev/ircomm1"
+  "/dev/rfcomm0", "/dev/rfcomm1", "/dev/ircomm0", "/dev/ircomm1","/dev/tty.UC-232AC" //"/dev/cu.usbserial"
 };
 
-int comport_number = 16;        // "/dev/ttyUSB0"
+//int comport_number = 16;        // "/dev/ttyUSB0"
+int comport_number = 30;        // "dev/tty.usbserial" for Mac
 
 //------------------------------------------------------------------------------
 int RS232_OpenComport( int comport_number, int baudrate )
 {
   int baudr, status;
 
-  if( comport_number > 29 || comport_number < 0 ) {
+  if( comport_number > 30 || comport_number < 0 ) {
     cout << "rs232 illegal comport number " << comport_number << endl;
     return ( 1 );
   }
@@ -119,7 +120,6 @@ int RS232_OpenComport( int comport_number, int baudrate )
   rs_error = 0;
   Cport[comport_number] =
     open( comports[comport_number], O_RDWR | O_NOCTTY | O_NDELAY );
-
   if( Cport[comport_number] == -1 ) {
     perror( "unable to open comport" );
     return ( 1 );
@@ -127,20 +127,80 @@ int RS232_OpenComport( int comport_number, int baudrate )
 
   rs_error =
     tcgetattr( Cport[comport_number], old_port_settings + comport_number );
+  cout<< " cflag "<<old_port_settings[comport_number].c_cflag<<endl;
+  cout<< " iflag "<<old_port_settings[comport_number].c_iflag<<endl;
+  cout<<" oflag "<<old_port_settings[comport_number].c_oflag<<endl;
+  cout<<" lflag "<<old_port_settings[comport_number].c_lflag<<endl;
+  cout<<" cc vmin" <<old_port_settings[comport_number].c_cc[VMIN]<<endl;
+  cout<<"cc time" << old_port_settings[comport_number].c_cc[VTIME]<<endl;
+
   if( rs_error == -1 ) {
     close( Cport[comport_number] );
     perror( "unable to read port settings" );
     return ( 1 );
   }
 
-  memset( &new_port_settings, 0, sizeof( new_port_settings ) ); // clear the new struct
+  //memset( &new_port_settings, 0, sizeof( new_port_settings ) ); // clear the new struct
 
+  struct termios newtio;
+  if (tcgetattr(Cport[comport_number] , &newtio)!=0)
+    {
+      std::cerr<<"tcgetattr() 3 failed"<<std::endl;
+    }
+
+  if (tcgetattr(Cport[comport_number] , &new_port_settings)!=0)
+    {
+      std::cerr<<"tcgetattr() 3 failed"<<std::endl;
+    }
+  cfsetospeed(&newtio, (speed_t)baudr);
+  cfsetispeed(&newtio, (speed_t)baudr);
+  newtio.c_cflag = (newtio.c_cflag & ~CSIZE) | CS8;
+  newtio.c_cflag |= CLOCAL | CREAD;
+  newtio.c_cflag &= ~(PARENB | PARODD);
+  newtio.c_cflag &= ~CRTSCTS;
+newtio.c_cflag &= ~CSTOPB;
+  
+  newtio.c_iflag=IGNBRK;
+  newtio.c_iflag &= ~(IXON|IXOFF|IXANY);
+  
+  newtio.c_lflag=0;
+  newtio.c_oflag=0;
+  
+  newtio.c_cc[VTIME]=1;
+  newtio.c_cc[VMIN]=60;
+  
   new_port_settings.c_cflag = baudr | CS8 | CLOCAL | CREAD;
   new_port_settings.c_iflag = IGNPAR;
   new_port_settings.c_oflag = 0;
   new_port_settings.c_lflag = FLUSHO;
-  new_port_settings.c_cc[VMIN] = 0; /* block untill n bytes are received */
-  new_port_settings.c_cc[VTIME] = 0; /* block untill a timer expires (n * 100 mSec.) */
+  new_port_settings.c_cc[VMIN] = 0; // block untill n bytes are received
+  new_port_settings.c_cc[VTIME] = 0; // block untill a timer expires (n * 100 mSec.) 
+
+  cout<< " cflag "<<newtio.c_cflag<<endl;
+  cout<< " iflag "<<newtio.c_iflag<<endl;
+  cout<<" oflag "<<newtio.c_oflag<<endl;
+  cout<<" lflag "<<newtio.c_lflag<<endl;
+  cout<<" cc vmin " <<newtio.c_cc[VMIN]<<endl;
+  cout<<"cc time " << newtio.c_cc[VTIME]<<endl;
+
+  cout<< " cflag "<<new_port_settings.c_cflag<<endl;
+  cout<< " iflag "<<new_port_settings.c_iflag<<endl;
+  cout<<" oflag "<<new_port_settings.c_oflag<<endl;
+  cout<<" lflag "<<new_port_settings.c_lflag<<endl;
+  cout<<" cc vmin" <<new_port_settings.c_cc[VMIN]<<endl;
+  cout<<"cc time" << new_port_settings.c_cc[VTIME]<<endl;
+
+  /*
+   old_port_settings[comport_number].c_cflag = baudr | CS8 | CLOCAL | CREAD;
+  old_port_settings[comport_number].c_iflag = IGNPAR;
+  old_port_settings[comport_number].c_oflag = 0;
+  old_port_settings[comport_number].c_lflag = FLUSHO;
+  old_port_settings[comport_number].c_cc[VMIN] = 0; // block untill n bytes are received
+  old_port_settings[comport_number].c_cc[VTIME] = 0; // block untill a timer expires (n * 100 mSec.) 
+  */
+  //  rs_error = tcsetattr( Cport[comport_number], TCSANOW, &old_port_settings[comport_number] );
+  //  rs_error = tcsetattr( Cport[comport_number], TCSANOW, &new_port_settings );
+  cout << Cport[comport_number] << endl;
   rs_error = tcsetattr( Cport[comport_number], TCSANOW, &new_port_settings );
   if( rs_error == -1 ) {
     close( Cport[comport_number] );
@@ -367,28 +427,29 @@ int writeCommand( const char *command )
 
   strncpy( cmd, command, 250 );
   cmd[250] = 0;
-
+  cout<<  strlen( cmd )<<endl;
  // terminate command with CR LF
   if( !strstr( cmd, "\r\n" ) )
     strcat( cmd, "\r\n" );
-
+  cout<< "after " << strlen( cmd )<<endl;
   len = strlen( cmd );
 
   int i;
   for( i = 0; i < len; i++ ) {
 
     RS232_SendByte( comport_number, cmd[i] );
-
+    cout << " sent command "  << cmd[i] << endl;
    // read echo
     timeout = 10;
     do {
       rb = RS232_PollComport( comport_number, buf, 1 );
+      cout << "rb "<< rb <<"  "<< buf[0] <<endl;
       usleep( 10000 );
       timeout--;
-    } while( ( rb == 0 ) && ( timeout > 0 ) );
-
+    } while( ( rb == -1 ) && ( timeout > 0 ) );
+    //    cout<<"cmd "<<cmd[i] << " buf "<<buf[0]<< " i " << i <<endl;
     if( cmd[i] != buf[0] ) {
-      return 0;
+	  return 0;
     }
   }
 
@@ -429,14 +490,16 @@ int writeCommandAndReadAnswer( const char *command, char *answer )
   char inbuf[256];
   int to = 0;
   char *p;
-
-  if( !answer )
+  
+  if( !answer ){
+    cout << "not defined"<<endl;
     return 0;
-
+  }
  // write command to HV device
-  if( !writeCommand( command ) )
-    return 0;
-
+  if( !writeCommand( command ) ){
+    cout << " write failed"<<endl;
+ return 0;
+  }
  // init buffer
   *answer = 0;
 
@@ -444,10 +507,11 @@ int writeCommandAndReadAnswer( const char *command, char *answer )
   to = 0;
   do {
     bytesRead = RS232_PollComport( comport_number, inbuf, sizeof( inbuf ) );
-
+    cout<< bytesRead <<endl;
     if( bytesRead > 0 ) {
       inbuf[bytesRead] = 0;
       strcat( answer, inbuf );
+      cout << answer <<endl;
       to = 0;
     }
     usleep( 10000 );

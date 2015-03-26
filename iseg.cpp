@@ -55,7 +55,8 @@ Iseg::Iseg(  )
 
   cout << "instatiating an iseg HV supply:" << endl;
 
-  const int comPortNumber = 16; /* /dev/ttyUSB0 */
+  //  const int comPortNumber = 16; /* /dev/ttyUSB0 */
+  const int comPortNumber = 30; /* /tty.usbserial */
 
   if( !openComPort( comPortNumber, 9600 ) ) {
     cout << "  cannot open RS232 port" << endl;
@@ -96,6 +97,7 @@ Iseg::~Iseg(  )
 //------------------------------------------------------------------------------
 void Iseg::handleAnswers( char *answer )
 {
+  
   if( strcmp( answer, "S1=ON" ) == 0 ) {
     if( ldb )
       cout << "  voltage is set" << endl;
@@ -126,7 +128,7 @@ void Iseg::handleAnswers( char *answer )
   }
   else {
     if( ldb )
-      cout << "Unknown device return value";
+      cout << "Unknown device return value " << answer << endl;
     supply_tripped = false;
   }
 }
