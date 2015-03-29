@@ -2,6 +2,11 @@
 // Daniel Pitzl, DESY, 16.6.2014
 // iseg SHQ 122M via USB and RS232
 
+// ls -ltr /dev
+// sudo chmod 666 /dev/ttyUSB0
+// or
+// sudo chmod 666 /dev/ttyUSB1
+
 #include <iostream> // cout
 #include <cstdlib> // atoi
 #include <cmath> // pow
