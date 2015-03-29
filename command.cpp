@@ -361,8 +361,32 @@ void CInterpreter::help(  )
  // sorted (vector): DP
 
   cout << vcnames.size(  ) << " commands" << endl;
+  int prevtype = -1;
   for( size_t i = 0; i < vcnames.size(  ); ++i ) {
     CCommand *p = cmdList.Find( vcnames[i].c_str(  ) );
+    if( p->m_type != prevtype ) {
+      prevtype = p->m_type;
+      switch( p->m_type ) {
+      case 0:
+	printf( "start USB DTB RPC:\n" );
+	break;
+      case 1:
+	printf( "configure DTB:\n" );
+	break;
+      case 2:
+	printf( "LV power and HV bias:\n" );
+	break;
+      case 3:
+	printf( "ROC:\n" );
+	break;
+      case 4:
+	printf( "Module:\n" );
+	break;
+      case 5:
+	printf( "Info:\n" );
+	break;
+      }
+    }
     printf( "%s\n", p->m_help );
   }
 }
@@ -375,11 +399,12 @@ void CInterpreter::SetScriptPath( const char path[] )
 
 
 void CInterpreter::AddCommand( const char name[], CMDFUNCTION f,
-                               const char help[] )
+                               const int type, const char help[] )
 {
   CCommand c;
-  c.m_help = help;
   c.m_exec = f;
+  c.m_type = type;
+  c.m_help = help;
   cmdList.Add( name, c );
   vcnames.push_back( string( name ) ); // DP, in the order of appearance
 }
