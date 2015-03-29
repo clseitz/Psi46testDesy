@@ -360,7 +360,7 @@ void CInterpreter::help(  )
   */
  // sorted (vector): DP
 
-  cout << vcnames.size(  ) << " commands" << endl;
+  cout << "  " << vcnames.size(  ) << " commands:" << endl;
   int prevgrp = -1;
   for( size_t i = 0; i < vcnames.size(  ); ++i ) {
     CCommand *p = cmdList.Find( vcnames[i].c_str(  ) );
@@ -374,7 +374,7 @@ void CInterpreter::help(  )
 	printf( "configure DTB:\n" );
 	break;
       case 2:
-	printf( "LV power and HV bias:\n" );
+	printf( "power and bias:\n" );
 	break;
       case 3:
 	printf( "ROC:\n" );
@@ -387,7 +387,7 @@ void CInterpreter::help(  )
 	break;
       }
     }
-    printf( "%s\n", p->m_help );
+    printf( "  %s\n", p->m_help );
   }
 }
 
