@@ -1,7 +1,6 @@
 
 .PHONY: all clean distclean
 
-OBJS = cmd.o command.o pixel_dtb.o protocol.o settings.o psi46test.o datastream.o analyzer.o profiler.o rpc.o rpc_calls.o usb.o rpc_error.o rs232.o iseg.o
 # chipdatabase.o color.o defectlist.o error.o histo.o pixelmap.o prober.o ps.o scanner.o
 # test_dig.o
 # plot.o
@@ -15,6 +14,7 @@ UNAME := $(shell uname)
 ifeq ($(UNAME), Darwin)
 CXXFLAGS = -g -Os -Wall $(ROOTCFLAGS) -I/usr/local/include -I/usr/X11/include
 LDFLAGS = -lftd2xx -lreadline -L/usr/local/lib -L/usr/X11/lib -lX11 $(ROOTGLIBS)
+RS232 = rs232_mac.o 
 endif
 
 # root g++ flags = -pthread -std=c++11 -Wno-deprecated-declarations -m64 -I/home/pitzl/ROOT/root/include
@@ -22,8 +22,11 @@ endif
 ifeq ($(UNAME), Linux)
 CXXFLAGS = -g -Os -Wall $(ROOTCFLAGS) -I/usr/local/include -I/usr/X11/include
 LDFLAGS = -lftd2xx -lreadline -L/usr/local/lib -L/usr/X11/lib -lX11 -pthread -lrt $(ROOTGLIBS)
+RS232 = rs232.o
 endif
 
+
+OBJS = cmd.o command.o pixel_dtb.o protocol.o settings.o psi46test.o datastream.o analyzer.o profiler.o rpc.o rpc_calls.o usb.o rpc_error.o $(RS232) iseg.o
 
 # PATTERN RULES:
 

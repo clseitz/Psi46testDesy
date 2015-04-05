@@ -2,6 +2,11 @@
 // Daniel Pitzl, DESY, 16.6.2014
 // iseg SHQ 122M via USB and RS232
 
+// ls -ltr /dev
+// sudo chmod 666 /dev/ttyUSB0
+// or
+// sudo chmod 666 /dev/ttyUSB1
+
 #include <iostream> // cout
 #include <cstdlib> // atoi
 #include <cmath> // pow
@@ -11,6 +16,15 @@
 #include "rs232.h"
 
 using namespace std;
+
+//defining the comport number that is collected in a list in rs232.cpp (for linux) or rs232_mac.cpp (additional mac ports)
+#ifdef __unix__ // all unices, not all compilers
+#define COMPORT_NUMBER 16
+#elif __linux__
+#define COMPORT_NUMBER 16  // "/dev/ttyUSB0"
+#elif __APPLE__
+#define COMPORT_NUMBER 30 // "/dev/tty.UC-232AC"
+#endif
 
 //------------------------------------------------------------------------------
 double outToDouble( char *word )
@@ -55,10 +69,11 @@ Iseg::Iseg(  )
 
   cout << "instatiating an iseg HV supply:" << endl;
 
-  const int comPortNumber = 16; /* /dev/ttyUSB0 */
-
+    const int comPortNumber = COMPORT_NUMBER; /* /dev/ttyUSB0 */
+  
   if( !openComPort( comPortNumber, 9600 ) ) {
     cout << "  cannot open RS232 port" << endl;
+    cout << " CHECK: that comport is chosen in iseg.cpp from the list in rs232{_mac} appropriatly." << endl;
     return;
   }
   cout << "  Opened RS232 COM port to iseg device" << endl;

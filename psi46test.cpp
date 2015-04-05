@@ -45,41 +45,41 @@ void help(  )
 #ifdef withROOT
 //------------------------------------------------------------------------------
 MyMainFrame::MyMainFrame( const TGWindow * p, UInt_t w, UInt_t h )
-:TGMainFrame( p, w, h )
+ :TGMainFrame( p, w, h )
 {
   cout << "MyMainFrame..." << endl;
- // Create a main frame:
+  // Create a main frame:
   fMain = new TGMainFrame( p, w, h );
 
- // Create canvas widget:
+  // Create canvas widget:
   fEcanvas = new TRootEmbeddedCanvas( "Ecanvas", fMain, w, h );
   fMain->AddFrame( fEcanvas,
                    new TGLayoutHints( kLHintsExpandX | kLHintsExpandY, 1, 1,
                                       1, 1 ) );
 
- // Set a name to the main frame:
+  // Set a name to the main frame:
   fMain->SetWindowName( "psi46test" );
 
- // Map all subwindows of main frame:
+  // Map all subwindows of main frame:
   fMain->MapSubwindows(  );
 
- // Initialize the layout algorithm:
+  // Initialize the layout algorithm:
   fMain->Resize( fMain->GetDefaultSize(  ) );
 
- // Map main frame:
+  // Map main frame:
   fMain->MapWindow(  );
 }
 
 MyMainFrame::~MyMainFrame(  )
 {
- // Clean up used widgets: frames, buttons, layouthints
+  // Clean up used widgets: frames, buttons, layouthints
   fMain->Cleanup(  );
   delete fMain;
 }
 
 TCanvas *MyMainFrame::GetCanvas(  )
 {
-//TCanvas *c1 = fEcanvas->GetCanvas();
+  //TCanvas *c1 = fEcanvas->GetCanvas();
   return ( fEcanvas->GetCanvas(  ) );
 }
 #endif
@@ -87,7 +87,7 @@ TCanvas *MyMainFrame::GetCanvas(  )
 //------------------------------------------------------------------------------
 uint32_t GetHashForString( const char *s )
 {
- // Using some primes
+  // Using some primes
   uint32_t h = 31;
   while( *s ) {
     h = ( h * 54059 ) ^ ( s[0] * 76963 );
@@ -106,7 +106,7 @@ uint32_t GetHashForStringVector( const std::vector < std::string > &v )
 }
 
 //------------------------------------------------------------------------------
-int main( int argc, char *argv[] )
+int main( int argc, char *argv[] ) // psi46test abc
 {
   printf( VERSIONINFO "\n" );
 
@@ -115,26 +115,12 @@ int main( int argc, char *argv[] )
     return 1;
   }
 
-  // printing:
-
   std::string baseName(argv[1]);
-  int sizeName = baseName.size();
-  // take as baseName the logfile 
-  //rootfilename = baseName.substr(0,sizeName-3)+"root";
-  //logfilename = baseName;
 
-  logfilename = baseName+".log";
-  rootfilename = baseName+".root";
+  logfilename = baseName + ".log"; // abc.log
+  rootfilename = baseName + ".root"; // abc.root
 
-  // to be used in the log
-  //strncpy( filename, argv[1], sizeof( filename ) );
-  //if (argc == 3)
-  //  strncpy( rootfilename, argv[2], sizeof( rootfilename ) );
-  // else
-  //  strncpy( rootfilename, "Test.root", 9);
-    
-
- // load settings:
+  // load settings:
 
   cout << "reading psi46test.ini..." << endl;
   if( !settings.read( "psi46test.ini" ) ) {
@@ -148,7 +134,7 @@ int main( int argc, char *argv[] )
     return 3;
   }
 
- // open test board on USB:
+  // open test board on USB:
 
   Log.section( "DTB" );
   string usbId;
@@ -170,20 +156,20 @@ int main( int argc, char *argv[] )
         tb.Welcome(  );
         tb.Flush(  );
 
-       // check DTB SW hash code:
+	// check DTB SW hash code:
 
         string dtb_hashcmd;
         tb.GetRpcCallName( 5, dtb_hashcmd );
         if( dtb_hashcmd.compare( "GetRpcCallHash$I" ) != 0 )
           cout << "Your DTB flash file is outdated:"
-            <<
+	       <<
             " it does not provide an RPC hash value for compatibility checks."
-            << endl <<
+	       << endl <<
             "please upgrade to the flash file corresponding to this version of psi46test"
-            << endl;
+	       << endl;
         else {
 
-         // Get hash for the PC RPC command list:
+	  // Get hash for the PC RPC command list:
 
           uint32_t pcCmdHash =
             GetHashForStringVector( tb.GetHostRpcCallNames(  ) );
@@ -192,7 +178,7 @@ int main( int argc, char *argv[] )
           uint32_t dtbCmdHash = tb.GetRpcCallHash(  );
           cout << "DTB hash " << dtbCmdHash << endl;
 
-         // If they don't match check RPC calls one by one and print offenders:
+	  // If they don't match check RPC calls one by one and print offenders:
 
           if( dtbCmdHash != pcCmdHash ) {
             cout << "RPC call hashes of DTB and PC do not match!" << endl;
@@ -200,10 +186,10 @@ int main( int argc, char *argv[] )
 
             if( !tb.RpcLink(  ) )
               cout << "Please upgrade your DTB with the correct flash file."
-                << endl;
+		   << endl;
             else
               cout << "but all required functions are present: OK to proceed"
-                << endl;
+		   << endl;
           }
           else
             cout << "RPC call hashes of PC and DTB match: " << pcCmdHash <<
@@ -239,7 +225,7 @@ int main( int argc, char *argv[] )
     TApplication theApp( "psi46test", &argc, argv );
 #endif
 
-   // call command interpreter:
+    // call command interpreter:
 
     nEntry = 0;
 
@@ -250,7 +236,7 @@ int main( int argc, char *argv[] )
     tb.Flush(  );
 
     cout << "ROOT close ..." << endl;
-   //histoFile->Write();
+    //histoFile->Write();
     histoFile->Close(  );
 
     tb.Close(  );
