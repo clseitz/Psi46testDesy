@@ -133,6 +133,13 @@ int RS232_OpenComport( int comport_number, int baudrate )
     return ( 1 );
   }
 
+  cout << old_port_settings[16].c_cflag << endl;
+  cout << old_port_settings[16].c_iflag << endl;
+  cout << old_port_settings[16].c_oflag << endl;
+  cout << old_port_settings[16].c_lflag << endl;
+  cout << old_port_settings[16].c_cc[VMIN] << endl;
+  cout << old_port_settings[16].c_cc[VTIME] << endl;
+
   memset( &new_port_settings, 0, sizeof( new_port_settings ) ); // clear the new struct
 
   new_port_settings.c_cflag = baudr | CS8 | CLOCAL | CREAD;
@@ -141,6 +148,14 @@ int RS232_OpenComport( int comport_number, int baudrate )
   new_port_settings.c_lflag = FLUSHO;
   new_port_settings.c_cc[VMIN] = 0; /* block untill n bytes are received */
   new_port_settings.c_cc[VTIME] = 0; /* block untill a timer expires (n * 100 mSec.) */
+
+  cout << new_port_settings.c_cflag << endl;
+  cout << new_port_settings.c_iflag << endl;
+  cout << new_port_settings.c_oflag << endl;
+  cout << new_port_settings.c_lflag << endl;
+  cout << new_port_settings.c_cc[VMIN] << endl;
+  cout << new_port_settings.c_cc[VTIME] << endl;
+
   rs_error = tcsetattr( Cport[comport_number], TCSANOW, &new_port_settings );
   if( rs_error == -1 ) {
     close( Cport[comport_number] );

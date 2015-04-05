@@ -72,6 +72,7 @@ Iseg::Iseg(  )
     writeCommandAndReadAnswer( "S1", answer );
   }
   handleAnswers( answer );
+  cout << answer <<endl;
   if( strcmp( answer, "S1=ON" ) != 0 ) {
     cout << "  iseg device did not return proper status code!" << endl;
     return;
