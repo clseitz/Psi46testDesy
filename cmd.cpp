@@ -1363,6 +1363,9 @@ CMD_PROC( module )
 
   string gainFileName;
 
+  if( Module == 1405 )
+    gainFileName = "P1405-trim32-chiller15-gaincal.dat"; // PSI
+
   if( Module == 4016 )
     gainFileName = "D4016-trim32-chill17-gaincal.dat"; // E-lab
   if( Module == 4016 )
@@ -1372,11 +1375,11 @@ CMD_PROC( module )
     //gainFileName = "D4017-ia24-trim32-chiller15-tuned-gaincal.dat";
     gainFileName = "D4017-ia24-trim32-chiller15-Vcomp_ADC1-gaincal.dat";
 
+  if( Module == 4022 )
+    gainFileName = "D4022-trim36-gaincal.dat"; // coldbox, chiller +15C
+
   if( Module == 4509 )
     gainFileName = "K4509_trim32_chiller15_gaincalib.dat"; // KIT
-
-  if( Module == 1405 )
-    gainFileName = "P1405-trim32-chiller15-gaincal.dat"; // PSI
 
   if( gainFileName.length(  ) > 0 ) {
 
@@ -7101,11 +7104,11 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 	  cout << "[Missing Bump at roc row col:] " << roc << " " << ipx % 80
 	       << " " << ipx / 80 << endl;
 	  Log.printf( "[Missing Bump at roc row col:] %i %i %i\n", roc , ipx % 80, ipx / 80 );
-	  h25->Fill( xm, ym, 2 ); // red
+	  h25->Fill( xm, ym, 1 ); // magenta
 	}
 	else {
 	  ++nActive;
-	  h25->Fill( xm, ym, 1 ); // green
+	  h25->Fill( xm, ym, 2 ); // green
 	} // plateau width
 
       } // active imax
@@ -10522,7 +10525,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
   if( h21 )
     delete h21;
   h21 = new TH2D( "ModuleHitMap",
-                  "Module hit map;col;row;hits",
+                  "Module hit map;col;row;responses",
                   8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
   gStyle->SetOptStat( 10 ); // entries
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
@@ -10560,9 +10563,10 @@ CMD_PROC( modmap ) // pixelAlive for modules
 	  xm = 415 - xm; // rocs 8 9 A B C D E F
 	  ym = 159 - row; // 80..159
 	}
-	double ph = modamp[roc][col][row] / nTrig;
-	double vc = PHtoVcal( ph , roc, col, row );
 	int nresponse = modcnt[roc][col][row];
+	double ph = 0;
+	if( nresponse > 0 ) ph = modamp[roc][col][row] / nresponse;
+	double vc = PHtoVcal( ph , roc, col, row );
 	if( nresponse == 0 )
 	  ++nd;
 	else if( nresponse >= nTrig/2 )
