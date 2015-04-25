@@ -1,12 +1,13 @@
 
 # module procedure 2015
 
-smd
+smr
 hvon
 vb 150
+getib
 
 # set analog current per ROC [mA]:
-optiamod 27
+optiamod 24
 
 # set timing:
 ctl 4
@@ -16,7 +17,7 @@ modcaldel 22 33
 modmap 20
 
 # set global treshold to Vcal target
-modvthrcomp 42
+modvthrcomp 44
 
 # set timing:
 modcaldel 22 33
@@ -33,7 +34,7 @@ modtrimbits
 # response map:
 modmap 20
 
-# rthreshold map:
+# threshold map:
 modthrmap 1 28
 
 # PH tuning:
@@ -57,7 +58,7 @@ optiamod 30  # better separation
 modcaldel 22 33
 modvthrcomp 32
 modcaldel 22 33
-dacscanmod 12 -16
+dacscanmod 12 -16 2
 
 # bump height:
 #ctl 4

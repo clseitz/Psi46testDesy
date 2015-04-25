@@ -1,31 +1,30 @@
 
--- Daniel Pitzl, DESY, Oct 2014
--- start module DESY: psi46digV2, TBM08b
+-- Daniel Pitzl, DESY, Mar 2015
+-- start module: psi46digV2.1respin, TBM08b
 --------------------------------------------------------------------------------
 -- maximum line length: 80
 
-log === startdigmod ===
+log === startModRespin ===
 
 --- set voltages and current limits
 
 vd 2800 mV # needed for TBM08b
 va 1800 mV
-id  800 mA
-ia  800 mA
+id  900 mA
+ia  600 mA
 
 #fsel 1 # 0 = 40 MHz, 1 = 20 MHz, influences ID
 
 --- setup timing & levels -------------------
-
 clk  4  (base
 ctr  4  (CLK +  0)
 sda 19  (CLK + 15)
 tin  9  (CLK +  5)
 
-clklvl 13  # for DESY module with TBM08b and KIT adapter
-ctrlvl 13  # 15 OK, 12 OK, 8 OK, 5 ineff
-sdalvl 13
-tinlvl 13
+clklvl  15  # for DESY module with TBM08b and KIT adapter
+ctrlvl  15  # 15 OK, 12 OK, 8 OK, 5 ineff
+sdalvl  15  # D4020 in A needs 12
+tinlvl  15
 
 --- power on --------------------------------
 pon
@@ -53,72 +52,43 @@ tbmset $F8 9
 tbmset $EA b00000000  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
 tbmset $FA b00000000  OK
 
-#tbmset $EA b10000000  delay_tin: no data
-#tbmset $FA b01000000  delay_TBM_Hdr/Trl: no data
-
-#tbmset $EA b01100100  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
-#tbmset $FA b01100100  like pXar: OK
-
-#tbmset $EA b01110110  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
-#tbmset $FA b01110110  OK
-
-#tbmset $EA b11110110  delay_tin  delay_TBM_Hdr/Trl  delay_ROC_port1  port0
-#tbmset $FA b11110110  OK
-
 tbmset $EC 9         Auto reset rate (x+1)*256
 tbmset $FC 9
 
-#tbmset $EE b00000000  160/400 MHz phase adjust  OK
 tbmset $EE b00100000  160/400 MHz phase adjust  OK, also cold
-#tbmset $EE b01000000  160/400 MHz phase adjust  some ROCs missing
-#tbmset $EE b10000000  160/400 MHz phase adjust  some ROCs missing
 
 tbmset $FE $00        Temp measurement control
 
-
-#pXar TBM08b settings 10.2.2015
-#    base4 1111 0000   clear clear clear reset
-#    base0 1000 0001   disable_auto_reset    disable_PKAM_counter
-#    base2 11 000000   mode_cal
-#    base8 00010000    PKAM counter
-#    baseA 01 100 100  delay_TBM_head_trail  delay_ROC_port1  delay_ROC_port0
-#    baseC 0000 0000   auto_reset
-#    baseE 000 000 00  phase_160  phase_400
-
 mdelay 100
-
--- digV2 ROCs: DCF problem
 
 select b1111111111111111  # all ROCs on
 
-module 4016
+module 4020
 
-chip 350  # must be after select
+chip 500  # must be after select
 
 dac   1    8  Vdig 
-dac   2  160  Vana
-dac   3  130  Vsf
+dac   2  110  Vana
+dac   3   30  Vsh
 dac   4   12  Vcomp
 
-dac   7   10  VwllPr
-dac   9   10  VwllPr
+dac   7  160  VwllPr
+dac   9  160  VwllPr
 dac  10  252  VhldDel
 
 dac  11    1  Vtrim
-dac  12   50  VthrComp
+dac  12   90  VthrComp
 
-dac  13    1  VIBias_Bus
-dac  14   14  Vbias_sf
-dac  22   20  VIColOr
+dac  13   30  VIBias_Bus
+dac  22   99  VIColOr
 
-dac  15   60  VoffsetOp
-dac  17  150  VoffsetRO
-dac  18   45  VIon
 
-dac  19   30  Vcomp_ADC
-dac  20   70  VIref_ADC
+dac  17  165  PHOffset
 
-dac  25  222  Vcal
+dac  19   10  Vcomp_ADC
+dac  20  100  PHScale
+
+dac  25  255  Vcal
 dac  26  122  CalDel
 
 dac  253   4  CtrlReg
@@ -131,7 +101,7 @@ cald  # ClrCal
 mask
 
 hvon
-mdelay 400
+mdelay 2000
 
 getid
 getia
@@ -158,7 +128,9 @@ pgset 0 b011000  16  pg_rest pg_resr  (reset TBM and ROCs)
 pgset 1 b000100 106  pg_cal (WBC + 6 for digV2)
 pgset 2 b100010   0  pg_trg pg_sync. (delay zero = end of pgset)
 
-trigdel 400  # delay in trigger loop [BC], needed for large WBC
+trigdel 200  # delay in trigger loop 200 BC =  5 us
+#trigdel 400  # delay in trigger loop 400 BC = 10 us
+#trigdel 0  # delay in trigger loop [BC] Simon says: should work
 
 dopen  30500100  0  [daq_open]
 dopen  30500100  1  [daq_open]
@@ -166,8 +138,3 @@ dopen  30500100  1  [daq_open]
 pgsingle
 
 flush
-
-# vd 2800
-# clk 4 -4
-# pgloop 2222
-# A1 = SDATA = 400 MHz, idle pattern = 5 low + 5 high looks like 40 MHz
