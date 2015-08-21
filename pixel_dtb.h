@@ -401,9 +401,8 @@ class CTestboard
   RPC_EXPORT uint8_t GetStatus(  );
   RPC_EXPORT void SetRocAddress( uint8_t addr );
 
-  RPC_EXPORT bool GetPixelAddressInverted(  );
-
-  RPC_EXPORT void SetPixelAddressInverted( bool status );
+  bool GetPixelAddressInverted() { return false; };
+  void SetPixelAddressInverted(bool /*status*/) {};
 
   // --- pulse pattern generator ------------------------------------------
 
@@ -423,6 +422,14 @@ class CTestboard
   RPC_EXPORT void Pg_Triggers( uint32_t triggers, uint16_t period );
   RPC_EXPORT void Pg_Loop( uint16_t period );
 
+  // --- trigger ----------------------------------------------------------
+  RPC_EXPORT void Trigger_Select(uint16_t mask);
+  RPC_EXPORT void Trigger_Delay(uint8_t delay);
+  RPC_EXPORT void Trigger_Timeout(uint16_t timeout);
+  RPC_EXPORT void Trigger_SetGenPeriodic(uint32_t periode);
+  RPC_EXPORT void Trigger_SetGenRandom(uint32_t rate);
+  RPC_EXPORT void Trigger_Send( uint8_t send);
+
   // --- data aquisition --------------------------------------------------
 
   RPC_EXPORT uint32_t Daq_Open( uint32_t buffersize = 10000000,
@@ -430,6 +437,7 @@ class CTestboard
   RPC_EXPORT void Daq_Close( uint8_t channel = 0 ); // tbm A and B
   RPC_EXPORT void Daq_Start( uint8_t channel = 0 ); // tbm A and B
   RPC_EXPORT void Daq_Stop( uint8_t channel = 0 );
+  RPC_EXPORT void Daq_MemReset(uint8_t channel = 0);
   RPC_EXPORT uint32_t Daq_GetSize( uint8_t channel = 0 );
   RPC_EXPORT uint8_t Daq_FillLevel( uint8_t channel );
   RPC_EXPORT uint8_t Daq_FillLevel(  );
@@ -460,7 +468,8 @@ class CTestboard
 
   // -- set the i2c address for the following commands
   RPC_EXPORT void roc_I2cAddr( uint8_t id );
-
+  RPC_EXPORT void roc_I2cAddr_Layer_1(uint8_t id);
+  
   // -- sends "ClrCal" command to ROC
   RPC_EXPORT void roc_ClrCal(  );
 
@@ -501,60 +510,13 @@ class CTestboard
   RPC_EXPORT void tbm_Addr( uint8_t hub, uint8_t port );
 
   RPC_EXPORT void mod_Addr( uint8_t hub );
-
+  RPC_EXPORT void mod_Addr(uint8_t hub0, uint8_t hub1);
+  
   RPC_EXPORT void tbm_Set( uint8_t reg, uint8_t value );
 
   RPC_EXPORT bool tbm_Get( uint8_t reg, uint8_t & value );
 
   RPC_EXPORT bool tbm_GetRaw( uint8_t reg, uint32_t & value );
-
-  RPC_EXPORT int32_t CountReadouts( int32_t nTriggers );
-  RPC_EXPORT int32_t CountReadouts( int32_t nTriggers, int32_t chipId );
-  RPC_EXPORT int32_t CountReadouts( int32_t nTriggers, int32_t dacReg,
-                                    int32_t dacValue );
-  RPC_EXPORT int32_t PH( int32_t col, int32_t row, int32_t trim,
-                         int16_t nTriggers );
-  RPC_EXPORT int32_t PixelThreshold( int32_t col, int32_t row, int32_t start,
-                                     int32_t step, int32_t thrLevel,
-                                     int32_t nTrig, int32_t dacReg,
-                                     bool xtalk, bool cals );
-  RPC_EXPORT bool test_pixel_address( int32_t col, int32_t row );
-  RPC_EXPORT int32_t ChipEfficiency_dtb( int16_t nTriggers,
-                                         vectorR < uint8_t > &res );
-
-  // ETH functions:
-
-  RPC_EXPORT int8_t CalibratePixel( int16_t nTriggers, int16_t col,
-                                    int16_t row, int16_t & nReadouts,
-                                    int32_t & PHsum );
-
-  RPC_EXPORT int8_t CalibrateDacScan( int16_t nTriggers, int16_t col,
-                                      int16_t row, int16_t dacReg1,
-                                      int16_t dacLower1, int16_t dacUpper1,
-                                      vectorR < int16_t > &nReadouts,
-                                      vectorR < int32_t > &PHsum );
-
-  RPC_EXPORT int8_t CalibrateDacDacScan( int16_t nTriggers, int16_t col,
-                                         int16_t row, int16_t dacReg1,
-                                         int16_t dacLower1, int16_t dacUpper1,
-                                         int16_t dacReg2, int16_t dacLower2,
-                                         int16_t dacUpper2,
-                                         vectorR < int16_t > &nReadouts,
-                                         vectorR < int32_t > &PHsum );
-  RPC_EXPORT void ParallelCalibrateDacDacScan( vector < uint8_t > &roc_i2c,
-                                               uint16_t nTriggers,
-                                               uint8_t col, uint8_t row,
-                                               uint8_t dacReg1,
-                                               uint8_t dacLower1,
-                                               uint8_t dacUpper1,
-                                               uint8_t dacReg2,
-                                               uint8_t dacLower2,
-                                               uint8_t dacUpper2,
-                                               uint16_t flags );
-
-  RPC_EXPORT int16_t CalibrateMap( int16_t nTriggers, vectorR < int16_t > &nReadouts, vectorR < int32_t > &PHsum, vectorR < uint32_t > &addres ); // empty
-  RPC_EXPORT int16_t CalibrateModule( vector < uint8_t > &roc_i2c,
-                                      uint16_t nTriggers, uint16_t flags );
 
   RPC_EXPORT int16_t TrimChip( vector < int16_t > &trim );
   RPC_EXPORT int16_t TriggerRow( int16_t nTriggers, int16_t col,
