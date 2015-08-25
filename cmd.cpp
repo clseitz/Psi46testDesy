@@ -5814,6 +5814,12 @@ CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
       int trim = modtrm[0][col][row];
       tb.roc_Pix_Trim( col, row, trim );
 
+      // SSP: these attempt to get a threshold map for a full ROC
+      // This is best done using
+      // LoopSingleRocAllPixelsDacScan
+      // with CalDel being the DAC to scan. the returned data just has to be
+      // analyzed for the spectrum edge.
+      // Flags can be specified: xtalk 0x0004, cals 0x0002
       int thr = tb.PixelThreshold( col, row,
                                    start, step,
                                    thrLevel, nTrig,
@@ -9031,6 +9037,12 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
     //  uDelay(4); // 4 us => WBC < 160
     //}
 
+    // SSP: this loop attempts to scan a DAC vs a threshold for one pixel
+    // This is best done using
+    // LoopSingleRocOnePixelsDacDacScan
+    // with "dac" being the DAC to scan, and "VCal" the one for the threshold
+    // The returned data just has to be analyzed for the spectrum edge.
+    // Flags can be specified: xtalk 0x0004, cals 0x0002
     int thr = tb.PixelThreshold( col, row,
                                  start, step,
                                  thrLevel, nTrig,
@@ -10648,6 +10660,12 @@ void RocThrMap( int roc, int start, int step, int nTrig, int xtalk, int cals )
       int trim = modtrm[roc][col][row];
       tb.roc_Pix_Trim( col, row, trim );
 
+      // SSP: these loops/calls attempt to get a threshold map for a full ROC
+      // This is best done using
+      // LoopSingleRocAllPixelsDacScan
+      // with VCal being the DAC to scan. the returned data just has to be
+      // analyzed for the spectrum edge.
+      // Flags can be specified: xtalk 0x0004, cals 0x0002
       int thr = tb.PixelThreshold( col, row,
                                    start, step,
                                    thrLevel, nTrig,
@@ -11189,6 +11207,13 @@ CMD_PROC( vthrcomp5 )
     tb.roc_Col_Enable( col, true );
     int trim = modtrm[roc][col][row];
     tb.roc_Pix_Trim( col, row, trim );
+
+    // SSP: this looks at the threshold of five pixels.
+    // This is indeed best done separately using
+    // LoopSingleRocOnePixelsDacScan
+    // with VCal being the DAC to scan. the returned data just has to be
+    // analyzed for the spectrum edge.
+    // Flags can be specified: xtalk 0x0004, cals 0x0002
     int thr = tb.PixelThreshold( col, row,
 				 guess, step,
 				 thrLevel, nTrig,
@@ -11256,6 +11281,14 @@ CMD_PROC( vthrcomp5 )
     tb.uDelay( 1000 );
     tb.Flush(  );
 
+    // SSP: this tries to find threshold values for a DAC range
+    // This is indeed best done using
+    // LoopSingleRocOnePixelsDacDacScan
+    // With the first DAC being VThrComp to iterate over,
+    // and the second DAC VCal for the threshold
+    // The returned data just has to be analyzed for the spectrum edge.
+    // Flags can be specified: xtalk 0x0004, cals 0x0002
+    // The stepsize "vstp" can also be specified, for both VCal the threshold and VThrComp
     int thr =
       tb.PixelThreshold( colmin, rowmin,
 			 guess, step,
@@ -11428,6 +11461,14 @@ CMD_PROC( vthrcomp )
     tb.uDelay( 1000 );
     tb.Flush(  );
 
+    // SSP: this tries to find threshold values for a DAC range
+    // This is indeed best done using
+    // LoopSingleRocOnePixelsDacDacScan
+    // With the first DAC being VThrComp to iterate over,
+    // and the second DAC VCal for the threshold
+    // The returned data just has to be analyzed for the spectrum edge.
+    // Flags can be specified: xtalk 0x0004, cals 0x0002
+    // The stepsize "vstp" can also be specified, for both VCal the threshold and VThrComp
     int thr =
       tb.PixelThreshold( colmin, rowmin,
 			 guess, step,
@@ -11619,6 +11660,14 @@ CMD_PROC( trim )
       tb.Flush(  );
 
       tb.roc_Pix_Trim( colmax, rowmax, tbits );
+      // SSP: this tries to find threshold values for a Vtrim range
+      // This is best done using
+      // LoopSingleRocOnePixelsDacDacScan
+      // With the first DAC being Vtrim to iterate over,
+      // and the second DAC VCal for the threshold
+      // The returned data just has to be analyzed for the spectrum edge.
+      // Flags can be specified: xtalk 0x0004, cals 0x0002
+      // The stepsize "vtrm +=2" can also be specified
       int thr = tb.PixelThreshold( colmax, rowmax,
                                    guess, step,
                                    thrLevel, nTrig,
