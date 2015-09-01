@@ -4,8 +4,8 @@
 // psi46test version (should match DTB SW version):
 
 #define TITLE        "psi46test for DTB"
-#define VERSION      "V3.05"
-#define TIMESTAMP    "11.9.2014"
+#define VERSION      "V4.04"
+#define TIMESTAMP    "1.9.2015"
 
 // === set profiling options ================================================
 // if defined a profiling infos are collected during execution
