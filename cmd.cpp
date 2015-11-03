@@ -11539,9 +11539,11 @@ CMD_PROC( trim )
     cout << "max thr " << vmax << " at " << colmax << " " << rowmax << endl;
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // setVtrim using max pixel:
+    // set Vtrim using max pixel:
 
     tbits = 0; // 0 = strongest
+
+    modtrm[roc][colmax][rowmax] = tbits;
 
     guess = target;
 
@@ -11565,7 +11567,6 @@ CMD_PROC( trim )
       tb.uDelay( 100 );
       tb.Flush(  );
 
-      tb.roc_Pix_Trim( colmax, rowmax, tbits );
       int thr = ThrPix( 0, colmax, rowmax, Vcal, step, nTrig );
       /* before FW 4.4
 	int thr = tb.PixelThreshold( colmax, rowmax,
