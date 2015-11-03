@@ -5330,7 +5330,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 		 vector < int16_t > & nReadouts,
                  vector < double > & PHavg, vector < double > & PHrms )
 {
-  bool ldb = 1;
+  bool ldb = 0;
 
   tb.roc_I2cAddr( roc );
   tb.roc_Col_Enable( col, true );
