@@ -362,9 +362,9 @@ with n triggers per pixel
 \item [\texttt{wtrim\ desc}] write current trim bits to \texttt{trimParameters\_cijk\_desc.dat}
 (or \texttt{trimParameters\_Dm\_desc.dat for modules)} 
 \item [\texttt{phmap\ trig}] measure pixel pulse height map 
-\item [\texttt{tune}] set gain and offset such that the pulse heights
+\item [\texttt{tune col row}] set gain and offset such that the pulse heights
 of all pixels are in 80\% of the ADC range, for large and small Vcal,
-with 10\% margins against overflows and underflows 
+with 10\% margins against overflows and underflows. The pixel col row is used for finding initial values. 
 \item [\texttt{wdac\ desc}] write current DAC settings to \texttt{dacParameters\_cijk\_desc.dat}
 (or \texttt{dacParameters\_Dm\_desc.dat for modules)} 
 \end{description}

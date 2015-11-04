@@ -11,10 +11,12 @@ effdac 22 33 25  # one pix threshold, shows start value
 
 vthrcomp 36 55  # set global threshold to min 36, start 55
 
+caldelroc
+
 trim 30 36      # trim to 30, start guess 36
 
 ctl 4
-caldel 22 33
+caldelroc
 
 effmap 100     #
 

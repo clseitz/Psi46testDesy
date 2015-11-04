@@ -10,7 +10,8 @@
 // TH2D
 //
 // For Linux:
-// gSystem->Load("/usr/local/lib/libnlopt.so")
+// gSystem->Load("/usr/lib/x86_64-linux-gnu/libnlopt.so")
+// 
 // For Mac:
 // gSystem->Load("/usr/local/lib/libnlopt.dylib")
 // .files (shows libs)
@@ -342,7 +343,8 @@ void phroc2ps( )
 
     TObject * obj = key->ReadObj();
 
-    if( obj->IsA()->InheritsFrom( "TH2D" ) ) {
+    if( obj->InheritsFrom( "TH2D" ) ) {
+      //    if( obj->IsA()->InheritsFrom( "TH2D" ) ) {     ROOT 5
 
       TH2D * h2 = (TH2D*)obj;
 
@@ -845,8 +847,8 @@ void phroc2ps( )
 
   c1.Print( "phroc.ps]" ); // ] closes file
 
-  system( "ps2pdf phroc.ps" );
-  system( "rm -f phroc.ps" );
+int sysreturn =  system( "ps2pdf phroc.ps" );
+  sysreturn = system( "rm -f phroc.ps" );
   cout << "acroread phroc.pdf" << endl;
 
   //delete c1;

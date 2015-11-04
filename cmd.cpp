@@ -1309,6 +1309,8 @@ CMD_PROC( chip )
     gainFileName = "phroc-c402-trim30.dat";
   if( Chip == 405 )
     gainFileName = "phroc-c405-trim30.dat";
+  if( Chip == 501 )
+    gainFileName = "c501-trim35-gaincal.dat";
 
   if( gainFileName.length(  ) > 0 ) {
 

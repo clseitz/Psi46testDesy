@@ -81,6 +81,9 @@ dac 253    4  CtrlReg
 dac 254  100  WBC = tct - 6
 dac 255   12  RBreg
 
+rddac trim35
+rdtrim trim35
+
 flush
 
 show
