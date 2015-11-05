@@ -13819,7 +13819,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 }
 
 //------------------------------------------------------------------------------
-bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
+bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
 {
   Log.section( "DACDAC", false );
   Log.printf( " pixel %i %i DAC %i vs %i\n", col, row, dac1, dac2 );
@@ -14431,7 +14431,7 @@ CMD_PROC( bare ) // bare module test, without or with Hansen bump height test
   tb.SetDAC( CtrlReg, 4 ); // large Vcal
   dacval[roc][CtrlReg] = 4;
 
-  dacdac( col, row, 26, 12 ); // sets CalDel and VthrComp for cals
+  dacdac( col, row, 26, 12, 1 ); // sets CalDel and VthrComp for cals
 
   if( Hansen ) {
     cout << "[Hansen Test]" << endl;
