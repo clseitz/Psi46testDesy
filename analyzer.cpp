@@ -3,12 +3,11 @@
 
 using namespace std;
 
-
 void DumpData( const vector < uint16_t > &x, unsigned int n )
 {
   unsigned int i;
   printf( "\n%i samples\n", int ( x.size(  ) ) );
-  for( i = 0; i < n && i < x.size(  ); i++ ) {
+  for( i = 0; i < n && i < x.size(  ); ++i ) {
     if( x[i] & 0x8000 )
       printf( ">" );
     else
@@ -40,12 +39,12 @@ int DecodePixel( const vector < uint16_t > &x, int &pos,
  // scan for ROC header:
  // while( pos < int( x.size() ) && (x[pos] & 0x8ffc) != 0x87f8 ) {
  //   cout << "pos " << pos << " skip " << hex << x.at(pos) << dec << endl;
- //   pos++;
+ //   ++pos;
  // }
  // scan for FPGA header:
   while( pos < int ( x.size(  ) ) && ( x[pos] & 0x8000 ) != 0x8000 ) {
     cout << "pos " << pos << " skip " << hex << x.at( pos ) << dec << endl;
-    pos++;
+    ++pos;
   }
 
  //cout << " pos " << pos << " size " << x.size() << " ";
@@ -69,33 +68,43 @@ int DecodePixel( const vector < uint16_t > &x, int &pos,
 
   pix.p = ( raw & 0x0f ) + ( ( raw >> 1 ) & 0xf0 );
   raw >>= 9;
-  int c = ( raw >> 12 ) & 7;
-  c = c * 6 + ( ( raw >> 9 ) & 7 );
 
-  int r2 = ( raw >> 6 ) & 7;
-  int r1 = ( raw >> 3 ) & 7;
-  int r0 = ( raw >> 0 ) & 7;
+  if( tb.linearAddress ) {
+    pix.y = ((raw >>  0) & 0x07) + ((raw >> 1) & 0x78); // F7
+    pix.x = ((raw >>  8) & 0x07) + ((raw >> 9) & 0x38); // 77
+  } // PROC600
+  else {
 
- //if( tb.GetPixelAddressInverted() ) {
-  if( tb.invertAddress ) {
-    r2 ^= 0x7;
-    r1 ^= 0x7;
-    r0 ^= 0x7;
-  }
+    int c = ( raw >> 12 ) & 7;
+    c = c * 6 + ( ( raw >> 9 ) & 7 );
 
-  int r = r2 * 36 + r1 * 6 + r0;
+    int r2 = ( raw >> 6 ) & 7;
+    int r1 = ( raw >> 3 ) & 7;
+    int r0 = ( raw >> 0 ) & 7;
 
-  pix.y = 80 - r / 2;
-  pix.x = 2 * c + ( r & 1 );
+    //if( tb.GetPixelAddressInverted() ) {
+    if( tb.invertAddress ) {
+      r2 ^= 0x7;
+      r1 ^= 0x7;
+      r0 ^= 0x7;
+    }
 
-  pix.n++;
+    int r = r2 * 36 + r1 * 6 + r0;
+
+    pix.y = 80 - r / 2;
+    pix.x = 2 * c + ( r & 1 );
+
+  } // dig
+
+  ++pix.n;
 
  // read additional noisy pixel:
 
   int cnt = 0;
   while( !( pos >= int ( x.size(  ) ) || ( x[pos] & 0x8000 ) ) ) {
-    pos++;
-    cnt++;
+    cout << "noisy pixel at pos " << pos << endl;
+    ++pos;
+    ++cnt;
   }
 
   pix.n += cnt / 2;
@@ -121,15 +130,24 @@ vector < PixelReadoutData > GetEvent( const vector < uint16_t > &x, int &pos,
 
  // check:
 
-  if( pos >= int ( x.size(  ) ) )
+  if( pos >= int ( x.size(  ) ) ) {
+    cout << "analyzer GetEvent error at pos " << pos
+	 << " >= x.size " << x.size() << endl;
     throw int ( 1 );            // missing data
+  }
 
- // need to skip some junk at the beginning (DP 3.4.2014 at FEC):
+  // need to skip some junk at the beginning (DP 3.4.2014 at FEC):
 
-  while( pos < int ( x.size(  ) ) && ( x[pos] & 0x8ffc ) != 0x87f8 ) // scan for header
-    pos++;
+  while( pos < int ( x.size(  ) ) &&
+	 ( x[pos] & 0x8ffc ) != 0x87f8 ) { // scan for header
+    cout << "analyzer at pos " << pos
+	 << ": " << hex << x[pos] << dec << " is not a valid ROC header"
+	 << endl;
+    ++pos;
+  }
 
- //cout << " pos " << pos << " size " << x.size() << " ";
+  if( ldb ) 
+    cout << " start at pos " << pos << " size " << x.size() << " ";
 
   if( pos >= int ( x.size(  ) ) )
     throw int ( 2 );            // wrong header
@@ -140,7 +158,7 @@ vector < PixelReadoutData > GetEvent( const vector < uint16_t > &x, int &pos,
 
   hdr = x[pos] & 0xfff; // 12 bits valid header
 
-  pos++;
+  ++pos;
 
   if( pos >= int ( x.size(  ) ) )
     return vpix; // empty data readout
@@ -153,39 +171,51 @@ vector < PixelReadoutData > GetEvent( const vector < uint16_t > &x, int &pos,
   pix.hdr = hdr;
   int cnt = 0;
 
- //while( pos + 1 < int( x.size() ) && !( x[pos] & 0x8000 ) ) {
+  //while( pos + 1 < int( x.size() ) && !( x[pos] & 0x8000 ) ) {
 
   do {
     unsigned int raw = ( x[pos] & 0xfff ) << 12; // 12 ROC bits
 
     if( pos + 1 >= int ( x.size(  ) ) || ( x[pos] & 0x4000 ) )
       throw int ( 3 );          // incomplete data
-    pos++;
+    ++pos;
     raw += x[pos] & 0xfff; // 12 more ROC bits
 
     pix.p = ( raw & 0x0f ) + ( ( raw >> 1 ) & 0xf0 );
     raw >>= 9;
-    int c = ( raw >> 12 ) & 7;
-    c = c * 6 + ( ( raw >> 9 ) & 7 );
 
-    int r2 = ( raw >> 6 ) & 7;
-    int r1 = ( raw >> 3 ) & 7;
-    int r0 = ( raw >> 0 ) & 7;
+    if( tb.linearAddress ) {
+      pix.y = ((raw >>  0) & 0x07) + ((raw >> 1) & 0x78); // F7
+      pix.x = ((raw >>  8) & 0x07) + ((raw >> 9) & 0x38); // 77
+    } // PROC600
 
-   //if( tb.GetPixelAddressInverted() ) {
-    if( tb.invertAddress ) {
-      r2 ^= 0x7;
-      r1 ^= 0x7;
-      r0 ^= 0x7;
-    }
+    else {
 
-    int r = r2 * 36 + r1 * 6 + r0;
+      int c = ( raw >> 12 ) & 7;
+      c = c * 6 + ( ( raw >> 9 ) & 7 );
 
-    pix.y = 80 - r / 2;
-    pix.x = 2 * c + ( r & 1 );
+      int r2 = ( raw >> 6 ) & 7;
+      int r1 = ( raw >> 3 ) & 7;
+      int r0 = ( raw >> 0 ) & 7;
+
+      //if( tb.GetPixelAddressInverted() ) {
+      if( tb.invertAddress ) {
+	r2 ^= 0x7;
+	r1 ^= 0x7;
+	r0 ^= 0x7;
+      }
+
+      int r = r2 * 36 + r1 * 6 + r0;
+
+      pix.y = 80 - r / 2;
+      pix.x = 2 * c + ( r & 1 );
+
+    } // dig
+
     pix.n = cnt;
     vpix.push_back( pix );
-    cnt++;
+    ++cnt;
+
   }
   while( !( x[pos++] & 0x4000 ) ); // FPGA end marker (token out)
 
