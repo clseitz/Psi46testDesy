@@ -1,14 +1,14 @@
-//
+
 // Daniel Pitzl, Jun 2013, Jan 2014, May 2014
 // minimize Weibull function to pixel PH vs large and small Vcal
 // decorrelated p0, p4
 // start values for digital chip
 // nlopt
-//
+
 // root -l phroc-c247-trim30.root
 // from ~/psi/dtb/tst215/cmd.cpp dacscanroc 25
 // TH2D
-//
+
 // For Linux:
 // gSystem->Load("/usr/local/lib/libnlopt.so")
 // For Mac:
@@ -18,6 +18,7 @@
 // .x phroc2ps.C+
 
 #include "TDirectory.h"
+#include "TClass.h"
 #include "TROOT.h"
 #include "TStyle.h"
 #include "TH1.h"
@@ -440,7 +441,13 @@ void phroc2ps( )
 
       for( int ii = ib9; ii > 0; --ii ) { // scan from right to left
 	double ph = y4[ii];
-	if( ph > 0 && abs( ph - phprv ) < 8 ) // stop at zero or spike
+	if( ph > 254.5 ) {
+	  ib9 = ii-1; // avoid overflows
+	  phprv = y4[ii-1];
+	  continue;
+	}
+	//if( ph > 0 && abs( ph - phprv ) < 8 ) // stop at zero or spike
+	if( ph > 0 ) // for high gain
 	  ib0 = ii; // overwritten
 	else
 	  break; // first zero bin from right
@@ -486,12 +493,15 @@ void phroc2ps( )
       for( int ii = jb9; ii > 0; --ii ) { // scan from right to left
 
 	double ph = y0[ii];
-	if( ph > 0 && abs( ph - phprv0 ) < 4 ) // stop at zero or spike
+	//if( ph > 0 && abs( ph - phprv0 ) < 4 ) // stop at zero or spike
+	if( ph > 0 ) // high gain
 	  jb0 = ii; // overwritten
 	else
 	  break; // first zero bin from right
 	phprv0 = ph;
       }
+
+      // shift left:
 
       int j2 = 0;
       for( int ii = jb0; ii <= jb9; ++ii ) {
@@ -720,7 +730,7 @@ void phroc2ps( )
 
     gainfile << endl;
 
-  } // while
+  } // while pixels
 
   if( err ) cout << endl << "Error" << endl << endl;
 
@@ -845,8 +855,9 @@ void phroc2ps( )
 
   c1.Print( "phroc.ps]" ); // ] closes file
 
-  system( "ps2pdf phroc.ps" );
-  system( "rm -f phroc.ps" );
+  int ierr = 0;
+  ierr = system( "ps2pdf phroc.ps" );
+  ierr = system( "rm -f phroc.ps" );
   cout << "acroread phroc.pdf" << endl;
 
   //delete c1;

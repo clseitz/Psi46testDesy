@@ -1309,6 +1309,8 @@ CMD_PROC( chip )
     gainFileName = "phroc-c402-trim30.dat";
   if( Chip == 405 )
     gainFileName = "phroc-c405-trim30.dat";
+  if( Chip == 505 )
+    gainFileName = "c505-trim30-gaincal.dat";
 
   if( gainFileName.length(  ) > 0 ) {
 
@@ -2310,39 +2312,44 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 
   ofstream outFile( fname.str(  ).c_str(  ) );
 
-  if( h10 )
-    delete h10;
-  h10 = new
-    TH1D( "pixels",
-          "pixels per trigger;multiplicity [pixel];triggers",
-          101, -0.5, 100.5 );
-  h10->Sumw2();
-
   if( h11 )
     delete h11;
   h11 = new
-    TH1D( "pixelPH", "pixel PH;pixel PH [ADC];pixels",
-	  255, -0.5, 254.5 ); // 255 is overflow
+    TH1D( "pixels",
+          "pixels per trigger;multiplicity [pixel];triggers",
+          101, -0.5, 100.5 );
   h11->Sumw2();
 
   if( h12 )
     delete h12;
   h12 = new
-    TH1D( "pixel_charge",
-          dacval[0][CtrlReg] == 0 ?
-          "pixel charge;pixel charge [small Vcal DAC];pixels" :
-          "pixel charge;pixel charge [large Vcal DAC];pixels",
-          256, -0.5, 255.5 );
+    TH1D( "pixelPH", "pixel PH;pixel PH [ADC];pixels",
+	  255, -0.5, 254.5 ); // 255 is overflow
   h12->Sumw2();
+
+  if( h13 )
+    delete h13;
+  if( dacval[0][CtrlReg] == 0 )
+    h13 = new
+      TH1D( "pixel_charge",
+	    "pixel charge;pixel charge [small Vcal DAC];pixels",
+	    250, 0, 500 );
+  else
+    h13 = new
+      TH1D( "pixel_charge",
+	    "pixel charge;pixel charge [large Vcal DAC];pixels",
+	    256, -0.5, 255.5 );
+    
+  h13->Sumw2();
 
   if( h21 )
     delete h21;
   h21 = new TH2D( "HitMap",
                   "Hit map;col;row;hits", 52, -0.5, 51.5, 80, -0.5, 79.5 );
 
-  if( h22 )
-    delete h22;
-  h22 = new TProfile2D( "PHMap",
+  if( h23 )
+    delete h23;
+  h23 = new TProfile2D( "PHMap",
                         dacval[0][CtrlReg] == 0 ?
                         "PH map;col;row;<PH> [small Vcal DAC]" :
                         "PH map;col;row;<PH> [large Vcal DAC]",
@@ -2470,10 +2477,10 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
           if( ldb )
             cout << " " << ix << "." << iy
 		 << ":" << ph << "(" << ( int ) vc << ")";
-          h11->Fill( ph );
-          h12->Fill( vc );
+          h12->Fill( ph );
+          h13->Fill( vc );
           h21->Fill( ix, iy );
-          h22->Fill( ix, iy, vc );
+          h23->Fill( ix, iy, vc );
 
           if( ix < 52 && iy < 80 ) {
             ++NN[ix][iy]; // hit map
@@ -2493,7 +2500,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
       even = 1 - even;
 
       if( ( data[i] & 0x4000 ) == 0x4000 ) { // FPGA end marker
-        h10->Fill( npxev );
+        h11->Fill( npxev );
 	if( npxev > 0 ) outFile << endl;
       }
 
@@ -2548,17 +2555,17 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
   }
   cout << "sum " << npx << ", max " << nmx << endl;
 
-  h10->Write(  );
   h11->Write(  );
   h12->Write(  );
+  h13->Write(  );
   h21->Write(  );
-  h22->Write(  );
+  h23->Write(  );
   gStyle->SetOptStat( 10 ); // entries
   gStyle->SetStatY( 0.95 );
   h21->GetYaxis(  )->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
   c1->Update(  );
-  cout << "  histos 10, 11, 12, 21, 22" << endl;
+  cout << "  histos 11, 12, 13, 21, 23" << endl;
 
   cout << endl;
   cout << "duration    " << duration << endl;
