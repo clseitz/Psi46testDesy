@@ -1311,6 +1311,8 @@ CMD_PROC( chip )
     gainFileName = "phroc-c405-trim30.dat";
   if( Chip == 505 )
     gainFileName = "c505-trim30-gaincal.dat";
+  if( Chip == 501 )
+    gainFileName = "c501-trim35-gaincal.dat";
 
   if( gainFileName.length(  ) > 0 ) {
 
@@ -5668,7 +5670,45 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   } // module
 
   return true;
-}
+
+} // DacScanPix
+
+//------------------------------------------------------------------------------
+// utility function: single pixel threshold on module or ROC
+int ThrPix( const uint8_t roc, const uint8_t col, const uint8_t row,
+            const uint8_t dac, const uint8_t stp, const int16_t nTrig )
+{
+  vector < int16_t > nReadouts; // size 0
+  vector < double >PHavg;
+  vector < double >PHrms;
+  nReadouts.reserve( 256 ); // size 0, capacity 256
+  PHavg.reserve( 256 );
+  PHrms.reserve( 256 );
+
+  DacScanPix( roc, col, row, dac, stp, nTrig, nReadouts, PHavg, PHrms ); // ROC or mod
+
+  int nstp = nReadouts.size(  );
+
+  // analyze:
+
+  int nmx = 0;
+
+  for( int j = 0; j < nstp; ++j ) {
+    int cnt = nReadouts.at( j );
+    if( cnt > nmx )
+      nmx = cnt;
+  }
+
+  int thr = 0;
+  for( int j = 0; j < nstp; ++j )
+    if( nReadouts.at( j ) <= 0.5 * nmx )
+      thr = j; // overwritten until passed
+    else
+      break; // beyond threshold 18.11.2014
+
+  return thr;
+
+} // ThrPix
 
 //------------------------------------------------------------------------------
 bool setcaldel( int col, int row, int nTrig )
@@ -5754,7 +5794,8 @@ bool setcaldel( int col, int row, int nTrig )
   Log.flush(  );
 
   return ok;
-}
+
+} // SetCalDel
 
 //------------------------------------------------------------------------------
 CMD_PROC( caldel ) // scan and set CalDel using one pixel
@@ -5790,16 +5831,11 @@ CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
   tb.SetDAC( Vcal, 255 ); // max pulse
 
   int nTrig = 16;
-  int start = dacval[0][CalDel] - 10;
+  //int start = dacval[0][CalDel] - 10;
   int step = 1;
-  int thrLevel = nTrig / 2;
-  bool xtalk = 0;
-  bool cals = 0;
-
-#ifndef DAQOPENCLOSE
-  tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
-  tb.Daq_Close(  );
-#endif
+  //int thrLevel = nTrig / 2;
+  //bool xtalk = 0;
+  //bool cals = 0;
 
   if( h21 )
     delete h21;
@@ -5821,11 +5857,14 @@ CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
       int trim = modtrm[0][col][row];
       tb.roc_Pix_Trim( col, row, trim );
 
+      int thr = ThrPix( 0, col, row, Vcal, step, nTrig );
+      /* before FW 4.4
       int thr = tb.PixelThreshold( col, row,
                                    start, step,
                                    thrLevel, nTrig,
                                    CalDel, xtalk, cals );
       // PixelThreshold ends with dclose
+      */
       cout << setw( 4 ) << thr << flush;
       if( row % 20 == 19 )
         cout << endl << "   ";
@@ -5855,11 +5894,6 @@ CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
   tb.SetDAC( Vcal, vcal ); // restore dac value
   tb.SetDAC( CalDel, vdac ); // restore dac value
   tb.SetDAC( CtrlReg, vctl );
-
-#ifndef DAQOPENCLOSE
-  tb.Daq_Open( tbState.GetDaqSize(  ) ); // PixelThreshold ends with dclose
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-#endif
 
   tb.Flush(  );
 
@@ -5983,42 +6017,6 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
   cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
-
-//------------------------------------------------------------------------------
-// utility function: single pixel threshold on module or ROC
-int ThrPix( const uint8_t roc, const uint8_t col, const uint8_t row,
-            const uint8_t dac, const uint8_t stp, const int16_t nTrig )
-{
-  vector < int16_t > nReadouts; // size 0
-  vector < double >PHavg;
-  vector < double >PHrms;
-  nReadouts.reserve( 256 ); // size 0, capacity 256
-  PHavg.reserve( 256 );
-  PHrms.reserve( 256 );
-
-  DacScanPix( roc, col, row, dac, stp, nTrig, nReadouts, PHavg, PHrms ); // ROC or mod
-
-  int nstp = nReadouts.size(  );
-
-  // analyze:
-
-  int nmx = 0;
-
-  for( int j = 0; j < nstp; ++j ) {
-    int cnt = nReadouts.at( j );
-    if( cnt > nmx )
-      nmx = cnt;
-  }
-
-  int thr = 0;
-  for( int j = 0; j < nstp; ++j )
-    if( nReadouts.at( j ) <= 0.5 * nmx )
-      thr = j; // overwritten until passed
-    else
-      break; // beyond threshold 18.11.2014
-
-  return thr;
 }
 
 //------------------------------------------------------------------------------
@@ -8988,11 +8986,11 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
   tb.SetDAC( CtrlReg, 0 ); // small Vcal
 
   int nTrig = 20;
-  int start = 30;
+  //int start = 30;
   int step = 1;
-  int thrLevel = nTrig / 2;
-  bool xtalk = 0;
-  bool cals = 0;
+  //int thrLevel = nTrig / 2;
+  //bool xtalk = 0;
+  //bool cals = 0;
   int trim = modtrm[0][col][row];
 
   // scan dac:
@@ -9012,17 +9010,6 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
           nstp, dacStrt(dac)-0.5*dacstep, dacStop(dac) + 0.5*dacstep );
   h11->Sumw2();
 
-#ifndef DAQOPENCLOSE
-  tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
-  tb.Daq_Close(  );
-  tb.uDelay( 1000 );
-#endif
-
-  tb.roc_Col_Enable( col, true );
-  tb.roc_Pix_Trim( col, row, trim );
-
-  tb.Flush(  );
-
   int tmin = 255;
   int imin = 0;
 
@@ -9038,10 +9025,13 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
     //  uDelay(4); // 4 us => WBC < 160
     //}
 
-    int thr = tb.PixelThreshold( col, row,
-                                 start, step,
-                                 thrLevel, nTrig,
-                                 Vcal, xtalk, cals );
+    int thr = ThrPix( 0, col, row, Vcal, step, nTrig );
+    /* before FW 4.4
+       int thr = tb.PixelThreshold( col, row,
+       start, step,
+       thrLevel, nTrig,
+       Vcal, xtalk, cals );
+    */
     h11->Fill( i, thr );
     cout << " " << thr << flush;
     Log.printf( "%i %i\n", i, thr );
@@ -9068,11 +9058,6 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
   tb.roc_Pix_Mask( col, row );
   tb.SetDAC( dac, vdac ); // restore dac value
   tb.SetDAC( CtrlReg, dacval[0][CtrlReg] );
-
-#ifndef DAQOPENCLOSE
-  tb.Daq_Open( tbState.GetDaqSize(  ) ); // PixelThreshold ends with dclose
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-#endif
 
   tb.Flush(  );
 
@@ -10620,7 +10605,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
 } // modmap
 
 //------------------------------------------------------------------------------
-// Daniel Pitzl, DESY, 25.1.2014: measure ROC threshold Vcal map, uses tb.PixelThreshold
+// Daniel Pitzl, DESY, 25.1.2014: measure ROC threshold Vcal map
 
 void RocThrMap( int roc, int start, int step, int nTrig, int xtalk, int cals )
 {
@@ -10633,15 +10618,13 @@ void RocThrMap( int roc, int start, int step, int nTrig, int xtalk, int cals )
     return;
   }
 
-  const int thrLevel = nTrig / 2;
+  //const int thrLevel = nTrig / 2;
+
+  int mTrig = nTrig;
+  if( cals ) mTrig = -nTrig; // cals flag for DacScanPix
 
   tb.roc_I2cAddr( roc ); // just to be sure
 
-#ifndef DAQOPENCLOSE
-  tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
-  tb.Daq_Close(  );
-  tb.uDelay( 1000 );
-#endif
   tb.Flush(  );
 
   for( int col = 0; col < 52; ++col ) {
@@ -10655,16 +10638,18 @@ void RocThrMap( int roc, int start, int step, int nTrig, int xtalk, int cals )
       int trim = modtrm[roc][col][row];
       tb.roc_Pix_Trim( col, row, trim );
 
-      int thr = tb.PixelThreshold( col, row,
-                                   start, step,
-                                   thrLevel, nTrig,
-                                   Vcal, xtalk, cals );
+      int thr = ThrPix( 0, col, row, Vcal, step, mTrig );
+      /* before FW 4.4
+	 int thr = tb.PixelThreshold( col, row,
+	 start, step,
+	 thrLevel, nTrig,
+	 Vcal, xtalk, cals );
 
-      if( thr == 255 ) // try again
-        thr = tb.PixelThreshold( col, row,
-                                 start, step,
-                                 thrLevel, nTrig, Vcal, xtalk, cals );
-
+	 if( thr == 255 ) // try again
+	 thr = tb.PixelThreshold( col, row,
+	 start, step,
+	 thrLevel, nTrig, Vcal, xtalk, cals );
+      */
       modthr[roc][col][row] = thr;
 
       tb.roc_Pix_Mask( col, row );
@@ -10678,16 +10663,11 @@ void RocThrMap( int roc, int start, int step, int nTrig, int xtalk, int cals )
   cout << endl;
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
 
-#ifndef DAQOPENCLOSE
-  tb.Daq_Open( tbState.GetDaqSize(  ) ); // PixelThreshold ends with dclose
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-#endif
-
   tb.Flush(  );
 }
 
 //------------------------------------------------------------------------------
-CMD_PROC( thrmap ) // for single ROCs, uses tb.PixelThreshold
+CMD_PROC( thrmap ) // for single ROCs
 {
   int guess;
   PAR_INT( guess, 0, 255 );
@@ -11153,10 +11133,10 @@ CMD_PROC( vthrcomp5 )
   long u0 = tv.tv_usec; // microseconds
 
   const int nTrig = 20;
-  const int thrLevel = nTrig / 2;
+  //const int thrLevel = nTrig / 2;
   const int step = 1;
-  const int xtalk = 0;
-  const int cals = 0;
+  //const int xtalk = 0;
+  //const int cals = 0;
 
   size_t roc = 0;
 
@@ -11171,11 +11151,6 @@ CMD_PROC( vthrcomp5 )
 
   tb.SetDAC( CtrlReg, 0 ); // this ROC, small Vcal
 
-#ifndef DAQOPENCLOSE
-  tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
-  tb.Daq_Close(  );
-  tb.uDelay( 1000 );
-#endif
   tb.Flush(  );
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -11196,10 +11171,14 @@ CMD_PROC( vthrcomp5 )
     tb.roc_Col_Enable( col, true );
     int trim = modtrm[roc][col][row];
     tb.roc_Pix_Trim( col, row, trim );
-    int thr = tb.PixelThreshold( col, row,
-				 guess, step,
-				 thrLevel, nTrig,
-				 Vcal, xtalk, cals );
+
+    int thr = ThrPix( 0, col, row, Vcal, step, nTrig );
+    /* before FW 4.4
+       int thr = tb.PixelThreshold( col, row,
+       guess, step,
+       thrLevel, nTrig,
+       Vcal, xtalk, cals );
+    */
     tb.roc_Pix_Mask( col, row );
     tb.roc_Col_Enable( col, 0 );
     cout
@@ -11218,11 +11197,6 @@ CMD_PROC( vthrcomp5 )
 
   cout << "min thr " << vmin << " at " << colmin << " " << rowmin << endl;
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
-
-#ifndef DAQOPENCLOSE
-  tb.Daq_Open( tbState.GetDaqSize(  ) ); // PixelThreshold ends with dclose
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-#endif
   tb.Flush(  );
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -11247,12 +11221,6 @@ CMD_PROC( vthrcomp5 )
   int tbits = modtrm[roc][colmin][rowmin];
   tb.roc_Pix_Trim( colmin, rowmin, tbits );
 
-#ifndef DAQOPENCLOSE
-  tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
-  tb.Daq_Close(  );
-  tb.uDelay( 1000 );
-#endif
-
   tb.Flush(  );
 
   guess = vmin;
@@ -11263,12 +11231,14 @@ CMD_PROC( vthrcomp5 )
     tb.uDelay( 1000 );
     tb.Flush(  );
 
-    int thr =
-      tb.PixelThreshold( colmin, rowmin,
-			 guess, step,
-			 thrLevel, nTrig,
-			 Vcal, xtalk, cals );
-
+    int thr = ThrPix( 0, colmin, rowmin, Vcal, step, nTrig );
+    /* before FW 4.4
+       int thr =
+       tb.PixelThreshold( colmin, rowmin,
+       guess, step,
+       thrLevel, nTrig,
+       Vcal, xtalk, cals );
+    */
     h11->Fill( vthr, thr );
     cout << setw( 3 ) << vthr << setw( 4 ) << thr << endl;
 
@@ -11297,12 +11267,6 @@ CMD_PROC( vthrcomp5 )
   cout << "roc " << roc << " back to Vcal " << dacval[roc][Vcal]
        << ", CtrlReg " << dacval[roc][CtrlReg]
        << endl;
-
-#ifndef DAQOPENCLOSE
-  tb.Daq_Open( tbState.GetDaqSize(  ) ); // PixelThreshold ends with dclose
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-  tb.Flush(  );
-#endif
 
   cout << "  histos 10,11" << endl;
 
@@ -11336,7 +11300,7 @@ CMD_PROC( vthrcomp )
   long u0 = tv.tv_usec; // microseconds
 
   const int nTrig = 20;
-  const int thrLevel = nTrig / 2;
+  //const int thrLevel = nTrig / 2;
   const int step = 1;
   const int xtalk = 0;
   const int cals = 0;
@@ -11419,12 +11383,6 @@ CMD_PROC( vthrcomp )
   int tbits = modtrm[roc][colmin][rowmin];
   tb.roc_Pix_Trim( colmin, rowmin, tbits );
 
-#ifndef DAQOPENCLOSE
-  tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
-  tb.Daq_Close(  );
-  tb.uDelay( 1000 );
-#endif
-
   tb.Flush(  );
 
   guess = vmin;
@@ -11435,12 +11393,14 @@ CMD_PROC( vthrcomp )
     tb.uDelay( 1000 );
     tb.Flush(  );
 
-    int thr =
-      tb.PixelThreshold( colmin, rowmin,
-			 guess, step,
-			 thrLevel, nTrig,
-			 Vcal, xtalk, cals );
-
+    int thr = ThrPix( 0, colmin, rowmin, Vcal, step, nTrig );
+    /* before FW 4.4
+       int thr =
+       tb.PixelThreshold( colmin, rowmin,
+       guess, step,
+       thrLevel, nTrig,
+       Vcal, xtalk, cals );
+    */
     h11->Fill( vthr, thr );
     cout << setw( 3 ) << vthr << setw( 4 ) << thr << endl;
 
@@ -11469,12 +11429,6 @@ CMD_PROC( vthrcomp )
   cout << "roc " << roc << " back to Vcal " << dacval[roc][Vcal]
        << ", CtrlReg " << dacval[roc][CtrlReg]
        << endl;
-
-#ifndef DAQOPENCLOSE
-  tb.Daq_Open( tbState.GetDaqSize(  ) ); // PixelThreshold ends with dclose
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-  tb.Flush(  );
-#endif
 
   cout << "  histos 10,11" << endl;
 
@@ -11508,7 +11462,7 @@ CMD_PROC( trim )
   long u0 = tv.tv_usec; // microseconds
 
   const int nTrig = 20;
-  const int thrLevel = nTrig / 2;
+  //const int thrLevel = nTrig / 2;
   const int step = 1;
   const int xtalk = 0;
   const int cals = 0;
@@ -11594,9 +11548,11 @@ CMD_PROC( trim )
     cout << "max thr " << vmax << " at " << colmax << " " << rowmax << endl;
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // setVtrim using max pixel:
+    // set Vtrim using max pixel:
 
     tbits = 0; // 0 = strongest
+
+    modtrm[roc][colmax][rowmax] = tbits;
 
     guess = target;
 
@@ -11611,11 +11567,6 @@ CMD_PROC( trim )
               colmax, rowmax ), 128, 0, 256 );
     h11->Sumw2();
 
-#ifndef DAQOPENCLOSE
-    tb.Daq_Stop(  ); // tb.PixelThreshold starts with Daq_Open
-    tb.Daq_Close(  );
-    tb.uDelay( 1000 );
-#endif
     tb.Flush(  );
 
     vtrm = 1;
@@ -11625,12 +11576,13 @@ CMD_PROC( trim )
       tb.uDelay( 100 );
       tb.Flush(  );
 
-      tb.roc_Pix_Trim( colmax, rowmax, tbits );
-      int thr = tb.PixelThreshold( colmax, rowmax,
-                                   guess, step,
-                                   thrLevel, nTrig,
-                                   Vcal, xtalk, cals );
-
+      int thr = ThrPix( 0, colmax, rowmax, Vcal, step, nTrig );
+      /* before FW 4.4
+	int thr = tb.PixelThreshold( colmax, rowmax,
+	guess, step,
+	thrLevel, nTrig,
+	Vcal, xtalk, cals );
+      */
       h11->Fill( vtrm, thr );
       //cout << setw(3) << vtrm << "  " << setw(3) << thr << endl;
       if( thr < target )
@@ -11782,12 +11734,6 @@ CMD_PROC( trim )
 	 << endl;
 
   } // rocs
-
-#ifndef DAQOPENCLOSE
-  tb.Daq_Open( tbState.GetDaqSize(  ) ); // PixelThreshold ends with dclose
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-  tb.Flush(  );
-#endif
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -13880,7 +13826,7 @@ CMD_PROC( dacscanroc ) // LoopSingleRocAllPixelsDacScan: 72 s with nTrig 10
 }
 
 //------------------------------------------------------------------------------
-bool dacdac( int col, int row, int dac1, int dac2, int cals=1 )
+bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
 {
   Log.section( "DACDAC", false );
   Log.printf( " pixel %i %i DAC %i vs %i\n", col, row, dac1, dac2 );
@@ -14492,7 +14438,7 @@ CMD_PROC( bare ) // bare module test, without or with Hansen bump height test
   tb.SetDAC( CtrlReg, 4 ); // large Vcal
   dacval[roc][CtrlReg] = 4;
 
-  dacdac( col, row, 26, 12 ); // sets CalDel and VthrComp for cals
+  dacdac( col, row, 26, 12, 1 ); // sets CalDel and VthrComp for cals
 
   if( Hansen ) {
     cout << "[Hansen Test]" << endl;

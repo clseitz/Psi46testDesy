@@ -1,5 +1,5 @@
 
-#include <libusb-1.0/libusb.h>
+#include <libusb.h>
 #include <cstring>
 #include "profiler.h"
 #include "rpc_error.h"

@@ -21,6 +21,11 @@ v3.02  ( 8.7.2014 Beat) external clock and corrections
 v3.03  (10.7.2014 Simon) less delay in trigger loops
 v3.04  ( 4.9.2014 Simon) FLAG_FORCE_UNMASKED bug fix
 v3.05  ( 5.9.2014 Beat) GetVD_CAP, GetVD_Reg, GetVDAC_CAP
+v4.00  (20.1.2015 Beat) external trigger support
+v4.01  (22.4.2015 Simon)  SIG_MODE_RDM for DTB output
+v4.02  (22.5.2015 Beat ) ext clock phase stable (40->80->40 MHz)
+v4.03  (17.6.2015 Wolfram) for layer 1 modules
+v4.04  (Aug 2015 Simon) Daq_MemReset fixes Deser400 errors, RPC cleanup PixelThreshold
 
 --------------------------------------------------------------------------------
 

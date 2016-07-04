@@ -14,7 +14,7 @@ vthrcomp 36 55  # set global threshold to min 36, start 55
 trim 30 44      # trim to 30, start guess 44
 
 ctl 4
-caldel 22 33
+caldelroc
 
 effmap 100     #
 
