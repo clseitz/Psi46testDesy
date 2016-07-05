@@ -1,8 +1,6 @@
-//
+
 // Author: Beat Meier
-//
 // Class provides basic functionalities to use the USB interface
-//
 
 #ifndef USB_H
 #define USB_H
@@ -38,7 +36,7 @@ class CUSB:public CRpcIo
   int GetQueue(  );
   bool FillBuffer( DWORD minBytesToRead );
 
-public:
+ public:
   CUSB(  ) {
     m_posR = m_sizeR = m_posW = 0;
     isUSB_open = false;

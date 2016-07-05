@@ -8,10 +8,10 @@ class Iseg {
   bool supply_tripped;
   double voltage_set;
 
-public:
+ public:
 
-    Iseg(  );
-   ~Iseg(  );
+  Iseg();
+  ~Iseg();
   void status(  );
   void handleAnswers( char *answer );
   bool setVoltage( double volts );

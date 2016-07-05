@@ -56,9 +56,9 @@ double outToDouble( char *word )
 // Constructor: Connects to the device, initializes communication
 Iseg::Iseg(  )
 {
- // "S1": Read status
- // "D1": New set-voltage
- // "G1": Apply new set-voltage
+  // "S1": Read status
+  // "D1": New set-voltage
+  // "G1": Apply new set-voltage
 
   ldb = 1;
 
@@ -67,10 +67,10 @@ Iseg::Iseg(  )
   supply_tripped = false;
   voltage_set = 0;
 
-  cout << "instatiating an iseg HV supply:" << endl;
+  const int comPortNumber = COMPORT_NUMBER; /* /dev/ttyUSB0 */
 
-    const int comPortNumber = COMPORT_NUMBER; /* /dev/ttyUSB0 */
-  
+  cout << "instatiating an iseg HV supply " << comPortNumber << endl;
+
   if( !openComPort( comPortNumber, 9600 ) ) {
     cout << "  cannot open RS232 port" << endl;
     cout << " CHECK: that comport is chosen in iseg.cpp from the list in rs232{_mac} appropriatly." << endl;
@@ -87,7 +87,7 @@ Iseg::Iseg(  )
     writeCommandAndReadAnswer( "S1", answer );
   }
   handleAnswers( answer );
-  cout << answer <<endl;
+  cout << answer << endl;
   if( strcmp( answer, "S1=ON" ) != 0 ) {
     cout << "  iseg device did not return proper status code!" << endl;
     return;

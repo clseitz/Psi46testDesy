@@ -39,13 +39,13 @@ string logfilename;              // log file
 //------------------------------------------------------------------------------
 void help(  )
 {
-  printf( "usage: psi46test a.log \n" );
+  printf( "usage: psi46test a.log\n" );
 }
 
 #ifdef withROOT
 //------------------------------------------------------------------------------
 MyMainFrame::MyMainFrame( const TGWindow * p, UInt_t w, UInt_t h )
- :TGMainFrame( p, w, h )
+  :TGMainFrame( p, w, h )
 {
   cout << "MyMainFrame..." << endl;
   // Create a main frame:
@@ -53,6 +53,7 @@ MyMainFrame::MyMainFrame( const TGWindow * p, UInt_t w, UInt_t h )
 
   // Create canvas widget:
   fEcanvas = new TRootEmbeddedCanvas( "Ecanvas", fMain, w, h );
+
   fMain->AddFrame( fEcanvas,
                    new TGLayoutHints( kLHintsExpandX | kLHintsExpandY, 1, 1,
                                       1, 1 ) );
@@ -106,7 +107,7 @@ uint32_t GetHashForStringVector( const std::vector < std::string > &v )
 }
 
 //------------------------------------------------------------------------------
-int main( int argc, char *argv[] ) // psi46test abc
+int main( int argc, char *argv[] )
 {
   printf( VERSIONINFO "\n" );
 

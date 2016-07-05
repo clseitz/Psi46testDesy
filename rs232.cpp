@@ -133,12 +133,12 @@ int RS232_OpenComport( int comport_number, int baudrate )
     return ( 1 );
   }
 
-  cout << old_port_settings[16].c_cflag << endl;
-  cout << old_port_settings[16].c_iflag << endl;
-  cout << old_port_settings[16].c_oflag << endl;
-  cout << old_port_settings[16].c_lflag << endl;
-  cout << old_port_settings[16].c_cc[VMIN] << endl;
-  cout << old_port_settings[16].c_cc[VTIME] << endl;
+  cout << old_port_settings[comport_number].c_cflag << endl;
+  cout << old_port_settings[comport_number].c_iflag << endl;
+  cout << old_port_settings[comport_number].c_oflag << endl;
+  cout << old_port_settings[comport_number].c_lflag << endl;
+  cout << old_port_settings[comport_number].c_cc[VMIN] << endl;
+  cout << old_port_settings[comport_number].c_cc[VTIME] << endl;
 
   memset( &new_port_settings, 0, sizeof( new_port_settings ) ); // clear the new struct
 

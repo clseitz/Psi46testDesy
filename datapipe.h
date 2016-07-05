@@ -6,15 +6,15 @@
 
 //------------------------------------------------------------------------------
 class DataPipeException:public std::runtime_error {
-public:
-  DataPipeException( const char *message ):std::runtime_error( message ) {
+ public:
+ DataPipeException( const char *message ):std::runtime_error( message ) {
   };
 };
 
 
 class DP_not_connected:public DataPipeException {
-public:
-  DP_not_connected(  ):DataPipeException( "Not connected" ) {
+ public:
+ DP_not_connected(  ):DataPipeException( "Not connected" ) {
   };
 };
 
@@ -24,7 +24,7 @@ public:
 template < class T > class CSource {
   virtual T ReadLast(  ) = 0;
   virtual T Read(  ) = 0;
-public:
+ public:
   virtual ~ CSource(  ) {
   }
 
@@ -33,17 +33,21 @@ public:
 
 // Null source for not connected sinks
 template < class T > class CNullSource:public CSource < T > {
-protected:
+ protected:
   CNullSource(  ) {
   }
   CNullSource( const CNullSource & ) {
   }
   ~CNullSource(  ) {
   }
-  T ReadLast(  ) {
+
+  T ReadLast(  )
+  {
     throw DP_not_connected(  );
   }
-  T Read(  ) {
+
+  T Read(  )
+  {
     return ReadLast(  );
   }
   template < class TO > friend class CSink;
@@ -54,25 +58,34 @@ protected:
 template < class TI, class TO > class CDataPipe;
 
 template < class T > class CSink {
-protected:
+
+ protected:
   CSource < T > *src;
   static CNullSource < T > null;
-public:
-CSink(  ):src( &null ) {
+
+ public:
+ CSink(  ):src( &null ) {
   }
 
-  T GetLast(  ) {
+  T GetLast(  )
+  {
     return src->ReadLast(  );
   }
-  T Get(  ) {
+
+  T Get(  )
+  {
     return src->Read(  );
   }
-  void GetAll(  ) {
+
+  void GetAll(  )
+  {
     while( true )
       Get(  );
   }
+
   template < class TI, class TO > friend void operator >>( CSource < TI > &,
                                                            CSink < TO > & );
+
   template < class TI,
     class TO > friend CSource < TO > &operator >>( CSource < TI > &in,
                                                    CDataPipe < TI,

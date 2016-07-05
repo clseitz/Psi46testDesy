@@ -11,10 +11,11 @@
 
 class CProtocol {
   FILE *f;
-public:
-    CProtocol(  ) {
+ public:
+  CProtocol(  ) {
     f = NULL;
-  } ~CProtocol(  ) {
+  }
+  ~CProtocol(  ) {
     close(  );
   }
   bool open( const char filename[] );
@@ -27,7 +28,8 @@ public:
   void puts( const std::string s );
   void printf( const char *fmt, ... );
   void flush(  );
-  FILE *File(  ) {
+  FILE *File(  )
+  {
     return f;
   }
 };

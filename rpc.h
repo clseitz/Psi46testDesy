@@ -72,13 +72,13 @@ class CBuffer
   uint8_t *p;
  public:
   CBuffer( uint16_t size )
-  {
-    p = new uint8_t[size];
-  }
-   ~CBuffer(  )
-  {
-    delete[]p;
-  }
+    {
+      p = new uint8_t[size];
+    }
+  ~CBuffer(  )
+    {
+      delete[]p;
+    }
   uint8_t *operator&(  )
   {
     return p;
@@ -100,6 +100,7 @@ class rpcMessage
   {
     return m_cmd;
   }
+
   uint16_t GetCheckedCmd( uint16_t cmdCnt )
   {
     if( m_cmd < cmdCnt )
@@ -225,7 +226,6 @@ class rpcMessage
 #define HWvectorR vector
 #define stringR string
 
-
 class CDataHeader
 {
  public:
@@ -245,7 +245,7 @@ void rpc_SendRaw( CRpcIo & rpc_io, const void *x, uint32_t size );
 void rpc_DataSink( CRpcIo & rpc_io, uint32_t size );
 
 template < class T >
-  inline void rpc_Send( CRpcIo & rpc_io, const vector < T > &x )
+inline void rpc_Send( CRpcIo & rpc_io, const vector < T > &x )
 {
   rpc_SendRaw( rpc_io, &( x[0] ), sizeof( T ) * x.size(  ) );
 }
@@ -259,7 +259,7 @@ template < class T > void rpc_Receive( CRpcIo & rpc_io, vector < T > &x )
     throw CRpcError( CRpcError::WRONG_DATA_SIZE );
   }
   x.assign( msg.m_size / sizeof( T ), 0 );
- //std::cout << "rpc_Receive expects " << x.size() << " words" << std::endl;
+  //std::cout << "rpc_Receive expects " << x.size() << " words" << std::endl;
   if( x.size(  ) != 0 )
     rpc_io.Read( &( x[0] ), msg.m_size ); // usb Read
 }

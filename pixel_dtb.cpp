@@ -66,7 +66,7 @@ bool CTestboard::FindDTB( string & usbId )
     return true;
   }
 
-  // If more than 1 connected device list them
+  // If more than 1 connected device: list them
 
   printf( "\nConnected DTBs:\n" );
   for( nr = 0; nr < devList.size(  ); nr++ ) {
@@ -114,7 +114,7 @@ bool CTestboard::Open( string & usbId, bool init )
 
 void CTestboard::Close(  )
 {
-  // if( usb.Connected()) Daq_Close();
+  // if( usb.Connected() ) Daq_Close();
   usb.Close(  );
   rpc_Clear(  );
 }
@@ -124,9 +124,9 @@ void CTestboard::mDelay( uint16_t ms )
 {
   Flush(  );
 #ifdef _WIN32
-  Sleep( ms );  // Windows
+  Sleep( ms ); // Windows
 #else
-  usleep( ms * 1000 );  // Linux
+  usleep( ms * 1000 ); // Linux
 #endif
 }
 
@@ -172,7 +172,7 @@ void CTestboard::SetDAC( uint8_t reg, uint16_t value )
   };
   */
   // DP:
-  static const int wdac[256] = {
+  static const int vdac[256] = {
       0,   1,   2,   3,   4,   5,   6,   8,   7,   9,  10,  11,  12,  13,  14,  15,
      16,  17,  18,  19,  20,  21,  22,  24,  23,  25,  26,  27,  28,  29,  30,  31,
      32,  33,  34,  35,  36,  37,  38,  40,  39,  41,  42,  43,  44,  45,  46,  47,
@@ -199,7 +199,7 @@ void CTestboard::SetDAC( uint8_t reg, uint16_t value )
         || reg == VthrComp
         || reg == VoffsetOp
         || reg == VoffsetRO || reg == VIon || reg == VIref_ADC )
-      val = wdac[value];
+      val = vdac[value];
   roc_SetDAC( reg, val );
   //cout << setw(3) << (int) reg << setw(5) << value << setw(5) << val << endl;
 }

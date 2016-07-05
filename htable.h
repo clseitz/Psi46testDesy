@@ -22,20 +22,23 @@ template < class T > class CHashTable {
 public:
   CHashTable( unsigned int tablesize = 64 );
   ~CHashTable(  );
-  unsigned int GetSize(  ) {
+  unsigned int GetSize(  )
+  {
     return nEntries;
   }
   T *Find( const char *key );
   bool Add( const char *key, const T data );
   bool Delete( const char *key );
 
-  T *GetFirst(  ) {
+  T *GetFirst(  )
+  {
     for( it = 0; it < table_size; it++ )
       if( itEl = table[it] )
         return &( itEl->value );
     return 0;
   }
-  T *GetNext(  ) {
+  T *GetNext(  )
+  {
     if( !itEl )
       return 0;
     if( itEl = itEl->next )
@@ -45,15 +48,14 @@ public:
         return &( itEl->value );
     return 0;
   }
-  const char *GetKey(  ) {
+  const char *GetKey(  )
+  {
     return itEl ? itEl->s : 0;
   }
 };
 
 //------------------------------------------------------------------------------
-template < class T > CHashTable < T >::CHashTable( unsigned int tablesize ):itEl( 0 ), nEntries( 0 ),
-table_size
-( tablesize )
+template < class T > CHashTable < T >::CHashTable( unsigned int tablesize ):itEl( 0 ), nEntries( 0 ), table_size( tablesize )
 {
   table = new CHashTableEntry *[table_size];
   for( unsigned int i = 0; i < table_size; i++ )
