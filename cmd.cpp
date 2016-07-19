@@ -4,6 +4,7 @@
 // Beat Meier, PSI, 31.8.2007 for Chip/Wafer tester
 // Daniel Pitzl, DESY, 18.3.2014
 // Claudia Seitz, DESY, 2014
+// Daniel Pitzl, DESY, 5.7.2016
 
 #include <cstdlib> // abs
 #include <math.h>
@@ -14,13 +15,14 @@
 #include <iomanip> // setw
 #include <sstream> // stringstream
 #include <utility>
+#include <set>
 
-#include "TROOT.h" //  gROOT
+#include "TROOT.h" // gROOT
 #include "TFile.h" //
 #include "TCanvas.h"
 #include <TStyle.h>
-#include <TH1D.h>
 #include <TF1.h>
+#include <TH1D.h>
 #include <TH2D.h>
 #include <TProfile.h>
 #include <TProfile2D.h>
@@ -51,20 +53,17 @@ using namespace std;
 //const uint32_t Blocksize = 32700; // max 32767 in FW 2.0
 //const uint32_t Blocksize = 124800; // FW 2.11, 4160*3*10
 //const uint32_t Blocksize = 1048576; // 2^20
-const uint32_t Blocksize = 4 * 1024 * 1024; //
+const uint32_t Blocksize = 4 * 1024 * 1024;
 //const uint32_t Blocksize = 16*1024*1024; // ERROR
 //const uint32_t Blocksize = 64*1024*1024; // ERROR
-
-//             cable length:     5   48  prober 450 cm  bump bonder
-//int clockPhase =  4; //  4    0    19    5       16
-//int deserPhase =  4; //  4    4     5    6        5
-//int deserPhase =  5; //  FEC 30 cm cable
 
 int dacval[16][256];
 string dacName[256];
 
 int Chip = 599;
 int Module = 4001;
+
+bool HV = 0;
 
 int ierror = 0;
 
@@ -79,6 +78,7 @@ int modthr[16][52][80];
 int modtrm[16][52][80];
 int modcnt[16][52][80]; // responses
 int modamp[16][52][80]; // amplitudes
+bool hot[16][52][80] = { {{0}} }; // hot trim bits
 
 // gain:
 
@@ -91,22 +91,23 @@ double p3[16][52][80];
 double p4[16][52][80];
 double p5[16][52][80];
 
-TCanvas *c1;
+TCanvas *c1 = NULL;
 
-TH1D *h10;
-TH1D *h11;
-TH1D *h12;
-TH1D *h13;
-TH1D *h14;
-TH1D *h15;
-TH1D *h16;
+TH1D *h10 = NULL;
+TH1D *h11 = NULL;
+TH1D *h12 = NULL;
+TH1D *h13 = NULL;
+TH1D *h14 = NULL;
+TH1D *h15 = NULL;
+TH1D *h16 = NULL;
+TH1D *h17 = NULL;
 
-TH2D *h21;
-TH2D *h22;
-TH2D *h23;
-TH2D *h24;
-TH2D *h25;
-
+TH2D *h20 = NULL;
+TH2D *h21 = NULL;
+TH2D *h22 = NULL;
+TH2D *h23 = NULL;
+TH2D *h24 = NULL;
+TH2D *h25 = NULL;
 
 Iseg iseg;
 
@@ -119,10 +120,10 @@ class TBstate
   int deserPhase;
 
 public:
-  TBstate(  ):daqOpen( 0 ), daqSize( 0 ), clockPhase( 4 ), deserPhase( 4 )
+  TBstate():daqOpen( 0 ), daqSize( 0 ), clockPhase( 4 ), deserPhase( 4 )
   {
   }
-  ~TBstate(  )
+  ~TBstate()
   {
   }
 
@@ -130,7 +131,7 @@ public:
   {
     daqOpen = open;
   }
-  bool GetDaqOpen(  )
+  bool GetDaqOpen()
   {
     return daqOpen;
   }
@@ -139,7 +140,7 @@ public:
   {
     daqSize = size;
   }
-  uint32_t GetDaqSize(  )
+  uint32_t GetDaqSize()
   {
     return daqSize;
   }
@@ -148,7 +149,7 @@ public:
   {
     clockPhase = phase;
   }
-  uint32_t GetClockPhase(  )
+  uint32_t GetClockPhase()
   {
     return clockPhase;
   }
@@ -157,7 +158,7 @@ public:
   {
     deserPhase = phase160;
   }
-  uint32_t GetDeserPhase(  )
+  uint32_t GetDeserPhase()
   {
     return deserPhase;
   }
@@ -168,29 +169,31 @@ TBstate tbState;
 //------------------------------------------------------------------------------
 CMD_PROC( showtb ) // test board state
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+
   Log.section( "TBSTATE", true );
 
-  cout << " 40 MHz clock phase " << tbState.GetClockPhase(  ) << " ns" << endl;
-  cout << "160 MHz deser phase " << tbState.GetDeserPhase(  ) << " ns" << endl;
-  if( tbState.GetDaqOpen(  ) )
-    cout << "DAQ memeory size " << tbState.GetDaqSize(  ) << " words" << endl;
+  cout << " 40 MHz clock phase " << tbState.GetClockPhase() << " ns" << endl;
+  cout << "160 MHz deser phase " << tbState.GetDeserPhase() << " ns" << endl;
+  if( tbState.GetDaqOpen() )
+    cout << "DAQ memeory size " << tbState.GetDaqSize() << " words" << endl;
   else
     cout << "no DAQ open" << endl;
 
-  uint8_t status = tb.GetStatus(  );
+  uint8_t status = tb.GetStatus();
   printf( "SD card detect: %c\n", ( status & 8 ) ? '1' : '0' );
   printf( "CRC error:      %c\n", ( status & 4 ) ? '1' : '0' );
   printf( "Clock good:     %c\n", ( status & 2 ) ? '1' : '0' );
   printf( "CLock present:  %c\n", ( status & 1 ) ? '1' : '0' );
 
-  Log.printf( "Clock phase %i\n", tbState.GetClockPhase(  ) );
-  Log.printf( "Deser phase %i\n", tbState.GetDeserPhase(  ) );
-  if( tbState.GetDaqOpen(  ) )
-    Log.printf( "DAQ memory size %i\n", tbState.GetDaqSize(  ) );
+  Log.printf( "Clock phase %i\n", tbState.GetClockPhase() );
+  Log.printf( "Deser phase %i\n", tbState.GetDeserPhase() );
+  if( tbState.GetDaqOpen() )
+    Log.printf( "DAQ memory size %i\n", tbState.GetDaqSize() );
   else
     Log.printf( "DAQ not open\n" );
 
-  cout << "PixelAddressInverted " << tb.GetPixelAddressInverted(  ) << endl;
+  cout << "PixelAddressInverted " << tb.GetPixelAddressInverted() << endl;
   cout << "PixelAddressInverted " << tb.invertAddress << endl;
 
   return true;
@@ -199,13 +202,15 @@ CMD_PROC( showtb ) // test board state
 //------------------------------------------------------------------------------
 CMD_PROC( showhv ) // iseg HV status
 {
-  iseg.status(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  iseg.status();
   return true;
 }
 
 //------------------------------------------------------------------------------
 CMD_PROC( scan ) // scan for DTB on USB
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   CTestboard *tb = new CTestboard;
   string name;
   vector < string > devList;
@@ -217,7 +222,7 @@ CMD_PROC( scan ) // scan for DTB on USB
     for( nr = 0; nr < nDev; ++nr ) {
       if( !tb->EnumNext( name ) )
         throw int ( 2 );
-      if( name.size(  ) < 4 )
+      if( name.size() < 4 )
         continue;
       if( name.compare( 0, 4, "DTB_" ) == 0 )
         devList.push_back( name );
@@ -236,25 +241,25 @@ CMD_PROC( scan ) // scan for DTB on USB
     return true;
   }
 
-  if( devList.size(  ) == 0 ) {
+  if( devList.size() == 0 ) {
     printf( "no DTB connected\n" );
     return true;
   }
 
-  for( nr = 0; nr < devList.size(  ); ++nr )
+  for( nr = 0; nr < devList.size(); ++nr )
     try {
-      printf( "%10s: ", devList[nr].c_str(  ) );
+      printf( "%10s: ", devList[nr].c_str() );
       if( !tb->Open( devList[nr], false ) ) {
 	printf( "DTB in use\n" );
 	continue;
       }
-      unsigned int bid = tb->GetBoardId(  );
+      unsigned int bid = tb->GetBoardId();
       printf( "DTB Id %u\n", bid );
-      tb->Close(  );
+      tb->Close();
     }
     catch( ... ) {
       printf( "DTB not identifiable\n" );
-      tb->Close(  );
+      tb->Close();
     }
 
   delete tb; // not permanentely opened
@@ -265,7 +270,7 @@ CMD_PROC( scan ) // scan for DTB on USB
 //------------------------------------------------------------------------------
 CMD_PROC( open )
 {
-  if( tb.IsConnected(  ) ) {
+  if( tb.IsConnected() ) {
     printf( "Already connected to DTB.\n" );
     return true;
   }
@@ -281,18 +286,18 @@ CMD_PROC( open )
 
   if( !status ) {
     printf( "USB error: %s\nCould not connect to DTB %s\n",
-            tb.ConnectionError(  ), usbId.c_str(  ) );
+            tb.ConnectionError(), usbId.c_str() );
     return true;
   }
 
-  printf( "DTB %s opened\n", usbId.c_str(  ) );
+  printf( "DTB %s opened\n", usbId.c_str() );
 
   string info;
   tb.GetInfo( info );
   printf( "--- DTB info-------------------------------------\n"
           "%s"
           "-------------------------------------------------\n",
-          info.c_str(  ) );
+          info.c_str() );
 
   return true;
 }
@@ -300,14 +305,16 @@ CMD_PROC( open )
 //------------------------------------------------------------------------------
 CMD_PROC( close )
 {
-  tb.Close(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Close();
   return true;
 }
 
 //------------------------------------------------------------------------------
 CMD_PROC( welcome )
 {
-  tb.Welcome(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Welcome();
   DO_FLUSH;
   return true;
 }
@@ -336,10 +343,10 @@ bool UpdateDTB( const char *filename )
 {
   fstream src;
 
-  if( tb.UpgradeGetVersion(  ) == 0x0100 ) {
+  if( tb.UpgradeGetVersion() == 0x0100 ) {
     // open file
     src.open( filename );
-    if( !src.is_open(  ) ) {
+    if( !src.is_open() ) {
       printf( "ERROR UPGRADE: Could not open \"%s\"!\n", filename );
       return false;
     }
@@ -349,7 +356,7 @@ bool UpdateDTB( const char *filename )
     if( tb.UpgradeStart( 0x0100 ) != 0 ) {
       string msg;
       tb.UpgradeErrorMsg( msg );
-      printf( "ERROR UPGRADE: %s!\n", msg.data(  ) );
+      printf( "ERROR UPGRADE: %s!\n", msg.data() );
       return false;
     }
 
@@ -359,18 +366,18 @@ bool UpdateDTB( const char *filename )
     uint16_t recordCount = 0;
     while( true ) {
       getline( src, rec );
-      if( src.good(  ) ) {
-        if( rec.size(  ) == 0 )
+      if( src.good() ) {
+        if( rec.size() == 0 )
           continue;
         ++recordCount;
         if( tb.UpgradeData( rec ) != 0 ) {
           string msg;
           tb.UpgradeErrorMsg( msg );
-          printf( "ERROR UPGRADE: %s!\n", msg.data(  ) );
+          printf( "ERROR UPGRADE: %s!\n", msg.data() );
           return false;
         }
       }
-      else if( src.eof(  ) )
+      else if( src.eof() )
         break;
       else {
         printf( "ERROR UPGRADE: Error reading \"%s\"!\n", filename );
@@ -378,10 +385,10 @@ bool UpdateDTB( const char *filename )
       }
     }
 
-    if( tb.UpgradeError(  ) != 0 ) {
+    if( tb.UpgradeError() != 0 ) {
       string msg;
       tb.UpgradeErrorMsg( msg );
-      printf( "ERROR UPGRADE: %s!\n", msg.data(  ) );
+      printf( "ERROR UPGRADE: %s!\n", msg.data() );
       return false;
     }
 
@@ -393,7 +400,7 @@ bool UpdateDTB( const char *filename )
             "Wait till LEDs goes off\n"
             "  exit from psi46test\n" "  power cycle the DTB\n" );
     tb.UpgradeExec( recordCount );
-    tb.Flush(  );
+    tb.Flush();
     return true;
   }
 
@@ -413,21 +420,22 @@ CMD_PROC( upgrade )
 //------------------------------------------------------------------------------
 CMD_PROC( rpcinfo )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   string name, call, ts;
 
   tb.GetRpcTimestamp( ts );
-  int version = tb.GetRpcVersion(  );
-  int n = tb.GetRpcCallCount(  );
+  int version = tb.GetRpcVersion();
+  int n = tb.GetRpcCallCount();
 
   printf( "--- DTB RPC info ----------------------------------------\n" );
   printf( "RPC version:     %i.%i\n", version / 256, version & 0xff );
-  printf( "RPC timestamp:   %s\n", ts.c_str(  ) );
+  printf( "RPC timestamp:   %s\n", ts.c_str() );
   printf( "Number of calls: %i\n", n );
   printf( "Function calls:\n" );
   for( int i = 0; i < n; ++i ) {
     tb.GetRpcCallName( i, name );
     rpc_TranslateCallName( name, call );
-    printf( "%5i: %s\n", i, call.c_str(  ) );
+    printf( "%5i: %s\n", i, call.c_str() );
   }
   return true;
 }
@@ -435,22 +443,24 @@ CMD_PROC( rpcinfo )
 //------------------------------------------------------------------------------
 CMD_PROC( info )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   string s;
   tb.GetInfo( s );
   printf( "--- DTB info ------------------------------------\n%s"
           "-------------------------------------------------\n",
-          s.c_str(  ) );
+          s.c_str() );
   return true;
 }
 
 //------------------------------------------------------------------------------
 CMD_PROC( version )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   string hw;
   tb.GetHWVersion( hw );
-  int fw = tb.GetFWVersion(  );
-  int sw = tb.GetSWVersion(  );
-  printf( "%s: FW=%i.%02i SW=%i.%02i\n", hw.c_str(  ), fw / 256, fw % 256,
+  int fw = tb.GetFWVersion();
+  int sw = tb.GetSWVersion();
+  printf( "%s: FW=%i.%02i SW=%i.%02i\n", hw.c_str(), fw / 256, fw % 256,
           sw / 256, sw % 256 );
   return true;
 }
@@ -458,7 +468,8 @@ CMD_PROC( version )
 //------------------------------------------------------------------------------
 CMD_PROC( boardid )
 {
-  int id = tb.GetBoardId(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  int id = tb.GetBoardId();
   printf( "Board Id = %i\n", id );
   return true;
 }
@@ -466,7 +477,8 @@ CMD_PROC( boardid )
 //------------------------------------------------------------------------------
 CMD_PROC( init )
 {
-  tb.Init(  ); // done at power up?
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Init(); // done at power up?
   DO_FLUSH;
   return true;
 }
@@ -474,14 +486,16 @@ CMD_PROC( init )
 //------------------------------------------------------------------------------
 CMD_PROC( flush )
 {
-  tb.Flush(  ); // send buffer of USB commands to DTB
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Flush(); // send buffer of USB commands to DTB
   return true;
 }
 
 //------------------------------------------------------------------------------
 CMD_PROC( clear )
 {
-  tb.Clear(  ); // rpc_io->Clear()
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Clear(); // rpc_io->Clear()
   return true;
 }
 
@@ -509,7 +523,7 @@ CMD_PROC( mdelay )
 CMD_PROC( d1 )
 {
   int sig;
-  PAR_INT( sig, 0, 31 );
+  PAR_INT( sig, 0, 131 );
   tb.SignalProbeD1( sig );
   DO_FLUSH;
   return true;
@@ -519,7 +533,7 @@ CMD_PROC( d1 )
 CMD_PROC( d2 )
 {
   int sig;
-  PAR_INT( sig, 0, 31 );
+  PAR_INT( sig, 0, 131 );
   tb.SignalProbeD2( sig );
   DO_FLUSH;
   return true;
@@ -559,7 +573,7 @@ CMD_PROC( probeadc )
 CMD_PROC( clksrc )
 {
   int source;
-  PAR_INT( source, 0, 1 );
+  PAR_INT( source, 0, 1 ); // 1 = ext
   tb.SetClockSource( source );
   DO_FLUSH;
   return true;
@@ -568,10 +582,11 @@ CMD_PROC( clksrc )
 //------------------------------------------------------------------------------
 CMD_PROC( clkok )
 {
-  if( tb.IsClockPresent(  ) )
-    printf( "clock ok\n" );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  if( tb.IsClockPresent() )
+    cout << "clock OK" << endl;
   else
-    printf( "clock missing\n" );
+    cout << "clock missing" << endl;
   return true;
 }
 
@@ -783,7 +798,8 @@ CMD_PROC( sigoffset )
 //------------------------------------------------------------------------------
 CMD_PROC( lvds )
 {
-  tb.Sig_SetLVDS(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Sig_SetLVDS();
   DO_FLUSH;
   return true;
 }
@@ -791,7 +807,8 @@ CMD_PROC( lvds )
 //------------------------------------------------------------------------------
 CMD_PROC( lcds )
 {
-  tb.Sig_SetLCDS(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Sig_SetLCDS();
   DO_FLUSH;
   return true;
 }
@@ -820,7 +837,8 @@ CMD_PROC( lcds )
 //------------------------------------------------------------------------------
 CMD_PROC( pon )
 {
-  tb.Pon(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Pon();
   DO_FLUSH;
   return true;
 }
@@ -828,7 +846,8 @@ CMD_PROC( pon )
 //------------------------------------------------------------------------------
 CMD_PROC( poff )
 {
-  tb.Poff(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Poff();
   DO_FLUSH;
   return true;
 }
@@ -881,7 +900,8 @@ CMD_PROC( id ) // digital current limit [mA]
 //------------------------------------------------------------------------------
 CMD_PROC( getva ) // measure analog supply voltage
 {
-  double v = tb.GetVA(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  double v = tb.GetVA();
   printf( "VA %1.3f V\n", v );
   Log.printf( "VA %1.3f V\n", v );
   return true;
@@ -890,7 +910,8 @@ CMD_PROC( getva ) // measure analog supply voltage
 //------------------------------------------------------------------------------
 CMD_PROC( getvd ) // measure digital supply voltage
 {
-  double v = tb.GetVD(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  double v = tb.GetVD();
   printf( "VD %1.3f V\n", v );
   Log.printf( "VD %1.3f V\n", v );
   return true;
@@ -899,7 +920,8 @@ CMD_PROC( getvd ) // measure digital supply voltage
 //------------------------------------------------------------------------------
 CMD_PROC( getia ) // measure analog supply current
 {
-  double ia = tb.GetIA(  ) * 1E3; // [mA]
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  double ia = tb.GetIA() * 1E3; // [mA]
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
@@ -914,7 +936,8 @@ CMD_PROC( getia ) // measure analog supply current
 //------------------------------------------------------------------------------
 CMD_PROC( getid ) // measure digital supply current
 {
-  double id = tb.GetID(  ) * 1E3; // [mA]
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  double id = tb.GetID() * 1E3; // [mA]
   printf( "ID %1.1f mA\n", id );
   Log.printf( "ID %1.1f mA\n", id );
   ierror = 0;
@@ -933,9 +956,11 @@ CMD_PROC( getid ) // measure digital supply current
 //------------------------------------------------------------------------------
 CMD_PROC( hvon )
 {
-  tb.HVon(  ); // close HV relais on DTB
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.HVon(); // close HV relais on DTB
   DO_FLUSH;
   Log.printf( "[HVON]" );
+  HV = 1;
   return true;
 }
 
@@ -943,7 +968,7 @@ CMD_PROC( hvon )
 CMD_PROC( vb ) // set ISEG bias voltage
 {
   int value;
-  PAR_INT( value, 0, 400 ); // software limit [V]
+  PAR_INT( value, 0, 2000 ); // software limit [V]
   iseg.setVoltage( value );
   Log.printf( "[SETVB] -%i\n", value );
   return true;
@@ -952,6 +977,7 @@ CMD_PROC( vb ) // set ISEG bias voltage
 //------------------------------------------------------------------------------
 CMD_PROC( getvb ) // measure back bias voltage
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   double vb = iseg.getVoltage();
   cout << "bias voltage " << vb << " V" << endl;
   Log.printf( "VB %f V\n", vb );
@@ -961,9 +987,10 @@ CMD_PROC( getvb ) // measure back bias voltage
 //------------------------------------------------------------------------------
 CMD_PROC( getib ) // get bias current
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   double ib = iseg.getCurrent();
   cout << "bias current " << ib*1E6 << " uA" << endl;
-  Log.printf( "IB %f A\n", ib );
+  Log.printf( "IB %f uA\n", ib*1E6 );
   return true;
 }
 
@@ -1005,7 +1032,7 @@ CMD_PROC( scanvb ) // bias voltage scan
     double diff = vstp;
     int niter = 0;
     while( fabs( diff ) > 0.1 && niter < 11 ) {
-      double vm = iseg.getVoltage(  ); // measure Vbias, negative!
+      double vm = iseg.getVoltage(); // measure Vbias, negative!
       diff = fabs(vm) - vb;
       ++niter;
     }
@@ -1037,18 +1064,16 @@ CMD_PROC( scanvb ) // bias voltage scan
     h11->Fill( vb, uA );
 
     h11->Draw( "hist" );
-    c1->Update(  );
+    c1->Update();
 
   } // bias scan
 
   iseg.setVoltage( vmin ); // for safety
 
-  h11->Write(  );
-  h11->Draw( "hist" );
-  c1->Update(  );
+  h11->Write();
   cout << "  histos 11" << endl;
 
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -1062,6 +1087,7 @@ CMD_PROC( scanvb ) // bias voltage scan
 //------------------------------------------------------------------------------
 CMD_PROC( ibvst ) // bias current vs time
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   timeval tv;
   gettimeofday( &tv, NULL );
   long s0 = tv.tv_sec; // seconds since 1.1.1970
@@ -1078,13 +1104,13 @@ CMD_PROC( ibvst ) // bias current vs time
 
   double wait = 1; // [s]
 
-  double vb = iseg.getVoltage(  ); // measure Vbias, negative!
+  double vb = iseg.getVoltage(); // measure Vbias, negative!
 
   cout << "vbias " << setw(3) << vb << endl;
 
   double runtime = 0;
 
-  while( !keypressed(  ) ) {
+  while( !keypressed() ) {
 
     double duration = 0;
     double uA = 0;
@@ -1110,17 +1136,17 @@ CMD_PROC( ibvst ) // bias current vs time
     Log.printf( "%i %f\n", vb, uA );
     h11->Fill( runtime, uA );
     h11->Draw( "hist" );
-    c1->Update(  );
+    c1->Update();
 
   } // time
 
-  h11->Write(  );
+  h11->Write();
   h11->SetStats( 0 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -1134,17 +1160,20 @@ CMD_PROC( ibvst ) // bias current vs time
 //------------------------------------------------------------------------------
 CMD_PROC( hvoff )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   iseg.setVoltage( 0 );
-  tb.HVoff(  ); // open HV relais on DTB
+  tb.HVoff(); // open HV relais on DTB
   DO_FLUSH;
   Log.printf( "[HVOFF]" );
+  HV = 0;
   return true;
 }
 
 //------------------------------------------------------------------------------
 CMD_PROC( reson )
 {
-  tb.ResetOn(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.ResetOn();
   DO_FLUSH;
   return true;
 }
@@ -1152,7 +1181,8 @@ CMD_PROC( reson )
 //------------------------------------------------------------------------------
 CMD_PROC( resoff )
 {
-  tb.ResetOff(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.ResetOff();
   DO_FLUSH;
   return true;
 }
@@ -1183,7 +1213,7 @@ CMD_PROC( select ) // define active ROCs
   } // i
 
   //tb.Daq_Deser400_OldFormat( true ); // PSI D0003 has TBM08
-  tb.Daq_Deser400_OldFormat( false ); // DESY has TBM08b
+  tb.Daq_Deser400_OldFormat( false ); // DESY has TBM08b/a
 
   vector < uint8_t > trimvalues( 4160 ); // uint8 in 2.15
   for( int i = 0; i < 4160; ++i )
@@ -1226,6 +1256,7 @@ CMD_PROC( rocaddr )
 //------------------------------------------------------------------------------
 CMD_PROC( rowinvert )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   tb.SetPixelAddressInverted( 1 );
   tb.invertAddress = 1;
   cout << "SetPixelAddressInverted" << endl;
@@ -1252,6 +1283,12 @@ CMD_PROC( chip )
     tb.SetPixelAddressInverted( 0 );
     tb.invertAddress = 0;
     cout << "SetPixelAddressNotInverted" << endl;
+  }
+  if( Chip < 600 )
+    tb.linearAddress = 0;
+  else {
+    tb.linearAddress = 1;
+    cout << "PROC600 with linear address encoding" << endl;
   }
 
   dacName[1] = "Vdig";
@@ -1314,9 +1351,9 @@ CMD_PROC( chip )
   if( Chip == 501 )
     gainFileName = "c501-trim35-gaincal.dat";
 
-  if( gainFileName.length(  ) > 0 ) {
+  if( gainFileName.length() > 0 ) {
 
-    ifstream gainFile( gainFileName.c_str(  ) );
+    ifstream gainFile( gainFileName.c_str() );
 
     if( gainFile ) {
 
@@ -1344,7 +1381,8 @@ CMD_PROC( chip )
   } // gainFileName
 
   return true;
-}
+
+} // chip
 
 //------------------------------------------------------------------------------
 CMD_PROC( module )
@@ -1385,9 +1423,9 @@ CMD_PROC( module )
   if( Module == 4509 )
     gainFileName = "K4509_trim32_chiller15_gaincalib.dat"; // KIT
 
-  if( gainFileName.length(  ) > 0 ) {
+  if( gainFileName.length() > 0 ) {
 
-    ifstream gainFile( gainFileName.c_str(  ) );
+    ifstream gainFile( gainFileName.c_str() );
 
     if( gainFile ) {
 
@@ -1414,7 +1452,8 @@ CMD_PROC( module )
   } // gainFileName
 
   return true;
-}
+
+} // module
 
 //------------------------------------------------------------------------------
 CMD_PROC( pgset )
@@ -1431,7 +1470,8 @@ CMD_PROC( pgset )
 //------------------------------------------------------------------------------
 CMD_PROC( pgstop )
 {
-  tb.Pg_Stop(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Pg_Stop();
   DO_FLUSH;
   return true;
 }
@@ -1439,7 +1479,8 @@ CMD_PROC( pgstop )
 //------------------------------------------------------------------------------
 CMD_PROC( pgsingle )
 {
-  tb.Pg_Single(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Pg_Single();
   DO_FLUSH;
   return true;
 }
@@ -1447,7 +1488,8 @@ CMD_PROC( pgsingle )
 //------------------------------------------------------------------------------
 CMD_PROC( pgtrig )
 {
-  tb.Pg_Trigger(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Pg_Trigger();
   DO_FLUSH;
   return true;
 }
@@ -1468,6 +1510,66 @@ CMD_PROC( trigdel )
   int delay;
   PAR_INT( delay, 0, 65535 );
   tb.SetLoopTriggerDelay( delay ); // [BC]
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC( trgsel ) // 4.1.1, bitmask 16 = PG, 4 = PG_DIR, 256 = ASYNC, 2048=ASYNC_DIR
+{
+  int bitmask;
+  PAR_INT( bitmask, 0, 4095 );
+  tb.Trigger_Select(bitmask);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(trgdel) // 4.0
+{
+  int delay;
+  PAR_INT( delay, 0, 255 );
+  tb.Trigger_Delay(delay);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(trgtimeout) // 4.0
+{
+  int timeout;
+  PAR_INT(timeout, 0, 65535);
+  tb.Trigger_Timeout(timeout);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(trgper) // 4.0
+{
+  int period;
+  PAR_INT(period, 0, 0x7fffffff);
+  tb.Trigger_SetGenPeriodic(period);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(trgrand) // 4.0
+{
+  int rate;
+  PAR_INT(rate, 0, 0x7fffffff);
+  tb.Trigger_SetGenRandom(rate);
+  DO_FLUSH;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+CMD_PROC(trgsend) // 4.0
+{
+  int bitmask;
+  PAR_INT(bitmask, 0, 31);
+  tb.Trigger_Send(bitmask);
   DO_FLUSH;
   return true;
 }
@@ -1523,79 +1625,111 @@ CMD_PROC( upd ) // redraw ROOT canvas; only works for global histos
 {
   int plot;
   if( !PAR_IS_INT( plot, 10, 29 ) ) {
-    gPad->Modified(  );
-    gPad->Update(  );
+    gPad->Modified();
+    gPad->Update();
     //c1->Modified();
     //c1->Update();
   }
   else if( plot == 10 ) {
     gStyle->SetOptStat( 111111 );
-    h10->Draw( "hist" );
-    c1->Update(  );
+    if( h10 != NULL )
+      h10->Draw( "hist" );
+    c1->Update();
   }
   else if( plot == 11 ) {
     gStyle->SetOptStat( 111111 );
-    h11->Draw( "hist" );
-    c1->Update(  );
+    if( h11 != NULL )
+      h11->Draw( "hist" );
+    c1->Update();
   }
   else if( plot == 12 ) {
     gStyle->SetOptStat( 111111 );
-    h12->Draw( "hist" );
-    c1->Update(  );
+    if( h12 != NULL )
+      h12->Draw( "hist" );
+    c1->Update();
   }
   else if( plot == 13 ) {
     gStyle->SetOptStat( 111111 );
-    h13->Draw( "hist" );
-    c1->Update(  );
+    if( h13 != NULL )
+      h13->Draw( "hist" );
+    c1->Update();
   }
   else if( plot == 14 ) {
     gStyle->SetOptStat( 111111 );
-    h14->Draw( "hist" );
-    c1->Update(  );
+    if( h14 != NULL )
+      h14->Draw( "hist" );
+    c1->Update();
   }
   else if( plot == 15 ) {
     gStyle->SetOptStat( 111111 );
-    h15->Draw( "hist" );
-    c1->Update(  );
+    if( h15 != NULL )
+      h15->Draw( "hist" );
+    c1->Update();
   }
-  else if( plot == 21 ) {
-    double statY = gStyle->GetStatY(  );
+  else if( plot == 16 ) {
+    gStyle->SetOptStat( 111111 );
+    if( h16 != NULL )
+      h16->Draw( "hist" );
+    c1->Update();
+  }
+  else if( plot == 17 ) {
+    gStyle->SetOptStat( 111111 );
+    if( h17 != NULL )
+      h17->Draw( "hist" );
+    c1->Update();
+  }
+  else if( plot == 20 ) {
+    double statY = gStyle->GetStatY();
     gStyle->SetStatY( 0.95 );
     gStyle->SetOptStat( 10 ); // entries
-    h21->Draw( "colz" );
-    c1->Update(  );
+    if( h20 != NULL )
+      h20->Draw( "colz" );
+    c1->Update();
+    gStyle->SetStatY( statY );
+  }
+  else if( plot == 21 ) {
+    double statY = gStyle->GetStatY();
+    gStyle->SetStatY( 0.95 );
+    gStyle->SetOptStat( 10 ); // entries
+    if( h21 != NULL )
+      h21->Draw( "colz" );
+    c1->Update();
     gStyle->SetStatY( statY );
   }
   else if( plot == 22 ) {
-    double statY = gStyle->GetStatY(  );
+    double statY = gStyle->GetStatY();
     gStyle->SetStatY( 0.95 );
     gStyle->SetOptStat( 10 ); // entries
-    h22->Draw( "colz" );
-    c1->Update(  );
+    if( h22 != NULL )
+      h22->Draw( "colz" );
+    c1->Update();
     gStyle->SetStatY( statY );
   }
   else if( plot == 23 ) {
-    double statY = gStyle->GetStatY(  );
+    double statY = gStyle->GetStatY();
     gStyle->SetStatY( 0.95 );
     gStyle->SetOptStat( 10 ); // entries
-    h23->Draw( "colz" );
-    c1->Update(  );
+    if( h23 != NULL )
+      h23->Draw( "colz" );
+    c1->Update();
     gStyle->SetStatY( statY );
   }
   else if( plot == 24 ) {
-    double statY = gStyle->GetStatY(  );
+    double statY = gStyle->GetStatY();
     gStyle->SetStatY( 0.95 );
     gStyle->SetOptStat( 10 ); // entries
-    h24->Draw( "colz" );
-    c1->Update(  );
+    if( h24 != NULL )
+      h24->Draw( "colz" );
+    c1->Update();
     gStyle->SetStatY( statY );
   }
   else if( plot == 25 ) {
-    double statY = gStyle->GetStatY(  );
+    double statY = gStyle->GetStatY();
     gStyle->SetStatY( 0.95 );
     gStyle->SetOptStat( 10 ); // entries
-    h25->Draw( "colz" );
-    c1->Update(  );
+    if( h25 != NULL )
+      h25->Draw( "colz" );
+    c1->Update();
     gStyle->SetStatY( statY );
   }
 
@@ -1631,9 +1765,9 @@ CMD_PROC( dsel ) // dsel 160 or 400
   int MHz;
   PAR_INT( MHz, 160, 400 );
   if( MHz > 200 )
-    tb.Daq_Select_Deser400(  );
+    tb.Daq_Select_Deser400();
   else
-    tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   DO_FLUSH;
   return true;
 }
@@ -1641,7 +1775,8 @@ CMD_PROC( dsel ) // dsel 160 or 400
 //------------------------------------------------------------------------------
 CMD_PROC( dselmod )
 {
-  tb.Daq_Select_Deser400(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Daq_Select_Deser400();
   DO_FLUSH;
   return true;
 }
@@ -1670,7 +1805,8 @@ CMD_PROC( dselsim )
 //------------------------------------------------------------------------------
 CMD_PROC( dseloff )
 {
-  tb.Daq_DeselectAll(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  tb.Daq_DeselectAll();
   DO_FLUSH return true;
 }
 
@@ -1688,6 +1824,8 @@ CMD_PROC( deser )
 //------------------------------------------------------------------------------
 CMD_PROC( deser160 ) // scan DESER160 and clock phase for header 7F8
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
@@ -1715,21 +1853,21 @@ CMD_PROC( deser160 ) // scan DESER160 and clock phase for header 7F8
       tb.Daq_Select_Deser160( x );
       tb.uDelay( 10 );
 
-      tb.Daq_Start(  );
+      tb.Daq_Start();
 
       tb.uDelay( 10 );
 
-      tb.Pg_Single(  );
+      tb.Pg_Single();
 
       tb.uDelay( 10 );
 
-      tb.Daq_Stop(  );
+      tb.Daq_Stop();
 
-      data.resize( tb.Daq_GetSize(  ), 0 );
+      data.resize( tb.Daq_GetSize(), 0 );
 
       tb.Daq_Read( data, 100 );
 
-      if( data.size(  ) ) {
+      if( data.size() ) {
         int h = data[0] & 0xffc;
         if( h == 0x7f8 ) {
           printf( " <%03X>", int ( data[0] & 0xffc ) );
@@ -1748,18 +1886,18 @@ CMD_PROC( deser160 ) // scan DESER160 and clock phase for header 7F8
   } // clk phase
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
 #endif
 
   printf( "Old values: clk delay %i, deserPhase %i\n",
-          tbState.GetClockPhase(  ), tbState.GetDeserPhase(  ) );
+          tbState.GetClockPhase(), tbState.GetDeserPhase() );
 
-  if( goodvalues.size(  ) == 0 ) {
+  if( goodvalues.size() == 0 ) {
 
     printf
       ( "No value found where header could be read back - no adjustments made.\n" );
-    tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) ); // back to default
-    y = tbState.GetClockPhase(  ); // back to default
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase() ); // back to default
+    y = tbState.GetClockPhase(); // back to default
     tb.Sig_SetDelay( SIG_CLK, y );
     tb.Sig_SetDelay( SIG_CTR, y );
     tb.Sig_SetDelay( SIG_SDA, y + 15 );
@@ -1768,23 +1906,123 @@ CMD_PROC( deser160 ) // scan DESER160 and clock phase for header 7F8
   }
   printf( "Good values are:\n" );
   for( std::vector < std::pair < int, int > >::const_iterator it =
-	 goodvalues.begin(  ); it != goodvalues.end(  ); ++it ) {
+	 goodvalues.begin(); it != goodvalues.end(); ++it ) {
     printf( "%i %i\n", it->first, it->second );
   }
-  const int select = floor( 0.5 * goodvalues.size(  ) - 0.5 );
+  const int select = floor( 0.5 * goodvalues.size() - 0.5 );
   tbState.SetClockPhase( goodvalues[select].first );
   tbState.SetDeserPhase( goodvalues[select].second );
   printf( "New values: clock delay %i, deserPhase %i\n",
-          tbState.GetClockPhase(  ), tbState.GetDeserPhase(  ) );
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) ); // set new
-  y = tbState.GetClockPhase(  );
+          tbState.GetClockPhase(), tbState.GetDeserPhase() );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() ); // set new
+  y = tbState.GetClockPhase();
   tb.Sig_SetDelay( SIG_CLK, y );
   tb.Sig_SetDelay( SIG_CTR, y );
   tb.Sig_SetDelay( SIG_SDA, y + 15 );
   tb.Sig_SetDelay( SIG_TIN, y + 5 );
 
   return true;
-}
+
+} // deser160
+
+//------------------------------------------------------------------------------
+CMD_PROC( deserext ) // scan DESER160 phase for header 7F8 with ext trig
+{
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+#ifdef DAQOPENCLOSE
+  tb.Daq_Open( Blocksize );
+#endif
+
+  vector < uint16_t > data;
+
+  vector < std::pair < int, int > > goodvalues;
+
+  tb.Trigger_Select(256); // ext TRG
+
+  int x, y;
+  printf( "deser phs 0     1     2     3     4     5     6     7\n" );
+
+  for( y = 0; y < 25; ++y ) { // clk
+
+    printf( "clk %2i:", y );
+
+    tb.Sig_SetDelay( SIG_CLK, y );
+    tb.Sig_SetDelay( SIG_CTR, y );
+    tb.Sig_SetDelay( SIG_SDA, y + 15 );
+    tb.Sig_SetDelay( SIG_TIN, y + 5 );
+
+    for( x = 0; x < 8; ++x ) { // deser160 phase
+
+      tb.Daq_Select_Deser160( x );
+      tb.uDelay( 10 );
+
+      tb.Daq_Start();
+
+      tb.uDelay( 100 );
+
+      tb.Daq_Stop();
+
+      data.resize( tb.Daq_GetSize(), 0 );
+
+      tb.Daq_Read( data, 100 );
+
+      if( data.size() ) {
+        int h = data[0] & 0xffc;
+        if( h == 0x7f8 ) {
+          printf( " <%03X>", int ( data[0] & 0xffc ) );
+          goodvalues.push_back( std::make_pair( y, x ) );
+        }
+        else
+          printf( "  %03X ", int ( data[0] & 0xffc ) );
+      }
+      else
+        printf( "  ... " );
+
+    } // deser phase
+
+    printf( "\n" );
+
+  } // clk phase
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Close();
+#endif
+
+  printf( "Old values: clk delay %i, deserPhase %i\n",
+          tbState.GetClockPhase(), tbState.GetDeserPhase() );
+
+  if( goodvalues.size() == 0 ) {
+
+    printf
+      ( "No value found where header could be read back - no adjustments made.\n" );
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase() ); // back to default
+    y = tbState.GetClockPhase(); // back to default
+    tb.Sig_SetDelay( SIG_CLK, y );
+    tb.Sig_SetDelay( SIG_CTR, y );
+    tb.Sig_SetDelay( SIG_SDA, y + 15 );
+    tb.Sig_SetDelay( SIG_TIN, y + 5 );
+    return true;
+  }
+  printf( "Good values are:\n" );
+  for( std::vector < std::pair < int, int > >::const_iterator it =
+	 goodvalues.begin(); it != goodvalues.end(); ++it ) {
+    printf( "%i %i\n", it->first, it->second );
+  }
+  const int select = floor( 0.5 * goodvalues.size() - 0.5 );
+  tbState.SetClockPhase( goodvalues[select].first );
+  tbState.SetDeserPhase( goodvalues[select].second );
+  printf( "New values: clock delay %i, deserPhase %i\n",
+          tbState.GetClockPhase(), tbState.GetDeserPhase() );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() ); // set new
+  y = tbState.GetClockPhase();
+  tb.Sig_SetDelay( SIG_CLK, y );
+  tb.Sig_SetDelay( SIG_CTR, y );
+  tb.Sig_SetDelay( SIG_SDA, y + 15 );
+  tb.Sig_SetDelay( SIG_TIN, y + 5 );
+
+  return true;
+
+} // deserext
 
 //------------------------------------------------------------------------------
 CMD_PROC( dreset ) // dreset 3 = Deser400 reset
@@ -1878,7 +2116,7 @@ void DecodeTbmTrailer08( unsigned int raw )
 }
 
 //------------------------------------------------------------------------------
-void DecodeTbmHeader( unsigned int raw ) // 08ab
+void DecodeTbmHeader( unsigned int raw ) // 08abc
 {
   int data = raw & 0x3f;
   int dataId = ( raw >> 6 ) & 0x3;
@@ -1887,16 +2125,21 @@ void DecodeTbmHeader( unsigned int raw ) // 08ab
 }
 
 //------------------------------------------------------------------------------
-void DecodeTbmTrailer( unsigned int raw ) // 08b
+void DecodeTbmTrailer( unsigned int raw ) // 08bc
 {
-  int stkCnt = raw & 0x3f;
+  int stkCnt = raw & 0x3f; // 3f = 11'1111
   printf
-    ( "  NTP(%c) RST(%c) RSR(%c) SYE(%c) SYT(%c) CTC(%c) CAL(%c) SF(%c) PKR(%c) ARS(%c) STKCNT(%2i)",
-      ( raw & 0x8000 ) ? '1' : '0', ( raw & 0x4000 ) ? '1' : '0',
-      ( raw & 0x2000 ) ? '1' : '0', ( raw & 0x1000 ) ? '1' : '0',
-      ( raw & 0x0800 ) ? '1' : '0', ( raw & 0x0400 ) ? '1' : '0',
-      ( raw & 0x0200 ) ? '1' : '0', ( raw & 0x0100 ) ? '1' : '0',
-      ( raw & 0x0080 ) ? '1' : '0', ( raw & 0x0040 ) ? '1' : '0',
+    ( "  NTP(%c) RST(%c) RSR(%c) SYE(%c) SYT(%c) CTC(%c) CAL(%c) SF(%c) ARS(%c) PRS(%c) STKCNT(%2i)", // DP bug fix: ARS-PKR order
+      ( raw & 0x8000 ) ? '1' : '0',
+      ( raw & 0x4000 ) ? '1' : '0',
+      ( raw & 0x2000 ) ? '1' : '0',
+      ( raw & 0x1000 ) ? '1' : '0',
+      ( raw & 0x0800 ) ? '1' : '0',
+      ( raw & 0x0400 ) ? '1' : '0',
+      ( raw & 0x0200 ) ? '1' : '0',
+      ( raw & 0x0100 ) ? '1' : '0',
+      ( raw & 0x0080 ) ? '1' : '0',
+      ( raw & 0x0040 ) ? '1' : '0',
       stkCnt );
 }
 
@@ -1942,16 +2185,16 @@ class Decoder
 
   int x, y, ph;
 public:
-  Decoder(  ):printEvery( 0 ), nReadout( 0 ), nPixel( 0 ), f( 0 ),
+  Decoder():printEvery( 0 ), nReadout( 0 ), nPixel( 0 ), f( 0 ),
 	      nSamples( 0 ), samples( 0 )
   {
   }
-  ~Decoder(  )
+  ~Decoder()
   {
-    Close(  );
+    Close();
   }
   bool Open( const char *filename );
-  void Close(  )
+  void Close()
   {
     if( f )
       fclose( f );
@@ -1961,19 +2204,19 @@ public:
   bool Sample( uint16_t sample );
   void DumpSamples( int n );
   void Translate( unsigned long raw );
-  uint16_t GetX(  )
+  uint16_t GetX()
   {
     return x;
   }
-  uint16_t GetY(  )
+  uint16_t GetY()
   {
     return y;
   }
-  uint16_t GetPH(  )
+  uint16_t GetPH()
   {
     return ph;
   }
-  void AnalyzeSamples(  );
+  void AnalyzeSamples();
 };
 
 //------------------------------------------------------------------------------
@@ -1989,7 +2232,7 @@ bool Decoder::Sample( uint16_t sample )
 {
   if( sample & 0x8000 ) { // start marker
     if( nReadout && printEvery >= 1000 ) {
-      AnalyzeSamples(  );
+      AnalyzeSamples();
       printEvery = 0;
     }
     else
@@ -2019,27 +2262,39 @@ void Decoder::Translate( unsigned long raw )
 {
   ph = ( raw & 0x0f ) + ( ( raw >> 1 ) & 0xf0 );
   raw >>= 9;
-  int c = ( raw >> 12 ) & 7;
-  c = c * 6 + ( ( raw >> 9 ) & 7 );
 
-  int r2 = ( raw >> 6 ) & 7;
-  int r1 = ( raw >> 3 ) & 7;
-  int r0 = ( raw >> 0 ) & 7;
+  y = 80;
+  x = 0;
 
-  if( tb.invertAddress ) {
-    r2 ^= 0x7;
-    r1 ^= 0x7;
-    r0 ^= 0x7;
-  }
+  if( Chip < 600 ) {
 
-  int r = r2 * 36 + r1 * 6 + r0;
+    int c = ( raw >> 12 ) & 7;
+    c = c * 6 + ( ( raw >> 9 ) & 7 );
 
-  y = 80 - r / 2;
-  x = 2 * c + ( r & 1 );
-}
+    int r2 = ( raw >> 6 ) & 7;
+    int r1 = ( raw >> 3 ) & 7;
+    int r0 = ( raw >> 0 ) & 7;
+
+    if( tb.invertAddress ) {
+      r2 ^= 0x7;
+      r1 ^= 0x7;
+      r0 ^= 0x7;
+    }
+
+    int r = r2 * 36 + r1 * 6 + r0;
+
+    y = 80 - r / 2;
+    x = 2 * c + ( r & 1 );
+  } // psi46dig
+  else {
+    y = ((raw >>  0) & 0x07) + ((raw >> 1) & 0x78); // F7
+    x = ((raw >>  8) & 0x07) + ((raw >> 9) & 0x38); // 77
+  } // proc600
+
+} // Translate
 
 //------------------------------------------------------------------------------
-void Decoder::AnalyzeSamples(  )
+void Decoder::AnalyzeSamples()
 {
   if( nSamples < 1 ) {
     nPixel = 0;
@@ -2062,6 +2317,7 @@ void Decoder::AnalyzeSamples(  )
 //------------------------------------------------------------------------------
 CMD_PROC( dread ) // daq read and print as ROC data
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   int nrocs = 0;
   for( int iroc = 0; iroc < 16; ++iroc )
     if( roclist[iroc] )
@@ -2076,7 +2332,7 @@ CMD_PROC( dread ) // daq read and print as ROC data
 
   tb.Daq_Read( data, Blocksize, words_remaining );
 
-  int size = data.size(  );
+  int size = data.size();
 
   cout << "words read: " << size
        << " = " << ( size - nrocs - tbmData ) / 2 << " pixels"
@@ -2093,9 +2349,9 @@ CMD_PROC( dread ) // daq read and print as ROC data
   }
   printf( "\n" );
   Log.printf( "\n" );
-  Log.flush(  );
+  Log.flush();
 
-  cout << "PixelAddressInverted " << tb.GetPixelAddressInverted(  ) << endl;
+  cout << "PixelAddressInverted " << tb.GetPixelAddressInverted() << endl;
 
   //decode:
 
@@ -2116,7 +2372,7 @@ CMD_PROC( dread ) // daq read and print as ROC data
 
   bool even = 1;
 
-  for( unsigned int i = 0; i < data.size(  ); ++i ) {
+  for( unsigned int i = 0; i < data.size(); ++i ) {
 
     if( ( data[i] & 0xffc ) == 0x7f8 ) { // header
       if( ldb )
@@ -2125,16 +2381,16 @@ CMD_PROC( dread ) // daq read and print as ROC data
     }
     else if( even ) { // merge 2 words into one pixel int:
 
-      if( i < data.size(  ) - 1 ) {
+      if( i < data.size() - 1 ) {
 
         unsigned long raw = ( data[i] & 0xfff ) << 12;
         raw += data[i + 1] & 0xfff;
 
         dec.Translate( raw );
 
-        uint16_t ix = dec.GetX(  );
-        uint16_t iy = dec.GetY(  );
-        uint16_t ph = dec.GetPH(  );
+        uint16_t ix = dec.GetX();
+        uint16_t iy = dec.GetY();
+        uint16_t ph = dec.GetPH();
         double vc = ph;
         if( ldb )
           vc = PHtoVcal( ph, 0, ix, iy );
@@ -2164,12 +2420,12 @@ CMD_PROC( dread ) // daq read and print as ROC data
   cout << npx << " pixels" << endl;
   cout << nrr << " address errors" << endl;
 
-  h21->Write(  );
+  h21->Write();
   gStyle->SetOptStat( 10 ); // entries
   gStyle->SetStatY( 0.95 );
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 21" << endl;
 
   // hit map:
@@ -2188,7 +2444,8 @@ CMD_PROC( dread ) // daq read and print as ROC data
     }
   */
   return true;
-}
+
+} // dread
 
 //------------------------------------------------------------------------------
 CMD_PROC( dreadm ) // module
@@ -2202,13 +2459,28 @@ CMD_PROC( dreadm ) // module
 
   tb.Daq_Read( data, Blocksize, words_remaining, channel );
 
-  int size = data.size(  );
+  int size = data.size();
   printf( "#samples: %i  remaining: %u\n", size, words_remaining );
 
   unsigned int hdr = 0, trl = 0;
   unsigned int raw = 0;
 
+  Decoder dec;
+
+  if( h21 )
+    delete h21;
+  h21 = new TH2D( "ModuleHitMap",
+                  "Module hit map;col;row;hits",
+                  8 * 52, -0.5, 8 * 52 - 0.5,
+                  2 * 80, -0.5, 2 * 80 - 0.5 );
+  gStyle->SetOptStat( 10 ); // entries
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
+
   // int TBM_eventnr,TBM_stackinfo,ColAddr,RowAddr,PulseHeight,TBM_trailerBits,TBM_readbackData;
+
+  int32_t kroc = -1; // will start at 0
+  if( channel == 1 )
+    kroc = 7; // will start at 8
 
   for( int i = 0; i < size; ++i ) {
 
@@ -2219,17 +2491,21 @@ CMD_PROC( dreadm ) // module
     switch ( v ) {
 
     case 10:
-      printf( "\nTBM H12(%03X)", d );
+      printf( "TBM H12(%03X)", d );
       hdr = d;
       break;
     case 8:
       printf( "+H34(%03X) =", d );
       hdr = ( hdr << 8 ) + d;
       DecodeTbmHeader( hdr );
+      kroc = -1; // will start at 0
+      if( channel == 1 )
+	kroc = 7; // will start at 8
       break;
 
     case 4:
       printf( "\nROC-HEADER(%03X): ", d );
+      ++kroc; // start at 0 or 8
       break;
 
     case 0:
@@ -2240,6 +2516,20 @@ CMD_PROC( dreadm ) // module
       printf( "+R456(%03X)", d );
       raw = ( raw << 12 ) + d;
       DecodePixel( raw );
+      dec.Translate( raw );
+      {
+	uint16_t ix = dec.GetX();
+	uint16_t iy = dec.GetY();
+	//uint16_t ph = dec.GetPH();
+	int l = kroc % 8; // 0..7
+	int xm = 52 * l + ix; // 0..415  rocs 0 1 2 3 4 5 6 7
+	int ym = iy; // 0..79
+	if( kroc > 7 ) {
+	  xm = 415 - xm; // rocs 8 9 A B C D E F
+	  ym = 159 - ym; // 80..159
+	}
+	h21->Fill( xm, ym );
+      }
       break;
 
     case 14:
@@ -2257,22 +2547,656 @@ CMD_PROC( dreadm ) // module
       break;
     }
   }
-
+  printf( "\n" );
+  /*
   for( int i = 0; i < size; ++i ) {
     int x = data[i] & 0xffff;
     Log.printf( " %04X", x );
     if( i % 100 == 99 )
-      printf( "\n" );
+      Log.printf( "\n" );
   }
-  printf( "\n" );
   Log.printf( "\n" );
-  Log.flush(  );
+  Log.flush();
+  */
+  h21->Write();
+  h21->Draw( "colz" );
+  c1->Update();
+  cout << "  histos 21" << endl;
 
   return true;
-}
+
+} // dreadm
+
+//------------------------------------------------------------------------------
+// Daniel Pitzl, DESY, 14.12.2015, scan TBM delays, PG trigger, until first error
+CMD_PROC( tbmscan )
+{
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Open( Blocksize, 0 );
+  tb.Daq_Open( Blocksize, 1 );
+#endif
+
+  tb.Pg_Stop(); // stop DTB RCTT pattern generator
+
+  tb.Daq_Select_Deser400();
+  tb.Daq_Deser400_Reset( 3 );
+  tb.uDelay( 100 );
+
+  uint32_t remaining0 = 0;
+  uint32_t remaining1 = 0;
+  vector < uint16_t > data0;
+  vector < uint16_t > data1;
+  data0.reserve( Blocksize );
+  data1.reserve( Blocksize );
+
+  vector < int > errcnt(256);
+
+  for( int itin = 0; itin < 2; ++itin )
+    for( int itbm = 0; itbm < 2; ++itbm )
+      for( int ipt1 = 0; ipt1 < 8; ++ipt1 )
+	for( int ipt0 = 0; ipt0 < 8; ++ipt0 ) {
+
+	  tb.Pg_Stop(); // quiet
+
+	  tb.tbm_Set( 0xE4, 0xF4 ); // clear TBM, reset ROCs
+	  tb.tbm_Set( 0xF4, 0xF4 ); // clear TBM, reset ROCs
+
+	  int ibyte = 128*itin + 64*itbm + 8*ipt1 + ipt0;
+
+	  tb.tbm_Set( 0xEA, ibyte );
+	  tb.tbm_Set( 0xFA, ibyte );
+
+	  cout << setw(3) << ibyte;
+
+	  tb.Flush();
+
+	  unsigned int nev[2] = { 0, 0 };
+	  unsigned int nrr[2] = { 0, 0 };
+
+	  uint32_t trl = 0; // need to remember from previous daq_read
+
+	  bool ldb = 0;
+
+	  tb.Daq_Deser400_Reset( 3 );
+	  tb.uDelay( 100 );
+	  tb.Daq_Start( 0 );
+	  tb.Daq_Start( 1 );
+	  tb.uDelay( 100 );
+
+	  tb.Pg_Single();
+
+	  tb.uDelay( 10 );
+	  tb.Daq_Stop( 0 );
+	  tb.Daq_Stop( 1 );
+
+	  tb.Daq_Read( data0, Blocksize, remaining0, 0 );
+	  tb.Daq_Read( data1, Blocksize, remaining1, 1 );
+
+	  // decode data:
+
+	  for( int ch = 0; ch < 2; ++ch ) {
+
+	    int size = data0.size();
+	    if( ch == 1 )
+	      size = data1.size();
+	    uint32_t raw = 0;
+	    uint32_t hdr = 0;
+	    int32_t kroc = -1; // will start at 0
+	    if( ch == 1 )
+	      kroc = 7; // will start at 8
+
+	    for( int ii = 0; ii < size; ++ii ) {
+
+	      int d = 0;
+	      int v = 0;
+	      if( ch == 0 ) {
+		d = data0[ii] & 0xfff; // 12 bits data
+		v = ( data0[ii] >> 12 ) & 0xe; // 3 flag bits: e = 14 = 1110
+	      }
+	      else {
+		d = data1[ii] & 0xfff; // 12 bits data
+		v = ( data1[ii] >> 12 ) & 0xe; // 3 flag bits
+	      }
+	      int c = 0;
+	      int r = 0;
+	      int x = 0;
+	      int y = 0;
+
+	      switch ( v ) {
+
+		// TBM header:
+	      case 10:
+		hdr = d;
+		if( nev[ch] > 0 && trl == 0 ) {
+		  cout << "TBM error: header without previous trailer in event "
+		       << nev[ch]
+		       << ", channel " << ch
+		       << endl;
+		  ++nrr[ch];
+		}
+		trl = 0;
+		break;
+	      case 8:
+		hdr = ( hdr << 8 ) + d;
+		if( ldb ) {
+		  cout << "event " << nev[ch] << endl;
+		  cout << "TBM header";
+		  DecodeTbmHeader( hdr );
+		  cout << endl;
+		}
+		kroc = -1; // will start at 0
+		if( ch == 1 )
+		  kroc = 7; // will start at 8
+		break;
+
+		// ROC header data:
+	      case 4:
+		++kroc; // start at 0
+		if( ldb ) {
+		  if( kroc > 0 )
+		    cout << endl;
+		  cout << "ROC " << setw( 2 ) << kroc;
+		}
+		if( kroc > 15 ) {
+		  cout << "Error kroc " << kroc << endl;
+		  kroc = 15;
+		  ++nrr[ch];
+		}
+		if( kroc == 0 && hdr == 0 ) {
+		  cout << "TBM error: no header in event " << nev[ch]
+		       << " ch " << ch
+		       << endl;
+		  ++nrr[ch];
+		}
+		hdr = 0;
+		break;
+
+		// pixel data:
+	      case 0:
+		raw = d;
+		break;
+	      case 2:
+		raw = ( raw << 12 ) + d;
+		raw >>= 9;
+		c = ( raw >> 12 ) & 7;
+		c = c * 6 + ( ( raw >> 9 ) & 7 );
+		r = ( raw >> 6 ) & 7;
+		r = r * 6 + ( ( raw >> 3 ) & 7 );
+		r = r * 6 + ( raw & 7 );
+		y = 80 - r / 2;
+		x = 2 * c + ( r & 1 );
+		if( ldb )
+		  cout << " " << x << "." << y;
+		if( kroc < 0 || ( ch == 1 && kroc < 8 ) || kroc > 15 ) {
+		  cout << "ROC data with wrong ROC count " << kroc
+		       << " in event " << nev[ch]
+		       << endl;
+		  ++nrr[ch];
+		}
+		else if( y > -1 && y < 80 && x > -1 && x < 52 ) {
+		} // valid px
+		else {
+		  cout << "invalid col row " << setw(2) << x
+		       << setw(3) << y
+		       << " in ROC " << setw(2) << kroc
+		       << endl;
+		  ++nrr[ch];
+		}
+		break;
+
+		// TBM trailer:
+	      case 14:
+		trl = d;
+		if( ch == 0 && kroc != 7 ) {
+		  cout
+		    << "wrong ROC count " << kroc
+		    << " in event " << nev[ch] << " ch 0" 
+		    << endl;
+		  ++nrr[ch];
+		}
+		else if( ch == 1 && kroc != 15 ) {
+		  cout
+		    << "wrong ROC count " << kroc
+		    << " in event " << nev[ch] << " ch 1" 
+		    << endl;
+		  ++nrr[ch];
+		}
+		break;
+	      case 12:
+		trl = ( trl << 8 ) + d;
+		if( ldb ) {
+		  cout << endl;
+		  cout << "TBM trailer";
+		  DecodeTbmTrailer( trl );
+		  cout << endl;
+		}
+		++nev[ch];
+		trl = 1; // flag
+		break;
+
+	      default:
+		printf( "\nunknown data: %X = %d", v, v );
+		++nrr[ch];
+		break;
+
+	      } // switch
+
+	    } // data
+
+	  } // ch
+
+	  if( ldb )
+	    cout << endl;
+
+	  cout << ": size " << data0.size() + data1.size()
+	       << ", err " << nrr[0] + nrr[1]
+	       << endl;
+
+	  errcnt.at(ibyte) = -nrr[0] - nrr[1];
+
+	} // tbmset
+
+  // all off:
+
+  tb.Daq_Stop( 0 );
+  tb.Daq_Stop( 1 );
+  tb.Flush();
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Close( 0 );
+  tb.Daq_Close( 1 );
+  //tb.Daq_DeselectAll();
+  tb.Flush();
+#endif
+
+  cout << endl;
+  for( int itin = 0; itin < 2; ++itin )
+    for( int itbm = 0; itbm < 2; ++itbm ) {
+      cout << "TIN delay " << itin*6.25
+	   << "ns, TBM header/trailer delay " << itbm*6.25
+	   << "ns:" << endl;
+      cout << "port:";
+      for( int ipt0 = 0; ipt0 < 8; ++ipt0 )
+	cout << setw(8) << ipt0;
+      cout << endl;
+      for( int ipt1 = 0; ipt1 < 8; ++ipt1 ) {
+	cout << setw(4) << ipt1 <<":";
+	for( int ipt0 = 0; ipt0 < 8; ++ipt0 ){
+	  int ibyte = 128*itin + 64*itbm + 8*ipt1 + ipt0;
+	  cout << setw(8) << errcnt.at(ibyte);
+	}
+	cout << endl;
+      }
+    }
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return true;
+
+} // tbmscan
+
+//------------------------------------------------------------------------------
+// Daniel Pitzl, DESY, 14.12.2015, scan TBM delays, random trigger, until first error
+CMD_PROC( tbmscant )
+{
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  timeval tv;
+  gettimeofday( &tv, NULL );
+  long s0 = tv.tv_sec; // seconds since 1.1.1970
+  long u0 = tv.tv_usec; // microseconds
+
+  // enable all pixels:
+
+  int masked = 0;
+
+  for( int roc = 0; roc < 16; ++roc )
+    if( roclist[roc] ) {
+      tb.roc_I2cAddr( roc );
+      tb.roc_ClrCal();
+      for( int col = 0; col < 52; ++col ) {
+        tb.roc_Col_Enable( col, 1 );
+        for( int row = 0; row < 80; ++row ) {
+          int trim = modtrm[roc][col][row];
+	  if( trim > 15 ) {
+	    tb.roc_Pix_Mask( col, row );
+	    ++masked;
+	    cout << "mask roc col row "
+		 << setw(2) << roc
+		 << setw(3) << col
+		 << setw(3) << row
+		 << endl;
+	  }
+	  else
+          tb.roc_Pix_Trim( col, row, trim );
+        }
+      }
+    }
+  tb.Flush();
+
+  uint32_t remaining0 = 0;
+  uint32_t remaining1 = 0;
+  vector < uint16_t > data0;
+  vector < uint16_t > data1;
+  data0.reserve( Blocksize );
+  data1.reserve( Blocksize );
+
+  if( h21 )
+    delete h21;
+  h21 = new TH2D( "ModuleHitMap",
+		  "Module hit map;col;row;hits",
+		  8 * 52, -0.5, 8 * 52 - 0.5,
+		  2 * 80, -0.5, 2 * 80 - 0.5 );
+  gStyle->SetOptStat( 10 ); // entries
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Open( Blocksize, 0 );
+  tb.Daq_Open( Blocksize, 1 );
+#endif
+
+  tb.Pg_Stop(); // stop DTB RCTT pattern generator
+
+  tb.Daq_Select_Deser400();
+  tb.Daq_Deser400_Reset( 3 );
+  tb.uDelay( 100 );
+
+  tb.Daq_Start( 0 );
+  tb.Daq_Start( 1 );
+  tb.uDelay( 1000 );
+
+  for( int itin = 0; itin < 2; ++itin )
+    for( int itbm = 0; itbm < 2; ++itbm )
+      for( int ipt1 = 0; ipt1 < 8; ++ipt1 )
+	for( int ipt0 = 0; ipt0 < 8; ++ipt0 ) {
+
+	  tb.Trigger_Select(0); // quiet
+
+	  tb.tbm_Set( 0xE4, 0xF4 ); // clear TBM, reset ROCs
+	  tb.tbm_Set( 0xF4, 0xF4 ); // clear TBM, reset ROCs
+
+	  tb.tbm_Set( 0xEA, 128*itin + 64*itbm + 8*ipt1 + ipt0 );
+	  tb.tbm_Set( 0xFA, 128*itin + 64*itbm + 8*ipt1 + ipt0 );
+
+	  tb.Trigger_SetGenRandom(10*1000*1000); // 90 kHz randoms
+
+	  tb.Trigger_Select(512); // start GEN_DIR trigger generator
+	  tb.Flush();
+
+	  unsigned int nev[2] = { 0, 0 };
+	  unsigned int ndq = 0;
+	  unsigned int got = 0;
+	  unsigned int npx = 0;
+	  unsigned int nrr[2] = { 0, 0 };
+
+	  uint32_t trl = 0; // need to remember from previous daq_read
+
+	  bool ldb = 0;
+
+	  bool roerr = 0;
+
+	  while( !roerr && nev[0] < 1000*1000 ) {
+
+	    tb.mDelay( 200 ); // [ms]
+
+	    tb.Daq_Read( data0, Blocksize, remaining0, 0 );
+	    tb.Daq_Read( data1, Blocksize, remaining1, 1 );
+
+	    ++ndq;
+	    got += data0.size();
+	    got += data1.size();
+
+	    gettimeofday( &tv, NULL );
+	    long s2 = tv.tv_sec; // seconds since 1.1.1970
+	    long u2 = tv.tv_usec; // microseconds
+
+	    // decode data:
+
+	    for( int ch = 0; ch < 2; ++ch ) {
+
+	      int size = data0.size();
+	      if( ch == 1 )
+		size = data1.size();
+	      uint32_t raw = 0;
+	      uint32_t hdr = 0;
+	      int32_t kroc = -1; // will start at 0
+	      if( ch == 1 )
+		kroc = 7; // will start at 8
+	      unsigned int npxev = 0;
+
+	      for( int ii = 0; ii < size; ++ii ) {
+
+		int d = 0;
+		int v = 0;
+		if( ch == 0 ) {
+		  d = data0[ii] & 0xfff; // 12 bits data
+		  v = ( data0[ii] >> 12 ) & 0xe; // 3 flag bits: e = 14 = 1110
+		}
+		else {
+		  d = data1[ii] & 0xfff; // 12 bits data
+		  v = ( data1[ii] >> 12 ) & 0xe; // 3 flag bits
+		}
+		int c = 0;
+		int r = 0;
+		int x = 0;
+		int y = 0;
+
+		switch ( v ) {
+
+		  // TBM header:
+		case 10:
+		  hdr = d;
+		  npxev = 0;
+		  if( nev[ch] > 0 && trl == 0 ) {
+		    cout << "TBM error: header without previous trailer in event "
+			 << nev[ch]
+			 << ", channel " << ch
+			 << endl;
+		    ++nrr[ch];
+		    roerr = 1;
+		  }
+		  trl = 0;
+		  break;
+		case 8:
+		  hdr = ( hdr << 8 ) + d;
+		  if( ldb ) {
+		    cout << "event " << nev[ch] << endl;
+		    cout << "TBM header";
+		    DecodeTbmHeader( hdr );
+		    cout << endl;
+		  }
+		  kroc = -1; // will start at 0
+		  if( ch == 1 )
+		    kroc = 7; // will start at 8
+		  break;
+
+		  // ROC header data:
+		case 4:
+		  ++kroc; // start at 0
+		  if( ldb ) {
+		    if( kroc > 0 )
+		      cout << endl;
+		    cout << "ROC " << setw( 2 ) << kroc;
+		  }
+		  if( kroc > 15 ) {
+		    cout << "Error kroc " << kroc << endl;
+		    kroc = 15;
+		    ++nrr[ch];
+		    roerr = 1;
+		  }
+		  if( kroc == 0 && hdr == 0 ) {
+		    cout << "TBM error: no header in event " << nev[ch]
+			 << " ch " << ch
+			 << endl;
+		    ++nrr[ch];
+		    roerr = 1;
+		  }
+		  hdr = 0;
+		  break;
+
+		  // pixel data:
+		case 0:
+		  raw = d;
+		  break;
+		case 2:
+		  raw = ( raw << 12 ) + d;
+		  raw >>= 9;
+		  c = ( raw >> 12 ) & 7;
+		  c = c * 6 + ( ( raw >> 9 ) & 7 );
+		  r = ( raw >> 6 ) & 7;
+		  r = r * 6 + ( ( raw >> 3 ) & 7 );
+		  r = r * 6 + ( raw & 7 );
+		  y = 80 - r / 2;
+		  x = 2 * c + ( r & 1 );
+		  if( ldb )
+		    cout << " " << x << "." << y;
+		  if( kroc < 0 || ( ch == 1 && kroc < 8 ) || kroc > 15 ) {
+		    cout << "ROC data with wrong ROC count " << kroc
+			 << " in event " << nev[ch]
+			 << endl;
+		    ++nrr[ch];
+		    roerr = 1;
+		  }
+		  else if( y > -1 && y < 80 && x > -1 && x < 52 ) {
+		    ++npx;
+		    ++npxev;
+		    int l = kroc % 8; // 0..7
+		    int xm = 52 * l + x; // 0..415  rocs 0 1 2 3 4 5 6 7
+		    int ym = y; // 0..79
+		    if( kroc > 7 ) {
+		      xm = 415 - xm; // rocs 8 9 A B C D E F
+		      ym = 159 - y; // 80..159
+		    }
+		    h21->Fill( xm, ym );
+		  } // valid px
+		  else {
+		    cout << "invalid col row " << setw(2) << x
+			 << setw(3) << y
+			 << " in ROC " << setw(2) << kroc
+			 << endl;
+		    ++nrr[ch];
+		    roerr = 1;
+		  }
+		  break;
+
+		  // TBM trailer:
+		case 14:
+		  trl = d;
+		  if( ch == 0 && kroc != 7 ) {
+		    cout
+		      << "wrong ROC count " << kroc
+		      << " in event " << nev[ch] << " ch 0" 
+		      << endl;
+		    ++nrr[ch];
+		    roerr = 1;
+		  }
+		  else if( ch == 1 && kroc != 15 ) {
+		    cout
+		      << "wrong ROC count " << kroc
+		      << " in event " << nev[ch] << " ch 1" 
+		      << endl;
+		    ++nrr[ch];
+		    roerr = 1;
+		  }
+		  break;
+		case 12:
+		  trl = ( trl << 8 ) + d;
+		  if( ldb ) {
+		    cout << endl;
+		    cout << "TBM trailer";
+		    DecodeTbmTrailer( trl );
+		    cout << endl;
+		  }
+		  ++nev[ch];
+		  trl = 1; // flag
+		  break;
+
+		default:
+		  printf( "\nunknown data: %X = %d", v, v );
+		  ++nrr[ch];
+		  roerr = 1;
+		  break;
+
+		} // switch
+
+	      } // data
+
+	    } // ch
+
+	    if( ldb )
+	      cout << endl;
+
+	    h21->Draw( "colz" );
+	    c1->Update();
+
+	    cout << s2 - s0 + ( u2 - u0 ) * 1e-6 << " s"
+		 << ",  calls " << ndq
+		 << ",  last " << data0.size() + data1.size()
+		 << ",  rest " << remaining0 + remaining1
+		 << ",  trig " << nev[0]
+		 << ",  byte " << got
+		 << ",  pix " << npx
+		 << ",  err " << nrr[0] + nrr[1]
+		 << endl;
+
+	  } // while
+
+	  // daq_read for remaining ?
+
+	} // tbmset
+
+  // all off:
+
+  tb.Trigger_Select(4); // back to default PG trigger
+
+  tb.Daq_Stop( 0 );
+  tb.Daq_Stop( 1 );
+  tb.Flush();
+
+#ifdef DAQOPENCLOSE
+  tb.Daq_Close( 0 );
+  tb.Daq_Close( 1 );
+  //tb.Daq_DeselectAll();
+  tb.Flush();
+#endif
+
+  // all off:
+
+  for( int roc = 0; roc < 16; ++roc ) {
+    if( roclist[roc] == 0 )
+      continue;
+    tb.roc_I2cAddr( roc );
+    for( int col = 0; col < 52; col += 2 ) // DC
+      tb.roc_Col_Enable( col, 0 );
+    tb.roc_Chip_Mask();
+    tb.roc_ClrCal();
+  }
+  tb.Flush();
+
+  Log.flush();
+
+  gettimeofday( &tv, NULL );
+  long s9 = tv.tv_sec; // seconds since 1.1.1970
+  long u9 = tv.tv_usec; // microseconds
+  cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
+
+  return true;
+
+} // tbmscan
 
 //------------------------------------------------------------------------------
 CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
+// period = 1 = flag for external trigger
+
+// ext trig: event rate = 0.5 trigger rate ? 15.5.2015 TB 22
 
 // source:
 // allon
@@ -2312,46 +3236,41 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 
   fname << "run" << run << ".out";
 
-  ofstream outFile( fname.str(  ).c_str(  ) );
+  ofstream outFile( fname.str().c_str() );
+
+  if( h10 )
+    delete h10;
+  h10 = new
+    TH1D( "pixels",
+          "pixels per trigger;multiplicity [pixel];triggers",
+          101, -0.5, 100.5 );
+  h10->Sumw2();
 
   if( h11 )
     delete h11;
   h11 = new
-    TH1D( "pixels",
-          "pixels per trigger;multiplicity [pixel];triggers",
-          101, -0.5, 100.5 );
+    TH1D( "pixelPH", "pixel PH;pixel PH [ADC];pixels",
+	  255, -0.5, 254.5 ); // 255 is overflow
   h11->Sumw2();
 
   if( h12 )
     delete h12;
   h12 = new
-    TH1D( "pixelPH", "pixel PH;pixel PH [ADC];pixels",
-	  255, -0.5, 254.5 ); // 255 is overflow
+    TH1D( "pixel_charge",
+          dacval[0][CtrlReg] == 0 ?
+          "pixel charge;pixel charge [small Vcal DAC];pixels" :
+          "pixel charge;pixel charge [large Vcal DAC];pixels",
+          256, -0.5, 255.5 );
   h12->Sumw2();
-
-  if( h13 )
-    delete h13;
-  if( dacval[0][CtrlReg] == 0 )
-    h13 = new
-      TH1D( "pixel_charge",
-	    "pixel charge;pixel charge [small Vcal DAC];pixels",
-	    250, 0, 500 );
-  else
-    h13 = new
-      TH1D( "pixel_charge",
-	    "pixel charge;pixel charge [large Vcal DAC];pixels",
-	    256, -0.5, 255.5 );
-    
-  h13->Sumw2();
 
   if( h21 )
     delete h21;
   h21 = new TH2D( "HitMap",
                   "Hit map;col;row;hits", 52, -0.5, 51.5, 80, -0.5, 79.5 );
 
-  if( h23 )
-    delete h23;
-  h23 = new TProfile2D( "PHMap",
+  if( h22 )
+    delete h22;
+  h22 = new TProfile2D( "PHMap",
                         dacval[0][CtrlReg] == 0 ?
                         "PH map;col;row;<PH> [small Vcal DAC]" :
                         "PH map;col;row;<PH> [large Vcal DAC]",
@@ -2360,14 +3279,18 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
+  tb.Daq_Start();
   tb.uDelay( 100 );
-  tb.Pg_Loop( period );
+
+  if( period == 1 ) // flag for ext trig
+    tb.Pg_Stop(); // stop triggers, necessary for clean data
+  else
+    tb.Pg_Loop( period ); // not with ext trig
 
   tb.SetTimeout( 2000 ); // [ms] USB
-  tb.Flush(  );
+  tb.Flush();
 
   uint32_t remaining;
   vector < uint16_t > data;
@@ -2391,15 +3314,17 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
   double duration = 0;
   double tprev = 0;
 
-  while( !keypressed(  ) ) {
+  while( !keypressed() ) {
 
-    tb.uDelay( 1000 ); // limit daq rate
+    tb.mDelay( 500 ); // once per second
 
-    tb.Pg_Stop(  ); // stop triggers, necessary for clean data
+    if( period > 1 ) // flag for ext trig
+      tb.Pg_Stop(); // stop triggers, necessary for clean data
 
     tb.uDelay( 100 );
 
-    tb.Daq_Stop(  );
+    if( period > 1 ) // flag for ext trig
+      tb.Daq_Stop();
     tb.uDelay( 100 );
     //tb.uDelay(4000); // better
     //tb.uDelay(9000); // some overflow events (rest)
@@ -2409,12 +3334,14 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
     ++ndq;
 
     //tb.uDelay(1000);
-    tb.Daq_Start(  );
+    if( period > 1 ) // flag for ext trig
+      tb.Daq_Start();
     tb.uDelay( 100 );
-    tb.Pg_Loop( period ); // start triggers
-    tb.Flush(  );
+    if( period > 1 ) // flag for ext trig
+      tb.Pg_Loop( period ); // start triggers
+    tb.Flush();
 
-    got += data.size(  );
+    got += data.size();
     rst += remaining;
 
     gettimeofday( &tv, NULL );
@@ -2424,11 +3351,12 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 
     if( duration - tprev > 0.999 ) {
 
-      cout << duration << " s, last " << data.size(  )
+      cout << duration << " s"
+	   << ", last " << data.size()
 	   << ",  rest " << remaining
-	   << ",  calls " << ndq
-	   << ",  events " << nev
-	   << ",  got " << got
+	   << ",  daq " << ndq
+	   << ",  trg " << nev
+	   << ",  sum " << got
 	   << ",  rest " << rst
 	   << ",  pix " << npx
 	   << ",  err " << nrr
@@ -2436,7 +3364,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 	   << endl;
 
       h21->Draw( "colz" );
-      c1->Update(  );
+      c1->Update();
 
       tprev = duration;
 
@@ -2445,11 +3373,34 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
     // decode data:
 
     int npxev = 0;
-    bool even = 1;
+    bool even = 0;
+    bool tbm = 0;
+    int phase = 0;
 
-    for( unsigned int i = 0; i < data.size(  ); ++i ) {
+    for( unsigned int i = 0; i < data.size(); ++i ) {
 
-      if( ( data[i] & 0xffc ) == 0x7f8 ) { // header
+      // Simon mail 26.1.2015
+      // ext trigger: soft TBM header and trailer
+
+      bool tbmend = 0;
+
+      if( (      data[i] & 0xff00 ) == 0xA000 ) { // TBM header
+        even = 0;
+	tbm = 1;
+      }
+      else if( ( data[i] & 0xff00 ) == 0x8000 ) { // TBM header
+        even = 0;
+	tbm = 1;
+	phase = ( data[i] & 0xf ); // phase trig vs clk 0..9
+      }
+      else if( ( data[i] & 0xff00 ) == 0xE000 ) { // TBM trailer
+        even = 0;
+      }
+      else if( ( data[i] & 0xff00 ) == 0xC000 ) { // TBM trailer
+        even = 0;
+	tbmend = 1;
+      }
+      else if( ( data[i] & 0xffc ) == 0x7f8 ) { // ROC header
         if( ldb && i > 0 )
           cout << endl;
         if( ldb )
@@ -2460,7 +3411,7 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
       }
       else if( even ) { // 24 data bits come in 2 words
 
-        if( i < data.size(  ) - 1 ) {
+        if( i < data.size() - 1 ) {
 
           unsigned long raw = ( data[i] & 0xfff ) << 12;
           raw += data[i + 1] & 0xfff; // even + odd
@@ -2470,19 +3421,23 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 
           dec.Translate( raw );
 
-          uint16_t ix = dec.GetX(  );
-          uint16_t iy = dec.GetY(  );
-          uint16_t ph = dec.GetPH(  );
-	  if( npxev == 1 ) outFile << nev; // non-empty event
+          uint16_t ix = dec.GetX();
+          uint16_t iy = dec.GetY();
+          uint16_t ph = dec.GetPH();
+	  if( npxev == 1 ) { // non-empty event
+	    outFile << nev;
+	    if( tbm )
+	      outFile << " " << phase;
+	  }
 	  outFile << " " << ix << " " << iy << " " << ph;
           double vc = PHtoVcal( ph, 0, ix, iy );
           if( ldb )
             cout << " " << ix << "." << iy
 		 << ":" << ph << "(" << ( int ) vc << ")";
-          h12->Fill( ph );
-          h13->Fill( vc );
+          h11->Fill( ph );
+          h12->Fill( vc );
           h21->Fill( ix, iy );
-          h23->Fill( ix, iy, vc );
+          h22->Fill( ix, iy, vc );
 
           if( ix < 52 && iy < 80 ) {
             ++NN[ix][iy]; // hit map
@@ -2492,17 +3447,31 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
           else
             ++nrr;
 	}
-        else {
+        else { // truncated pixel
           ++nrr;
-	  cout << " err at " << i << " in " << data.size(  ) << endl;
+	  cout << " err at " << i << " in " << data.size() << endl;
         }
 
       } // even
 
       even = 1 - even;
 
-      if( ( data[i] & 0x4000 ) == 0x4000 ) { // FPGA end marker
-        h11->Fill( npxev );
+      // $4000 = 0100'0000'0000'0000  FPGA end marker
+      // $8000 = 1000'0000'0000'0000  soft TBM header
+      // $A000 = 1010'0000'0000'0000  soft TBM header
+      // $C000 = 1100'0000'0000'0000  soft TBM trailer
+      // $E000 = 1110'0000'0000'0000  soft TBM trailer
+
+      bool lend = 0;
+      if( tbm ) {
+	if( tbmend )
+	  lend = 1;
+      }
+      else if( ( data[i] & 0x4000 ) == 0x4000 ) // FPGA end marker
+	lend = 1;
+
+      if( lend ) {
+        h10->Fill( npxev );
 	if( npxev > 0 ) outFile << endl;
       }
 
@@ -2528,14 +3497,15 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
 
   } // while takedata
 
-  tb.Pg_Stop(  ); // stop triggers, necessary for clean re-start
+  tb.Daq_Stop();
+  if( period > 1 ) // flag for ext trig
+    tb.Pg_Stop(); // stop triggers, necessary for clean re-start
 #ifdef DAQOPENCLOSE
-  tb.Daq_Stop(  );
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
 #endif
   tb.SetTimeout( 200000 ); // restore [ms] USB
-  tb.Flush(  );
+  tb.Flush();
 
   outFile.close(); // redundant
 
@@ -2544,34 +3514,64 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
     for( int row = 79; row >= 0; --row ) {
       cout << setw( 2 ) << row << ": ";
       for( int col = 0; col < 52; ++col ) {
-        if( NN[col][row] > nev / 2 )
-          cout << " " << NN[col][row];
-	//cout << " " << 100.0*NN[col][row]/(double)nev;
-        else
-          cout << " " << NN[col][row];
+	cout << " " << NN[col][row];
         if( NN[col][row] > nmx )
           nmx = NN[col][row];
       }
       cout << endl;
     }
+
+    // increase trim bits:
+
+    cout << endl;
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row )
+        if( NN[col][row] > nev / 100 )
+          cout << "pixt 0"
+	       << setw(3) << col
+	       << setw(3) << row
+	       << setw(3) << modtrm[0][col][row] + 1
+	       << setw(7) << NN[col][row]
+	       << endl;
+    cout << endl;
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row )
+        if( NN[col][row] > nev / 1000 )
+          cout << "pixt 0"
+	       << setw(3) << col
+	       << setw(3) << row
+	       << setw(3) << modtrm[0][col][row] + 1
+	       << setw(7) << NN[col][row]
+	       << endl;
+    cout << endl;
+    for( int col = 0; col < 52; ++col )
+      for( int row = 0; row < 80; ++row )
+        if( NN[col][row] > nev / 10000 )
+          cout << "pixt 0"
+	       << setw(3) << col
+	       << setw(3) << row
+	       << setw(3) << modtrm[0][col][row] + 1
+	       << setw(7) << NN[col][row]
+	       << endl;
   }
   cout << "sum " << npx << ", max " << nmx << endl;
 
-  h11->Write(  );
-  h12->Write(  );
-  h13->Write(  );
-  h21->Write(  );
-  h23->Write(  );
+  h10->Write();
+  h11->Write();
+  h12->Write();
+  h21->Write();
+  h22->Write();
   gStyle->SetOptStat( 10 ); // entries
   gStyle->SetStatY( 0.95 );
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
-  c1->Update(  );
-  cout << "  histos 11, 12, 13, 21, 23" << endl;
+  c1->Update();
+  cout << "  histos 10, 11, 12, 21, 22" << endl;
 
   cout << endl;
+  cout << fname.str() << endl;
   cout << "duration    " << duration << endl;
-  cout << "events      " << nev << " = " << nev / duration << " Hz" << endl;
+  cout << "triggers    " << nev << " = " << nev / duration << " Hz" << endl;
   cout << "DAQ calls   " << ndq << endl;
   cout << "words read  " << got << ", remaining " << rst << endl;
   cout << "data rate   " << 2 * got / duration << " bytes/s" << endl;
@@ -2579,10 +3579,9 @@ CMD_PROC( takedata ) // takedata period (ROC, trigger f = 40 MHz / period)
     ( double ) nev << "/ev " << endl;
   cout << "data errors " << nrr << endl;
 
-  cout << fname.str(  ) << endl;
-
   return true;
-}
+
+} // takedata
 
 //------------------------------------------------------------------------------
 CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
@@ -2653,10 +3652,10 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
-  tb.Pg_Stop(  ); // stop triggers (who knows what was going on before?)
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
+  tb.Pg_Stop(); // stop triggers (who knows what was going on before?)
   tb.SetTimeout( 2000 ); // [ms] USB
-  tb.Flush(  );
+  tb.Flush();
 
   double dttrig = 0;
   double dtread = 0;
@@ -2674,11 +3673,11 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
     // set CalDel? not needed for random hits with clock stretch
 
     tb.uDelay( 10000 );
-    tb.Flush(  );
+    tb.Flush();
 
     // take data:
 
-    tb.Daq_Start(  );
+    tb.Daq_Start();
     tb.uDelay( 1000 );
 
     gettimeofday( &tv, NULL );
@@ -2686,14 +3685,14 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
     long u1 = tv.tv_usec; // microseconds
 
     for( int k = 0; k < nTrig; ++k ) {
-      tb.Pg_Single(  );
+      tb.Pg_Single();
       tb.uDelay( 20 );
     }
-    tb.Flush(  );
+    tb.Flush();
 
-    tb.Daq_Stop(  );
+    tb.Daq_Stop();
     tb.uDelay( 100 );
-    tb.Daq_GetSize(  ); // read statement ends trig block for timer
+    tb.Daq_GetSize(); // read statement ends trig block for timer
 
     gettimeofday( &tv, NULL );
     long s2 = tv.tv_sec; // seconds since 1.1.1970
@@ -2717,7 +3716,7 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
     unsigned int npxev = 0;
     bool even = 1;
 
-    for( unsigned int i = 0; i < data.size(  ); ++i ) {
+    for( unsigned int i = 0; i < data.size(); ++i ) {
 
       if( ( data[i] & 0xffc ) == 0x7f8 ) { // header
         even = 0;
@@ -2726,7 +3725,7 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
       }
       else if( even ) { // 24 data bits come in 2 words
 
-        if( i < data.size(  ) - 1 ) {
+        if( i < data.size() - 1 ) {
 
           ++npx;
           ++npxev;
@@ -2736,9 +3735,9 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
 
           dec.Translate( raw );
 
-          uint16_t ix = dec.GetX(  );
-          uint16_t iy = dec.GetY(  );
-          uint16_t ph = dec.GetPH(  );
+          uint16_t ix = dec.GetX();
+          uint16_t iy = dec.GetY();
+          uint16_t ph = dec.GetPH();
           double vc = PHtoVcal( ph, 0, ix, iy );
           h11->Fill( ph );
           h12->Fill( vc );
@@ -2765,7 +3764,7 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
     cout
       << "Vthr " << setw(3) << vthr
       << ", dur " << dt+dtr
-      << ", size " << data.size(  )
+      << ", size " << data.size()
       << ",  rest " << remaining
       << ",  events " << nev
       << ",  pix " << npx
@@ -2773,29 +3772,29 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
       << endl;
 
     h21->Draw( "colz" );
-    c1->Update(  );
+    c1->Update();
 
   } // Vthr loop
 
+  tb.Daq_Stop();
 #ifdef DAQOPENCLOSE
-  tb.Daq_Stop(  );
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
 #endif
   tb.SetDAC( VthrComp, dacval[0][VthrComp] ); // restore
   tb.SetTimeout( 200000 ); // restore [ms] USB
-  tb.Flush(  );
+  tb.Flush();
 
-  h10->Write(  );
-  h11->Write(  );
-  h12->Write(  );
-  h13->Write(  );
-  h21->Write(  );
-  h22->Write(  );
+  h10->Write();
+  h11->Write();
+  h12->Write();
+  h13->Write();
+  h21->Write();
+  h22->Write();
   cout << "  histos 10, 11, 12, 13, 21, 22" << endl;
 
   h13->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -2803,7 +3802,8 @@ CMD_PROC( tdscan ) // takedata vs VthrComp: X-ray threshold method
   cout << "  test duration " << s9 - s0 + ( u9 - u0 ) * 1e-6 << " s" << endl;
 
   return true;
-}
+
+} // tdscan
 
 //------------------------------------------------------------------------------
 CMD_PROC( onevst ) // pulse one pixel vs time
@@ -2854,40 +3854,40 @@ CMD_PROC( onevst ) // pulse one pixel vs time
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
+  tb.Daq_Start();
   tb.uDelay( 100 );
   tb.Pg_Loop( period );
 
   tb.SetTimeout( 2000 ); // [ms] USB
-  tb.Flush(  );
+  tb.Flush();
 
   int nsum = 0;
   double phsum = 0;
 
-  while( !keypressed(  ) ) {
+  while( !keypressed() ) {
 
     tb.uDelay( 1000 ); // limit daq rate
 
-    tb.Pg_Stop(  ); // stop triggers, necessary for clean data
+    tb.Pg_Stop(); // stop triggers, necessary for clean data
 
     tb.uDelay( 100 );
 
-    tb.Daq_Stop(  );
+    tb.Daq_Stop();
     tb.uDelay( 100 );
 
     tb.Daq_Read( data, Blocksize, remaining );
 
     ++ndq;
-    got += data.size(  );
+    got += data.size();
     rst += remaining;
 
     //tb.uDelay(1000);
-    tb.Daq_Start(  );
+    tb.Daq_Start();
     tb.uDelay( 100 );
     tb.Pg_Loop( period ); // start triggers
-    tb.Flush(  );
+    tb.Flush();
 
     gettimeofday( &tv, NULL );
     long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -2900,7 +3900,8 @@ CMD_PROC( onevst ) // pulse one pixel vs time
       if( nsum > 0 )
         phavg = phsum / nsum;
 
-      cout << duration << " s, last " << data.size(  )
+      cout << duration << " s"
+	   << ", last " << data.size()
 	   << ",  rest " << remaining
 	   << ",  calls " << ndq
 	   << ",  events " << nev
@@ -2908,7 +3909,7 @@ CMD_PROC( onevst ) // pulse one pixel vs time
 	   << ",  rest " << rst << ",  pix " << npx << ",  ph " << phavg << endl;
 
       h11->Draw( "hist" );
-      c1->Update(  );
+      c1->Update();
 
       nsum = 0;
       phsum = 0;
@@ -2921,7 +3922,7 @@ CMD_PROC( onevst ) // pulse one pixel vs time
 
     bool even = 1;
 
-    for( unsigned int i = 0; i < data.size(  ); ++i ) {
+    for( unsigned int i = 0; i < data.size(); ++i ) {
 
       if( ( data[i] & 0xffc ) == 0x7f8 ) { // header
         if( ldb && i > 0 )
@@ -2933,16 +3934,16 @@ CMD_PROC( onevst ) // pulse one pixel vs time
       }
       else if( even ) { // 24 data bits come in 2 words
 
-        if( i < data.size(  ) - 1 ) {
+        if( i < data.size() - 1 ) {
 
           unsigned long raw = ( data[i] & 0xfff ) << 12;
           raw += data[i + 1] & 0xfff; // even + odd
 
           dec.Translate( raw );
 
-          uint16_t ix = dec.GetX(  );
-          uint16_t iy = dec.GetY(  );
-          uint16_t ph = dec.GetPH(  );
+          uint16_t ix = dec.GetX();
+          uint16_t iy = dec.GetY();
+          uint16_t ph = dec.GetPH();
           double vc = PHtoVcal( ph, 0, ix, iy );
           if( ldb )
             cout << " " << ix << "." << iy
@@ -2971,27 +3972,27 @@ CMD_PROC( onevst ) // pulse one pixel vs time
 
   } // while takedata
 
-  tb.Pg_Stop(  ); // stop triggers, necessary for clean re-start
+  tb.Daq_Stop();
+  tb.Pg_Stop(); // stop triggers, necessary for clean re-start
 #ifdef DAQOPENCLOSE
-  tb.Daq_Stop(  );
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
 #endif
   tb.SetTimeout( 200000 ); // restore [ms] USB
 
   tb.roc_Pix_Mask( col, row );
   tb.roc_Col_Enable( col, 0 );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_ClrCal();
+  tb.Flush();
 
-  h11->Write(  );
+  h11->Write();
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
   cout << endl;
   cout << "duration    " << duration << endl;
-  cout << "events      " << nev << " = " << nev / duration << " Hz" << endl;
+  cout << "triggers    " << nev << " = " << nev / duration << " Hz" << endl;
   cout << "DAQ calls   " << ndq << endl;
   cout << "words read  " << got << ", remaining " << rst << endl;
   cout << "data rate   " << 2 * got / duration << " bytes/s" << endl;
@@ -3000,10 +4001,12 @@ CMD_PROC( onevst ) // pulse one pixel vs time
   cout << "data errors " << nrr << endl;
 
   return true;
-}
+
+} // onevst
 
 //------------------------------------------------------------------------------
 CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
+// period = 1 = external trigger = two streams
 // pulses:
 //   modcaldel 44 66
 //   arm 44 66
@@ -3040,7 +4043,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 
   fname << "run" << run << ".out";
 
-  ofstream outFile( fname.str(  ).c_str(  ) );
+  ofstream outFile( fname.str().c_str() );
 
   uint32_t remaining0 = 0;
   uint32_t remaining1 = 0;
@@ -3094,7 +4097,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
                   8 * 52 / n, -0.5 * n, 8 * 52 - 0.5 * n,
                   2 * 80 / n, -0.5 * n, 2 * 80 - 0.5 * n );
   gStyle->SetOptStat( 10 ); // entries
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
 
   if( h22 )
     delete h22;
@@ -3108,7 +4111,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   tb.Daq_Open( Blocksize, 1 );
 #endif
 
-  tb.Daq_Select_Deser400(  );
+  tb.Daq_Select_Deser400();
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
 
@@ -3116,12 +4119,12 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   tb.Daq_Start( 1 );
   tb.uDelay( 1000 );
 
-  tb.Flush(  );
+  tb.Flush();
 
   uint32_t trl = 0; // need to remember from previous daq_read
   int nsec = 0;
 
-  while( !keypressed(  ) ) {
+  while( !keypressed() ) {
 
     //tb.uDelay( 50000 ); // [us] limit daq rate, more efficient
     //tb.uDelay(  5000 ); // 2 kHz Sr 90 no Makrolon
@@ -3129,7 +4132,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     //tb.uDelay( 20000 ); // 5.1 kHz Sr 90 no Makrolon
     tb.uDelay( 40000 ); // 5.6 kHz Sr 90 no Makrolon
 
-    tb.Pg_Stop(  ); // stop triggers, necessary for clean data
+    tb.Pg_Stop(); // stop triggers, necessary for clean data
 
     tb.Daq_Stop( 0 );
     tb.Daq_Stop( 1 );
@@ -3138,9 +4141,9 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     tb.Daq_Read( data1, Blocksize, remaining1, 1 );
 
     ++ndq;
-    got += data0.size(  );
+    got += data0.size();
     rst += remaining0;
-    got += data1.size(  );
+    got += data1.size();
     rst += remaining1;
 
     tb.Daq_Deser400_Reset( 3 ); // more stable ?
@@ -3149,7 +4152,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     tb.Daq_Start( 1 );
 
     tb.Pg_Loop( period ); // start triggers
-    tb.Flush(  );
+    tb.Flush();
 
     bool ldb = 0;
     //if( ndq == 1 ) ldb = 1;
@@ -3162,10 +4165,10 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
     if( ldb || int ( dt ) > nsec ) {
 
       h21->Draw( "colz" );
-      c1->Update(  );
+      c1->Update();
 
       cout << s2 - s0 + ( u2 - u0 ) * 1e-6
-	   << " s, last " << data0.size(  ) + data1.size(  )
+	   << " s, last " << data0.size() + data1.size()
 	   << ",  rest " << remaining0 + remaining1
 	   << ",  calls " << ndq << ",  events " << nev[0]
 	   << ",  got " << got
@@ -3177,9 +4180,9 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 
     for( int ch = 0; ch < 2; ++ch ) {
 
-      int size = data0.size(  );
+      int size = data0.size();
       if( ch == 1 )
-        size = data1.size(  );
+        size = data1.size();
       uint32_t raw = 0;
       uint32_t hdr = 0;
 
@@ -3328,20 +4331,20 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
   long u9 = tv.tv_usec; // microseconds
   double dt = s9 - s0 + ( u9 - u0 ) * 1e-6;
 
-  tb.Pg_Stop(  ); // stop triggers, necessary for clean re-start
+  tb.Pg_Stop(); // stop triggers, necessary for clean re-start
   //tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 
   outFile.close(); // redundant
 
-  h11->Write(  );
-  h12->Write(  );
-  h13->Write(  );
-  h21->Write(  );
-  h22->Write(  );
+  h11->Write();
+  h12->Write();
+  h13->Write();
+  h21->Write();
+  h22->Write();
   h21->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 12, 13, 21, 22" << endl;
 
   cout << endl;
@@ -3371,7 +4374,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
        << " = " << ( double ) npx / nev[0] << " / event"
        << " = " << ( double ) npx / nev[0] / 16 << " / event / ROC" << endl;
   cout << "address errors " << nrr << endl;
-  cout << "written to " << fname.str(  ) << endl;
+  cout << "written to " << fname.str() << endl;
 
   return true;
 
@@ -3380,6 +4383,7 @@ CMD_PROC( modtd ) // module take data (trigger f = 40 MHz / period)
 //------------------------------------------------------------------------------
 CMD_PROC( showclk )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   const unsigned int nSamples = 20;
   const int gain = 1;
   // PAR_INT( gain, 1, 4 );
@@ -3387,7 +4391,7 @@ CMD_PROC( showclk )
   unsigned int i, k;
   vector < uint16_t > data[20];
 
-  tb.Pg_Stop(  );
+  tb.Pg_Stop();
   tb.Pg_SetCmd( 0, PG_SYNC + 5 );
   tb.Pg_SetCmd( 1, PG_CAL + 6 );
   tb.Pg_SetCmd( 2, PG_TRG + 6 );
@@ -3410,20 +4414,20 @@ CMD_PROC( showclk )
   for( i = 0; i < 20; ++i ) {
     tb.Sig_SetDelay( SIG_CLK, 26 - i );
     tb.uDelay( 10 );
-    tb.Daq_Start(  );
-    tb.Pg_Single(  );
+    tb.Daq_Start();
+    tb.Pg_Single();
     tb.uDelay( 1000 );
     tb.Daq_Stop();
     tb.Daq_Read( data[i], 1024 );
-    if( data[i].size(  ) != nSamples ) {
-      printf( "Data size %i: %i\n", i, int ( data[i].size(  ) ) );
+    if( data[i].size() != nSamples ) {
+      printf( "Data size %i: %i\n", i, int ( data[i].size() ) );
       return true;
     }
   }
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
 #endif
-  tb.Flush(  );
+  tb.Flush();
 
   int n = 20 * nSamples;
   vector < double > values( n );
@@ -3443,6 +4447,7 @@ CMD_PROC( showclk )
 //------------------------------------------------------------------------------
 CMD_PROC( showctr )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   const unsigned int nSamples = 60;
   const int gain = 1;
   // PAR_INT( gain, 1, 4 );
@@ -3450,7 +4455,7 @@ CMD_PROC( showctr )
   unsigned int i, k;
   vector < uint16_t > data[20];
 
-  tb.Pg_Stop(  );
+  tb.Pg_Stop();
   tb.Pg_SetCmd( 0, PG_SYNC + 5 );
   tb.Pg_SetCmd( 1, PG_CAL + 6 );
   tb.Pg_SetCmd( 2, PG_TRG + 6 );
@@ -3473,20 +4478,20 @@ CMD_PROC( showctr )
   for( i = 0; i < 20; ++i ) {
     tb.Sig_SetDelay( SIG_CTR, 26 - i );
     tb.uDelay( 10 );
-    tb.Daq_Start(  );
-    tb.Pg_Single(  );
+    tb.Daq_Start();
+    tb.Pg_Single();
     tb.uDelay( 1000 );
     tb.Daq_Stop();
     tb.Daq_Read( data[i], 1024 );
-    if( data[i].size(  ) != nSamples ) {
-      printf( "Data size %i: %i\n", i, int ( data[i].size(  ) ) );
+    if( data[i].size() != nSamples ) {
+      printf( "Data size %i: %i\n", i, int ( data[i].size() ) );
       return true;
     }
   }
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
 #endif
-  tb.Flush(  );
+  tb.Flush();
 
   int n = 20 * nSamples;
   vector < double > values( n );
@@ -3519,6 +4524,7 @@ CMD_PROC( showctr )
 //------------------------------------------------------------------------------
 CMD_PROC( showsda )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   const unsigned int nSamples = 52;
   unsigned int i, k;
   vector < uint16_t > data[20];
@@ -3538,20 +4544,20 @@ CMD_PROC( showsda )
   for( i = 0; i < 20; ++i ) {
     tb.Sig_SetDelay( SIG_SDA, 26 - i );
     tb.uDelay( 10 );
-    tb.Daq_Start(  );
+    tb.Daq_Start();
     tb.roc_Pix_Trim( 12, 34, 5 );
     tb.uDelay( 1000 );
     tb.Daq_Stop();
     tb.Daq_Read( data[i], 1024 );
-    if( data[i].size(  ) != nSamples ) {
-      printf( "Data size %i: %i\n", i, int ( data[i].size(  ) ) );
+    if( data[i].size() != nSamples ) {
+      printf( "Data size %i: %i\n", i, int ( data[i].size() ) );
       return true;
     }
   }
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
 #endif
-  tb.Flush(  );
+  tb.Flush();
 
   int n = 20 * nSamples;
   vector < double > values( n );
@@ -3571,7 +4577,7 @@ CMD_PROC( showsda )
 //------------------------------------------------------------------------------
 void decoding_show2( vector < uint16_t > &data ) // bit-wise print
 {
-  int size = data.size(  );
+  int size = data.size();
   if( size > 6 )
     size = 6;
   for( int i = 0; i < size; ++i ) {
@@ -3604,10 +4610,11 @@ void decoding_show( vector < uint16_t > *data )
 //------------------------------------------------------------------------------
 CMD_PROC( decoding )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   unsigned short t;
   vector < uint16_t > data[16];
   tb.Pg_SetCmd( 0, PG_TOK + 0 );
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 10 );
   Log.section( "decoding" );
 #ifdef DAQOPENCLOSE
@@ -3618,8 +4625,8 @@ CMD_PROC( decoding )
     tb.Sig_SetDelay( SIG_TIN, t + 5 );
     tb.uDelay( 10 );
     for( int i = 0; i < 16; ++i ) {
-      tb.Daq_Start(  );
-      tb.Pg_Single(  );
+      tb.Daq_Start();
+      tb.Pg_Single();
       tb.uDelay( 200 );
       tb.Daq_Stop();
       tb.Daq_Read( data[i], 200 );
@@ -3628,9 +4635,9 @@ CMD_PROC( decoding )
     decoding_show( data );
   }
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
 #endif
-  Log.flush(  );
+  Log.flush();
 
   return true;
 }
@@ -3662,6 +4669,7 @@ CMD_PROC( decoding )
 //------------------------------------------------------------------------------
 CMD_PROC( tbmdis )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   tb.tbm_Enable( false );
   DO_FLUSH;
   return true;
@@ -3726,7 +4734,7 @@ CMD_PROC( tbmgetraw )
 
   uint32_t value;
 
-  tb.Sig_SetLCDS(  ); // TBM sends RDA as LCDS, ROC sends token as LVDS
+  tb.Sig_SetLCDS(); // TBM sends RDA as LCDS, ROC sends token as LVDS
 
   for( int idel = 0; idel < 19; ++idel ) {
     tb.Sig_SetRdaToutDelay( idel ); // 0..19
@@ -3840,6 +4848,31 @@ CMD_PROC( vthr )
 }
 
 //------------------------------------------------------------------------------
+CMD_PROC( subvthr ) // subtract from VthrComp (make it harder)(or softer)
+{
+  int sub;
+  PAR_INT( sub, -255, 255 );
+  for( int roc = 0; roc < 16; ++roc )
+    if( roclist[roc] ) {
+      tb.roc_I2cAddr( roc );
+      int vthr = dacval[roc][VthrComp];
+      cout << "ROC " << setw(2) << roc << " VthrComp from " << setw(3) << vthr;
+      vthr -= sub;
+      if( vthr < 0 )
+	vthr = 0;
+      else if( vthr > 255 )
+	vthr = 255;
+      tb.SetDAC( VthrComp, vthr );
+      dacval[roc][VthrComp] = vthr;
+      Log.printf( "[SETDAC] %i  %i\n", VthrComp, vthr );
+      cout << " to " << setw(3) << vthr << endl;
+    } // roc
+  DO_FLUSH;
+  return true;
+
+} // subvthr
+
+//------------------------------------------------------------------------------
 CMD_PROC( vcal )
 {
   int value;
@@ -3904,7 +4937,7 @@ bool setia( int target )
     tb.mDelay( 200 );
   }
 
-  double ia = tb.GetIA(  ) * 1E3; // [mA]
+  double ia = tb.GetIA() * 1E3; // [mA]
 
   const double slope = 6; // 255 DACs / 40 mA
   const double eps = 0.5; // convergence, for DTB
@@ -3934,12 +4967,12 @@ bool setia( int target )
     dacval[0][Vana] = val;
     Log.printf( "[SETDAC] %i  %i\n", Vana, val );
     tb.mDelay( 200 );
-    ia = tb.GetIA(  ) * 1E3; // contains flush
+    ia = tb.GetIA() * 1E3; // contains flush
     diff = ia - tia;
     ++iter;
     cout << "  " << iter << ". " << val << "  " << ia << "  " << diff << endl;
   }
-  Log.flush(  );
+  Log.flush();
   cout << "  set Vana to " << val << endl;
 
   if( fabs( diff ) < eps && iter < 11 && val > 0 && val < 255 )
@@ -3996,7 +5029,7 @@ CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
     tb.roc_I2cAddr( iroc );
     tb.SetDAC( Vana, val[iroc] );
     tb.mDelay( 300 );
-    double ia = tb.GetIA(  ) * 1E3 - IAoff; // [mA]
+    double ia = tb.GetIA() * 1E3 - IAoff; // [mA]
     double diff = target + 0.5*eps - ia; // besser zuviel als zuwenig
     int iter = 0;
     tb.roc_I2cAddr(iroc);
@@ -4022,7 +5055,7 @@ CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
 	val[iroc] = 255;
       tb.SetDAC( Vana, val[iroc] );
       tb.mDelay( 200 );
-      ia = tb.GetIA(  ) * 1E3 -  IAoff; // contains flush
+      ia = tb.GetIA() * 1E3 -  IAoff; // contains flush
       dacval[iroc][Vana] = val[iroc];
       Log.printf( "[SETDAC] %i  %i\n", Vana, val[iroc] );
       diff = target + 0.1 - ia;
@@ -4032,7 +5065,7 @@ CMD_PROC( optiamod ) // CS  optiamod ia [mA] for a module
 
     } // while
 
-    Log.flush(  );
+    Log.flush();
     tb.SetDAC( Vana, 0 );
     tb.mDelay( 200 );
     cout << "set Vana back to 0 for next ROC (save Vana = " << val[iroc]
@@ -4079,7 +5112,7 @@ CMD_PROC( show )
 	cout << setw( 3 ) << j
 	     << "  " << dacName[j] << "\t"
 	     << setw( 5 ) << dacval[roc][j] << endl;
-	Log.printf( "%3i  %s %4i\n", j, dacName[j].c_str(  ),
+	Log.printf( "%3i  %s %4i\n", j, dacName[j].c_str(),
 		    dacval[roc][j] );
       } // dac
     } // roc
@@ -4122,11 +5155,11 @@ bool writedac( string desc )
   ostringstream fname; // output string stream
 
   if( nrocs == 1 )
-    fname << "dacParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
+    fname << "dacParameters_c" << Chip << "_" << desc.c_str() << ".dat";
   else
-    fname << "dacParameters_D" << Module << "_" << desc.c_str(  ) << ".dat";
+    fname << "dacParameters_D" << Module << "_" << desc.c_str() << ".dat";
   
-  ofstream dacFile( fname.str(  ).c_str(  ) ); // love it!
+  ofstream dacFile( fname.str().c_str() ); // love it!
   
   for( size_t roc = 0; roc < 16; ++roc )
     if( roclist[roc] ) {
@@ -4137,7 +5170,7 @@ bool writedac( string desc )
 		  << setw( 5 ) << dacval[roc][idac] << endl;
         } // dac
     } // ROC
-  cout << "DAC values written to " << fname.str(  ) << endl;
+  cout << "DAC values written to " << fname.str() << endl;
   return true;
 
 }
@@ -4167,18 +5200,18 @@ CMD_PROC( rddac ) // read DACs from file
   ostringstream fname; // output string stream
 
   if( nrocs == 1 )
-    fname << "dacParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
+    fname << "dacParameters_c" << Chip << "_" << desc.c_str() << ".dat";
   else
-    fname << "dacParameters_D" << Module << "_" << desc.c_str(  ) << ".dat";
+    fname << "dacParameters_D" << Module << "_" << desc.c_str() << ".dat";
 
-  ifstream dacFile( fname.str(  ).c_str(  ) );
+  ifstream dacFile( fname.str().c_str() );
 
   if( !dacFile ) {
-    cout << "dac file " << fname.str(  ) << " does not exist" << endl;
+    cout << "dac file " << fname.str() << " does not exist" << endl;
     return 0;
   }
-  cout << "read dac values from " << fname.str(  ) << endl;
-  Log.printf( "[RDDAC] %s\n", fname.str(  ).c_str(  ) );
+  cout << "read dac values from " << fname.str() << endl;
+  Log.printf( "[RDDAC] %s\n", fname.str().c_str() );
 
   int idac;
   string dacname;
@@ -4186,7 +5219,7 @@ CMD_PROC( rddac ) // read DACs from file
   int roc = -1;
   int croc = -1;
 
-  while( !dacFile.eof(  ) ) {
+  while( !dacFile.eof() ) {
     dacFile >> idac >> dacname >> vdac;
     if( idac == 1 ) {
       ++croc;
@@ -4225,11 +5258,11 @@ CMD_PROC( wtrim ) // write trim bits to file
   ostringstream fname; // output string stream
 
   if( nrocs == 1 )
-    fname << "trimParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
+    fname << "trimParameters_c" << Chip << "_" << desc.c_str() << ".dat";
   else
-    fname << "trimParameters_D" << Module << "_" << desc.c_str(  ) << ".dat";
+    fname << "trimParameters_D" << Module << "_" << desc.c_str() << ".dat";
 
-  ofstream trimFile( fname.str(  ).c_str(  ) );
+  ofstream trimFile( fname.str().c_str() );
 
   for( size_t roc = 0; roc < 16; ++roc )
     if( roclist[roc] ) {
@@ -4239,7 +5272,7 @@ CMD_PROC( wtrim ) // write trim bits to file
 		   << "  Pix" << setw( 3 ) << col << setw( 3 ) << row << endl;
         }
     }
-  cout << "trim values written to " << fname.str(  ) << endl;
+  cout << "trim values written to " << fname.str() << endl;
   return true;
 }
 
@@ -4258,18 +5291,18 @@ CMD_PROC( rdtrim ) // read trim bits from file
   ostringstream fname; // output string stream
 
   if( nrocs == 1 )
-    fname << "trimParameters_c" << Chip << "_" << desc.c_str(  ) << ".dat";
+    fname << "trimParameters_c" << Chip << "_" << desc.c_str() << ".dat";
   else
-    fname << "trimParameters_D" << Module << "_" << desc.c_str(  ) << ".dat";
+    fname << "trimParameters_D" << Module << "_" << desc.c_str() << ".dat";
 
-  ifstream trimFile( fname.str(  ).c_str(  ) );
+  ifstream trimFile( fname.str().c_str() );
 
   if( !trimFile ) {
-    cout << "trim file " << fname.str(  ) << " does not exist" << endl;
+    cout << "trim file " << fname.str() << " does not exist" << endl;
     return 0;
   }
-  cout << "read trim values from " << fname.str(  ) << endl;
-  Log.printf( "[RDTRIM] %s\n", fname.str(  ).c_str(  ) );
+  cout << "read trim values from " << fname.str() << endl;
+  Log.printf( "[RDTRIM] %s\n", fname.str().c_str() );
 
   string Pix; // dummy
   int icol;
@@ -4523,10 +5556,11 @@ CMD_PROC( cals )
 //------------------------------------------------------------------------------
 CMD_PROC( cald )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   for( int i = 0; i < 16; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_ClrCal(  );
+      tb.roc_ClrCal();
     }
   DO_FLUSH;
   return true;
@@ -4535,10 +5569,11 @@ CMD_PROC( cald )
 //------------------------------------------------------------------------------
 CMD_PROC( mask )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   for( int i = 0; i < 16; ++i )
     if( roclist[i] ) {
       tb.roc_I2cAddr( i );
-      tb.roc_Chip_Mask(  );
+      tb.roc_Chip_Mask();
     }
   DO_FLUSH;
   return true;
@@ -4579,7 +5614,7 @@ CMD_PROC( daci ) // currents vs dac
   h11 = new
     TH1D( Form( "ID_DAC%02i", dac ),
           Form( "Digital current vs %s;%s [DAC];ID [mA]",
-                dacName[dac].c_str(  ), dacName[dac].c_str(  ) ),
+                dacName[dac].c_str(), dacName[dac].c_str() ),
 	  nstp, dacstrt - 0.5, dacstop + 0.5 );
   h11->Sumw2();
 
@@ -4588,7 +5623,7 @@ CMD_PROC( daci ) // currents vs dac
   h12 = new
     TH1D( Form( "IA_DAC%02i", dac ),
           Form( "Analog current vs %s;%s [DAC];IA [mA]",
-                dacName[dac].c_str(  ), dacName[dac].c_str(  ) ),
+                dacName[dac].c_str(), dacName[dac].c_str() ),
 	  nstp, dacstrt - 0.5, dacstop + 0.5 );
   h12->Sumw2();
 
@@ -4597,8 +5632,8 @@ CMD_PROC( daci ) // currents vs dac
     tb.SetDAC( dac, i );
     tb.mDelay( 50 );
 
-    double id = tb.GetID(  ) * 1E3; // [mA]
-    double ia = tb.GetIA(  ) * 1E3;
+    double id = tb.GetID() * 1E3; // [mA]
+    double ia = tb.GetIA() * 1E3;
 
     Log.printf( "%i %5.1f %5.1f\n", i, id, ia );
     printf( "%3i %5.1f %5.1f\n", i, id, ia );
@@ -4606,16 +5641,16 @@ CMD_PROC( daci ) // currents vs dac
     h11->Fill( i, id );
     h12->Fill( i, ia );
   }
-  Log.flush(  );
+  Log.flush();
 
   tb.SetDAC( dac, val ); // restore
-  tb.Flush(  );
+  tb.Flush();
 
-  h11->Write(  );
-  h12->Write(  );
+  h11->Write();
+  h12->Write();
   h11->SetStats( 0 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 12" << endl;
 
   return true;
@@ -4652,7 +5687,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
       tb.roc_Pix_Trim( col, row, trim );
     }
   }
-  tb.Flush(  );
+  tb.Flush();
 
   if( h11 )
     delete h11;
@@ -4667,7 +5702,7 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
     tb.SetDAC( VthrComp, i );
     tb.mDelay( 20 );
 
-    double id = tb.GetID(  ) * 1000.0; // [mA]
+    double id = tb.GetID() * 1000.0; // [mA]
 
     h11->Fill( i, id );
 
@@ -4689,13 +5724,13 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
       tb.roc_Pix_Mask( col, row );
     }
   }
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_ClrCal();
+  tb.Flush();
 
-  h11->Write(  );
+  h11->Write();
   h11->SetStats( 0 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
   cout << "peak " << ymax << " mA" << " at " << imax << endl;
@@ -4773,10 +5808,10 @@ CMD_PROC( vthrcompi ) // Id vs VthrComp: noise peak (amplitude depends on Temp?)
   if( val < 0 )
     val = 0;
   tb.SetDAC( VthrComp, val );
-  tb.Flush(  );
+  tb.Flush();
   dacval[roc][VthrComp] = val;
   Log.printf( "[SETDAC] %i  %i\n", VthrComp, val );
-  Log.flush(  );
+  Log.flush();
 
   cout << "set VthrComp to " << val << endl;
 
@@ -4821,15 +5856,15 @@ bool GetPixData( int roc, int col, int row, int nTrig,
   tb.Daq_Open( Blocksize, tbmch );
 #endif
   if( nrocs == 1 )
-    tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   else {
-    tb.Daq_Select_Deser400(  );
+    tb.Daq_Select_Deser400();
     tb.Daq_Deser400_Reset( 3 );
   }
   tb.uDelay( 100 );
   tb.Daq_Start( tbmch );
   tb.uDelay( 100 );
-  tb.Flush(  );
+  tb.Flush();
 
   uint16_t flags = 0;
   if( nTrig < 0 )
@@ -4851,13 +5886,13 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 #ifdef DAQOPENCLOSE
   tb.Daq_Close( tbmch );
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   tb.roc_Pix_Mask( col, row );
   tb.roc_Col_Enable( col, 0 );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_ClrCal();
+  tb.Flush();
 
   // unpack data:
 
@@ -4872,23 +5907,23 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 
     bool extra = 0;
 
-    for( unsigned int i = 0; i < data.size(  ); ++i ) {
+    for( unsigned int i = 0; i < data.size(); ++i ) {
 
       if( ( data[i] & 0xffc ) == 0x7f8 ) { // header
 	even = 0;
       }
       else if( even ) { // merge 2 data words into one int:
 
-	if( i < data.size(  ) - 1 ) {
+	if( i < data.size() - 1 ) {
 
 	  unsigned long raw = ( data[i] & 0xfff ) << 12;
 	  raw += data[i + 1] & 0xfff;
 
 	  dec.Translate( raw );
 
-	  uint16_t ix = dec.GetX(  );
-	  uint16_t iy = dec.GetY(  );
-	  uint16_t ph = dec.GetPH(  );
+	  uint16_t ix = dec.GetX();
+	  uint16_t iy = dec.GetY();
+	  uint16_t ph = dec.GetPH();
 
 	  if( ix == col && iy == row ) {
 	    ++cnt;
@@ -4924,7 +5959,7 @@ bool GetPixData( int roc, int col, int row, int nTrig,
 
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
-    for( size_t i = 0; i < data.size(  ); ++i ) {
+    for( size_t i = 0; i < data.size(); ++i ) {
 
       int d = data[i] & 0xfff; // 12 bits data
       int v = ( data[i] >> 12 ) & 0xe; // 3 flag bits: e = 14 = 1110
@@ -5040,41 +6075,41 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
+  tb.Daq_Start();
   tb.uDelay( 100 );
-  tb.Flush(  );
+  tb.Flush();
 
   for( int k = 0; k < abs( nTrig ); ++k ) {
-    tb.Pg_Single(  );
+    tb.Pg_Single();
     tb.uDelay( 20 );
   }
-  tb.Flush(  );
+  tb.Flush();
 
-  tb.Daq_Stop(  );
-  cout << "  DAQ size " << tb.Daq_GetSize(  ) << endl;
+  tb.Daq_Stop();
+  cout << "  DAQ size " << tb.Daq_GetSize() << endl;
 
   vector < uint16_t > data;
-  data.reserve( tb.Daq_GetSize(  ) );
+  data.reserve( tb.Daq_GetSize() );
 
   tb.Daq_Read( data, Blocksize );
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   // pixel off:
 
   tb.roc_Pix_Mask( col, row );
   tb.roc_Col_Enable( col, 0 );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_ClrCal();
+  tb.Flush();
 
-  cout << "  data size " << data.size(  );
-  for( size_t i = 0; i < data.size(  ); ++i ) {
+  cout << "  data size " << data.size();
+  for( size_t i = 0; i < data.size(); ++i ) {
     if( ( data[i] & 0xffc ) == 0x7f8 )
       cout << ":";
     printf( " %4X", data[i] ); // full word with FPGA markers
@@ -5101,7 +6136,7 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
 
   bool extra = 0;
 
-  for( unsigned int i = 0; i < data.size(  ); ++i ) {
+  for( unsigned int i = 0; i < data.size(); ++i ) {
 
     if( ( data[i] & 0xffc ) == 0x7f8 ) { // ROC header
       even = 0;
@@ -5112,16 +6147,16 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
     }
     else if( even ) { // merge 2 words into one pixel int:
 
-      if( i < data.size(  ) - 1 ) {
+      if( i < data.size() - 1 ) {
 
         unsigned long raw = ( data[i] & 0xfff ) << 12;
         raw += data[i + 1] & 0xfff;
 
         dec.Translate( raw );
 
-        uint16_t ix = dec.GetX(  );
-        uint16_t iy = dec.GetY(  );
-        uint16_t ph = dec.GetPH(  );
+        uint16_t ix = dec.GetX();
+        uint16_t iy = dec.GetY();
+        uint16_t ph = dec.GetPH();
         double vc = PHtoVcal( ph, 0, ix, iy );
 
         cout << " pix " << setw( 2 ) << ix << setw( 3 ) << iy << setw( 4 ) << ph;
@@ -5159,10 +6194,10 @@ CMD_PROC( fire ) // fire col row (nTrig) [send cal and read ROC]
        << " responses " << cnt
        << ", PH " << ph << ", RMS " << rms << ", Vcal " << vc << endl;
 
-  h11->Write(  );
+  h11->Write();
   h11->SetStats( 111111 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
   return true;
@@ -5194,32 +6229,32 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
+  tb.Daq_Start();
   tb.uDelay( 100 );
 
   for( int k = 0; k < nTrig; ++k ) {
-    tb.Pg_Single(  );
+    tb.Pg_Single();
     tb.uDelay( 200 );
   }
 
   tb.Daq_Stop();
-  cout << "DAQ size " << tb.Daq_GetSize(  ) << endl;
+  cout << "DAQ size " << tb.Daq_GetSize() << endl;
 
   vector < uint16_t > data;
-  data.reserve( tb.Daq_GetSize(  ) );
+  data.reserve( tb.Daq_GetSize() );
 
   tb.Daq_Read( data, Blocksize );
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
-  cout << "data size " << data.size(  );
-  for( size_t i = 0; i < data.size(  ); ++i ) {
+  cout << "data size " << data.size();
+  for( size_t i = 0; i < data.size(); ++i ) {
     if( ( data[i] & 0xffc ) == 0x7f8 )
       cout << " :";
     printf( " %4X", data[i] ); // full word with FPGA markers
@@ -5242,18 +6277,18 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
   int n2 = 0;
   int ppsum = 0;
 
-  for( unsigned int i = 0; i < data.size(  ); ++i ) {
+  for( unsigned int i = 0; i < data.size(); ++i ) {
 
     if( ( data[i] & 0xffc ) == 0x7f8 ) { // ROC header
       even = 0;
       ++evt;
-      pixels.clear(  );
+      pixels.clear();
       php[0] = -1;
       php[1] = -1;
     }
     else if( even ) { // merge 2 words into one pixel int:
 
-      if( i < data.size(  ) - 1 ) {
+      if( i < data.size() - 1 ) {
 
         unsigned long raw = ( data[i] & 0xfff ) << 12;
         raw += data[i + 1] & 0xfff;
@@ -5261,14 +6296,14 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
         CRocPixel pix;
         pix.raw = data[i] << 12;
         pix.raw += data[i + 1] & 0xfff;
-        pix.DecodeRaw(  );
+        pix.DecodeRaw();
         pixels.push_back( pix );
 
         dec.Translate( raw );
 
-        uint16_t ix = dec.GetX(  );
-        uint16_t iy = dec.GetY(  );
-        uint16_t ph = dec.GetPH(  );
+        uint16_t ix = dec.GetX();
+        uint16_t iy = dec.GetY();
+        uint16_t ph = dec.GetPH();
         double vc = PHtoVcal( ph, 0, ix, iy );
 
         if( ix == col && iy == row ) {
@@ -5327,8 +6362,8 @@ CMD_PROC( fire2 ) // fire2 col row (nTrig) [2-row correlation]
   tb.roc_Pix_Mask( col, row );
   tb.roc_Pix_Mask( col, row2 );
   tb.roc_Col_Enable( col, 0 );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_ClrCal();
+  tb.Flush();
 
   return true;
 }
@@ -5369,15 +6404,15 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
   tb.Daq_Open( Blocksize, tbmch );
 #endif
   if( nrocs == 1 )
-    tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+    tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   else {
-    tb.Daq_Select_Deser400(  );
+    tb.Daq_Select_Deser400();
     tb.Daq_Deser400_Reset( 3 );
   }
   tb.uDelay( 100 );
   tb.Daq_Start( tbmch );
   tb.uDelay( 100 );
-  tb.Flush(  );
+  tb.Flush();
 
   uint16_t flags = 0;
   if( nTrig < 0 )
@@ -5406,7 +6441,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 				       dac, stp, dacstrt, dacstop );
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
@@ -5429,35 +6464,35 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
     uint32_t rest;
     tb.Daq_Read( data, Blocksize, rest, tbmch );
     if( ldb )
-      cout << "  data size " << data.size(  )
+      cout << "  data size " << data.size()
 	   << ", remaining " << rest << endl;
     while( rest > 0 ) {
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest, tbmch );
-      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
+      data.insert( data.end(), dataB.begin(), dataB.end() );
       if( ldb )
-	cout << "  data size " << data.size(  )
+	cout << "  data size " << data.size()
 	     << ", remaining " << rest << endl;
-      dataB.clear(  );
+      dataB.clear();
     }
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Close( tbmch );
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   tb.SetDAC( dac, vdac ); // restore dac value
   tb.roc_Pix_Mask( col, row );
   tb.roc_Col_Enable( col, 0 );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_ClrCal();
+  tb.Flush();
 
   // unpack data:
 
@@ -5485,7 +6520,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 	  if( ldb ) cout << setw(5) << pos;
           int hdr;
           vector < PixelReadoutData > vpix = GetEvent( data, pos, hdr ); // analyzer
-          for( size_t ipx = 0; ipx < vpix.size(  ); ++ipx ) {
+          for( size_t ipx = 0; ipx < vpix.size(); ++ipx ) {
 	    if( ldb ) cout << " " << hex << vpix[ipx].hdr
 			   << dec << " " << vpix[ipx].n << endl;
             if( vpix[ipx].x == col && vpix[ipx].y == row ) {
@@ -5515,14 +6550,14 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
       } // dacs
 
       if( ldb ) cout << "  final data pos " << pos << endl;
-      if( ldb ) cout << "  nReadouts.size " << nReadouts.size(  ) << endl;
+      if( ldb ) cout << "  nReadouts.size " << nReadouts.size() << endl;
       if( ldb ) cout << "  min max responses " << nmin << " " << nmax << endl;
 
       int thr = nmin + ( nmax - nmin ) / 2; // 50% level
       int thrup = dacstrt;
       int thrdn = dacstop;
 
-      for( size_t i = 0; i < nReadouts.size(  ) - 1; ++i ) {
+      for( size_t i = 0; i < nReadouts.size() - 1; ++i ) {
         bool below = 1;
         if( nReadouts[i] > thr )
           below = 0;
@@ -5545,7 +6580,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
     catch( int e ) {
       cout << "  Data error " << e << " at pos " << pos << endl;
       for( int i = pos - 8;
-           i >= 0 && i < pos + 8 && i < int ( data.size(  ) ); ++i )
+           i >= 0 && i < pos + 8 && i < int ( data.size() ); ++i )
         cout << setw( 12 ) << i << hex << setw( 5 ) << data.at( i )
 	     << dec << endl;
       return false;
@@ -5571,7 +6606,7 @@ bool DacScanPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
-    for( size_t i = 0; i < data.size(  ); ++i ) {
+    for( size_t i = 0; i < data.size(); ++i ) {
 
       int d = data[i] & 0xfff; // 12 bits data
       int v = ( data[i] >> 12 ) & 0xe; // 3 flag bits: e = 14 = 1110
@@ -5687,7 +6722,7 @@ int ThrPix( const uint8_t roc, const uint8_t col, const uint8_t row,
 
   DacScanPix( roc, col, row, dac, stp, nTrig, nReadouts, PHavg, PHrms ); // ROC or mod
 
-  int nstp = nReadouts.size(  );
+  int nstp = nReadouts.size();
 
   // analyze:
 
@@ -5733,7 +6768,7 @@ bool setcaldel( int col, int row, int nTrig )
 
   DacScanPix( 0, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
-  int nstp = nReadouts.size(  );
+  int nstp = nReadouts.size();
   cout << "  DAC steps " << nstp << ":" << endl;
 
   int wbc = dacval[0][WBC];
@@ -5770,10 +6805,10 @@ bool setcaldel( int col, int row, int nTrig )
   cout << endl;
   cout << "  eff plateau from " << i0 << " to " << i9 << endl;
 
-  h11->Write(  );
+  h11->Write();
   h11->SetStats( 0 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
   bool ok = 1;
@@ -5789,9 +6824,9 @@ bool setcaldel( int col, int row, int nTrig )
     cout << "  leave CalDel at " << val << endl;
     ok = 0;
   }
-  tb.Flush(  );
+  tb.Flush();
 
-  Log.flush(  );
+  Log.flush();
 
   return ok;
 
@@ -5817,6 +6852,7 @@ CMD_PROC( caldel ) // scan and set CalDel using one pixel
 //------------------------------------------------------------------------------
 CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   Log.section( "CALDELMAP", true );
 
   timeval tv;
@@ -5876,14 +6912,14 @@ CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
         minthr = thr;
 
       tb.roc_Pix_Mask( col, row );
-      tb.roc_ClrCal(  );
-      tb.Flush(  );
+      tb.roc_ClrCal();
+      tb.Flush();
 
     } //rows
 
     Log.printf( "\n" );
     tb.roc_Col_Enable( col, 0 );
-    tb.Flush(  );
+    tb.Flush();
 
   } // cols
 
@@ -5895,19 +6931,19 @@ CMD_PROC( caldelmap ) // map caldel left edge, 22 s (nTrig 10), 57 s (nTrig 99)
   tb.SetDAC( CalDel, vdac ); // restore dac value
   tb.SetDAC( CtrlReg, vctl );
 
-  tb.Flush(  );
+  tb.Flush();
 
   //double defaultLeftMargin = c1->GetLeftMargin();
   //double defaultRightMargin = c1->GetRightMargin();
   //c1->SetLeftMargin(0.10);
   //c1->SetRightMargin(0.18);
-  h21->Write(  );
+  h21->Write();
   h21->SetStats( 0 );
   h21->SetMinimum( minthr );
   h21->SetMaximum( maxthr );
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 21" << endl;
   //c1->SetLeftMargin(defaultLeftMargin);
   //c1->SetRightMargin(defaultRightMargin);
@@ -5959,7 +6995,7 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
 
     DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
-    int nstp = nReadouts.size(  );
+    int nstp = nReadouts.size();
     cout << "DAC steps " << nstp << endl;
 
     // analyze:
@@ -6009,7 +7045,7 @@ CMD_PROC( modcaldel ) // set caldel for modules (using one pixel)
 	 << " plateau height " << mm[roc]
 	 << endl;
   }
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -6048,13 +7084,13 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     //tb.roc_Pix_Cal( col, row, false );
   }
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, 0 );
   tb.Daq_Open( Blocksize, 1 );
 #endif
-  tb.Daq_Select_Deser400(  );
+  tb.Daq_Select_Deser400();
   tb.uDelay( 100 );
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
@@ -6078,7 +7114,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
                                     dacstrt, dacstop );
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
@@ -6113,21 +7149,21 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     try {
       uint32_t rest;
       tb.Daq_Read( data, Blocksize, rest, tbmch );
-      cout << "\tdata size " << data.size(  )
+      cout << "\tdata size " << data.size()
 	   << ", remaining " << rest << endl;
       while( rest > 0 ) {
         vector < uint16_t > dataB;
         dataB.reserve( Blocksize );
         tb.uDelay( 5000 );
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
-        data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "\tdata size " << data.size(  )
+        data.insert( data.end(), dataB.begin(), dataB.end() );
+        cout << "\tdata size " << data.size()
 	     << ", remaining " << rest << endl;
-        dataB.clear(  );
+        dataB.clear();
       }
     }
     catch( CRpcError & e ) {
-      e.What(  );
+      e.What();
       return 0;
     }
 
@@ -6148,7 +7184,7 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
 
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
-    for( size_t i = 0; i < data.size(  ); ++i ) {
+    for( size_t i = 0; i < data.size(); ++i ) {
 
       int d = data[i] & 0xfff; // 12 bits data
       int v = ( data[i] >> 12 ) & 0xe; // 3 flag bits
@@ -6296,19 +7332,19 @@ CMD_PROC( modpixsc ) // S-curve for modules, one pix per ROC
     tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
     for( int col = 0; col < 52; col += 2 ) // DC
       tb.roc_Col_Enable( col, 0 );
-    tb.roc_Chip_Mask(  );
-    tb.roc_ClrCal(  );
+    tb.roc_Chip_Mask();
+    tb.roc_ClrCal();
   }
-  tb.Flush(  );
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Close( 0 );
   tb.Daq_Close( 1 );
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -6342,7 +7378,7 @@ int GetEff( int &n01, int &n50, int &n99 )
     tb.LoopSingleRocAllPixelsCalibrate( 0, nTrig, flags );
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
@@ -6350,10 +7386,10 @@ int GetEff( int &n01, int &n50, int &n99 )
   // pixel = +2 words
   // size = 4160 * nTrig * 3 = 124'800 words
 
-  tb.Daq_Stop(  );
+  tb.Daq_Stop();
 
   vector < uint16_t > data;
-  data.reserve( tb.Daq_GetSize(  ) );
+  data.reserve( tb.Daq_GetSize() );
 
   try {
     uint32_t rest;
@@ -6362,12 +7398,12 @@ int GetEff( int &n01, int &n50, int &n99 )
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest );
-      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      dataB.clear(  );
+      data.insert( data.end(), dataB.begin(), dataB.end() );
+      dataB.clear();
     }
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
@@ -6483,15 +7519,15 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   } // roc
 
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
-  cout << " = " << rocAddress.size(  ) << " ROCs" << endl;
+  cout << " = " << rocAddress.size() << " ROCs" << endl;
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, 0 );
   tb.Daq_Open( Blocksize, 1 );
 #endif
-  tb.Daq_Select_Deser400(  );
+  tb.Daq_Select_Deser400();
   tb.uDelay( 100 );
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
@@ -6555,7 +7591,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
       //       loop trig
     }
     catch( CRpcError & e ) {
-      e.What(  );
+      e.What();
       return 0;
     }
 
@@ -6585,26 +7621,26 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
       try {
         uint32_t rest;
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
-        data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
-                            dataB.end(  ) );
-        cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+        data[tbmch].insert( data[tbmch].end(), dataB.begin(),
+                            dataB.end() );
+        cout << "\tdata[" << tbmch << "] size " << data[tbmch].size()
 	  //<< ", remaining " << rest
-	     << " of " << data[tbmch].capacity(  )
+	     << " of " << data[tbmch].capacity()
 	     << endl;
         while( rest > 0 ) {
-          dataB.clear(  );
+          dataB.clear();
           //tb.uDelay( 5000 );
           tb.Daq_Read( dataB, Blocksize, rest, tbmch );
-          data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
-                              dataB.end(  ) );
-          cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+          data[tbmch].insert( data[tbmch].end(), dataB.begin(),
+                              dataB.end() );
+          cout << "\tdata[" << tbmch << "] size " << data[tbmch].size()
 	    //<< ", remaining " << rest
-	       << " of " << data[tbmch].capacity(  )
+	       << " of " << data[tbmch].capacity()
 	       << endl;
         }
       }
       catch( CRpcError & e ) {
-        e.What(  );
+        e.What();
         return 0;
       }
 
@@ -6619,7 +7655,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
   cout << "\tLoopMultiRocAllPixelDacScan takes " << dtloop << " s" << endl;
   cout << "\tDaq_Read takes " << dtread << " s"
-       << " = " << 2 * ( data[0].size(  ) + data[1].size(  ) ) /
+       << " = " << 2 * ( data[0].size() + data[1].size() ) /
     dtread / 1024 / 1024 << " MiB/s" << endl;
 
   // decode:
@@ -6663,7 +7699,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
     countLoop = -1;
     cout << "\tDAQ size channel " << tbmch
-	 << " = " << data[tbmch].size(  ) << " words " << endl;
+	 << " = " << data[tbmch].size() << " words " << endl;
 
     uint32_t nev = 0;
     uint32_t nrh = 0; // ROC headers
@@ -6677,7 +7713,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
     // nDAC * nTrig * ( TBM header, 8 * ( ROC header, one pixel ), TBM trailer )
 
-    for( size_t i = 0; i < data[tbmch].size(  ); ++i ) {
+    for( size_t i = 0; i < data[tbmch].size(); ++i ) {
 
       int d = data[tbmch].at( i ) & 0xfff; // 12 bits data
       int v = ( data[tbmch].at( i ) >> 12 ) & 0xf; // 3 flag bits
@@ -6823,15 +7859,15 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   if( nTrig < 0 ) // cals
     h21 = new TH2D( Form( "cals_PH_DAC%02i_map", dac ),
 		    Form( "cals PH vs %s map;pixel;%s [DAC];cals PH [ADC]",
-			  dacName[dac].c_str(  ),
-			  dacName[dac].c_str(  ) ),
+			  dacName[dac].c_str(),
+			  dacName[dac].c_str() ),
 		    16*4160, -0.5, 16*4160-0.5,
 		    nstp, dacstrt - 0.5*step, dacstop + 0.5*step );
   else
     h21 = new TH2D( Form( "PH_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
 		    Form( "PH vs %s CR %i Vcal %i map;pixel;%s [DAC];PH [ADC]",
-			  dacName[dac].c_str(  ), ctl, cal,
-			  dacName[dac].c_str(  ) ),
+			  dacName[dac].c_str(), ctl, cal,
+			  dacName[dac].c_str() ),
 		    16*4160, -0.5, 16*4160-0.5,
 		    nstp, dacstrt - 0.5*step, dacstop + 0.5*step ); // 23.8.2014 * step
 
@@ -6840,15 +7876,15 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   if( nTrig < 0 ) // cals
     h22 = new TH2D( Form( "cals_N_DAC%02i_map", dac ),
 		    Form( "cals N vs %s map;pixel;%s [DAC];cals responses",
-			  dacName[dac].c_str(  ),
-			  dacName[dac].c_str(  ) ),
+			  dacName[dac].c_str(),
+			  dacName[dac].c_str() ),
 		    16*4160, -0.5, 16*4160-0.5,
 		    nstp, dacstrt - 0.5*step, dacstop + 0.5*step );
   else
     h22 = new TH2D( Form( "N_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
 		    Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];responses",
-			  dacName[dac].c_str(  ), ctl, cal,
-			  dacName[dac].c_str(  ) ),
+			  dacName[dac].c_str(), ctl, cal,
+			  dacName[dac].c_str() ),
 		    16*4160, -0.5, 16*4160-0.5,
 		    nstp, dacstrt - 0.5*step, dacstop + 0.5*step ); // 23.8.2014 * step
 
@@ -6857,21 +7893,21 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   h23 = new TH2D( "ModuleResponseMap",
                   "Module response map;col;row;responses",
                   8 * 52, -0.5, 8 * 52 - 0.5, 2 * 80, -0.5, 2 * 80 - 0.5 );
-  h23->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h23->GetYaxis()->SetTitleOffset( 1.3 );
 
   if( h24 )
     delete h24;
   h24 = new TH2D( "ModuleThrMap",
                   "Module threshold map;col;row;threshold [small Vcal DAC]",
                   8 * 52, -0.5, 8 * 52 - 0.5, 2 * 80, -0.5, 2 * 80 - 0.5 );
-  h24->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h24->GetYaxis()->SetTitleOffset( 1.3 );
 
   if( h25 )
     delete h25;
   h25 = new TH2D( "ModuleNoiseMap",
                   "Module noise map;col;row;width of threshold curve [small Vcal DAC]",
                   8 * 52, -0.5, 8 * 52 - 0.5, 2 * 80, -0.5, 2 * 80 - 0.5 );
-  h25->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h25->GetYaxis()->SetTitleOffset( 1.3 );
 
   int iw = 3; // print format
   if( mTrig > 99 )
@@ -6977,8 +8013,8 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
     // Localize the missing Bump from h22
 
-    int nbinx = h22->GetNbinsX(  ); // pix
-    int nbiny = h22->GetNbinsY(  ); // dac
+    int nbinx = h22->GetNbinsX(); // pix
+    int nbiny = h22->GetNbinsY(); // dac
 
     int nActive;
     int nMissing;
@@ -6995,7 +8031,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     // get width of Vthrcomp plateu distribution and fit it
     for( int ibin = 1; ibin <= nbinx; ++ibin ) {
 
-      ipx = h22->GetXaxis(  )->GetBinCenter( ibin );
+      ipx = h22->GetXaxis()->GetBinCenter( ibin );
       int roc = ipx / ( 80 * 52 );
       ipx = ipx - roc * ( 80 * 52);
       // max response:
@@ -7022,7 +8058,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
 	for( int jbin = 0; jbin <= nbiny; ++jbin ) {
 
-	  int idac = h22->GetYaxis(  )->GetBinCenter( jbin );
+	  int idac = h22->GetYaxis()->GetBinCenter( jbin );
 
 	  int cnt = h22->GetBinContent( ibin, jbin );
 
@@ -7049,7 +8085,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
     for( int ibin = 1; ibin <= nbinx; ++ibin ) {
 
-      ipx = h22->GetXaxis(  )->GetBinCenter( ibin );
+      ipx = h22->GetXaxis()->GetBinCenter( ibin );
       int roc = ipx / ( 80 * 52 );
       ipx = ipx - roc * ( 80 * 52);
       // max response:
@@ -7078,7 +8114,7 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
 	for( int jbin = 0; jbin <= nbiny; ++jbin ) {
 
-	  int idac = h22->GetYaxis(  )->GetBinCenter( jbin );
+	  int idac = h22->GetYaxis()->GetBinCenter( jbin );
 
 	  int cnt = h22->GetBinContent( ibin, jbin );
 
@@ -7120,19 +8156,19 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
 
     } // x-bins
 
-    h12->Write(  );
+    h12->Write();
 
     // save the map in the log file
 
-    for( int ibin = 1; ibin <= h24->GetNbinsX(  ); ++ibin ) {
-      for( int jbin = 1; jbin <= h24->GetNbinsY(  ); ++jbin ) {
+    for( int ibin = 1; ibin <= h24->GetNbinsX(); ++ibin ) {
+      for( int jbin = 1; jbin <= h24->GetNbinsY(); ++jbin ) {
 	int c_val = h24->GetBinContent( ibin, jbin );
 	Log.printf( " %i", c_val );
 	//cout << ibin << " " << jbin << " " << c_val << endl;
       } //row
       Log.printf( "\n" );
     } // col
-    Log.flush(  );
+    Log.flush();
 
     Log.printf( "Number of Active bump bonds [above trig/2]: %i\n", nActive );
     Log.printf( "Number of Missing bump bonds: %i\n", nMissing );
@@ -7142,13 +8178,13 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     cout << "Number of Missing bump bonds: " << nMissing << endl;
     cout << "Number of Dead pixel: " << nIneff << endl;
 
-    h24->Write(  );
+    h24->Write();
 
     h25->SetStats( 0 );
     h25->SetMinimum(0);
     h25->SetMaximum(2);
     h25->Draw( "colz" );
-    c1->Update(  );
+    c1->Update();
     cout << "  histos 11, 12, 21, 22, 23, 24, 25" << endl;
 
   } // BB test
@@ -7175,16 +8211,16 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
   }
   delete[]amp;
 
-  h11->Write(  );
-  h14->Write(  );
-  h15->Write(  );
-  h21->Write(  );
-  h22->Write(  );
-  h23->Write(  );
-  h24->Write(  );
-  h25->Write(  );
+  h11->Write();
+  h14->Write();
+  h15->Write();
+  h21->Write();
+  h22->Write();
+  h23->Write();
+  h24->Write();
+  h25->Write();
   h23->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 14, 15, 21 big, 22 big, 23, 24, 25" << endl;
 
   // all off:
@@ -7197,19 +8233,19 @@ CMD_PROC( dacscanmod ) // DAC scan for modules, all pix
     tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
     for( int col = 0; col < 52; col += 2 ) // DC
       tb.roc_Col_Enable( col, 0 );
-    tb.roc_Chip_Mask(  );
-    tb.roc_ClrCal(  );
+    tb.roc_Chip_Mask();
+    tb.roc_ClrCal();
   }
-  tb.Flush(  );
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Close( 0 );
   tb.Daq_Close( 1 );
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -7283,7 +8319,7 @@ void printThrMap( const bool longmode, int roc, int &nok )
 
   } // rows
 
-  Log.flush(  );
+  Log.flush();
 
   cout << "  valid thresholds " << nok << endl;
   if( nok > 0 ) {
@@ -7362,15 +8398,15 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
   } // roc
 
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
-  cout << " = " << rocAddress.size(  ) << " ROCs" << endl;
+  cout << " = " << rocAddress.size() << " ROCs" << endl;
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, 0 );
   tb.Daq_Open( Blocksize, 1 );
 #endif
-  tb.Daq_Select_Deser400(  );
+  tb.Daq_Select_Deser400();
   tb.uDelay( 100 );
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
@@ -7427,7 +8463,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
       //       loop trig
     }
     catch( CRpcError & e ) {
-      e.What(  );
+      e.What();
       return;
     }
 
@@ -7458,26 +8494,26 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
       try {
         uint32_t rest;
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
-        data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
-                            dataB.end(  ) );
-        cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+        data[tbmch].insert( data[tbmch].end(), dataB.begin(),
+                            dataB.end() );
+        cout << "\tdata[" << tbmch << "] size " << data[tbmch].size()
 	  //<< ", remaining " << rest
-	     << " of " << data[tbmch].capacity(  )
+	     << " of " << data[tbmch].capacity()
 	     << endl;
         while( rest > 0 ) {
-          dataB.clear(  );
+          dataB.clear();
           tb.uDelay( 5000 );
           tb.Daq_Read( dataB, Blocksize, rest, tbmch );
-          data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
-                              dataB.end(  ) );
-          cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+          data[tbmch].insert( data[tbmch].end(), dataB.begin(),
+                              dataB.end() );
+          cout << "\tdata[" << tbmch << "] size " << data[tbmch].size()
 	    //<< ", remaining " << rest
-	       << " of " << data[tbmch].capacity(  )
+	       << " of " << data[tbmch].capacity()
 	       << endl;
         }
       }
       catch( CRpcError & e ) {
-        e.What(  );
+        e.What();
         return;
       }
 
@@ -7492,8 +8528,8 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 
   cout << "\tLoopMultiRocAllPixelDacScan takes " << dtloop << " s" << endl;
   cout << "\tDaq_Read takes " << dtread << " s"
-       << " = " << 2 * ( data[0].size(  ) +
-			 data[1].size(  ) ) / dtread / 1024 /
+       << " = " << 2 * ( data[0].size() +
+			 data[1].size() ) / dtread / 1024 /
     1024 << " MiB/s" << endl;
 
   // decode:
@@ -7522,7 +8558,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
     countLoop = -1; 
     cout << "\tDAQ size channel " << tbmch
-	 << " = " << data[tbmch].size(  ) << " words " << endl;
+	 << " = " << data[tbmch].size() << " words " << endl;
 
     uint32_t nev = 0;
     uint32_t nrh = 0; // ROC headers
@@ -7536,7 +8572,7 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
 
     // nDAC * nTrig * ( TBM header, 8 * ( ROC header, one pixel ), TBM trailer )
 
-    for( size_t i = 0; i < data[tbmch].size(  ); ++i ) {
+    for( size_t i = 0; i < data[tbmch].size(); ++i ) {
 
       int d = data[tbmch].at( i ) & 0xfff; // 12 bits data
       int v = ( data[tbmch].at( i ) >> 12 ) & 0xf; // 3 flag bits
@@ -7728,16 +8764,16 @@ void ModThrMap( int strt, int stop, int step, int nTrig, int xtlk, int cals )
     tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
     for( int col = 0; col < 52; col += 2 ) // DC
       tb.roc_Col_Enable( col, 0 );
-    tb.roc_Chip_Mask(  );
-    tb.roc_ClrCal(  );
+    tb.roc_Chip_Mask();
+    tb.roc_ClrCal();
   }
-  tb.Flush(  );
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Close( 0 );
   tb.Daq_Close( 1 );
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
 } // ModThrMap
@@ -7790,7 +8826,7 @@ CMD_PROC( modthrmap ) // modthrmap [new] [cut]
   h21 = new TH2D( "ModuleThresholdMap",
                   "Module threshold map;col;row;threshold [small Vcal DAC]",
                   8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
 
   int sum = 0;
   int nok = 0;
@@ -7878,10 +8914,10 @@ CMD_PROC( modthrmap ) // modthrmap [new] [cut]
     cout << "  thr rms  " << rms << endl;
   }
 
-  h11->Write(  );
-  h21->Write(  );
+  h11->Write();
+  h21->Write();
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 21" << endl;
 
   gettimeofday( &tv, NULL );
@@ -7983,7 +9019,7 @@ CMD_PROC( modvthrcomp )
 
       tb.SetDAC( VthrComp, vthr );
       tb.uDelay( 100 );
-      tb.Flush(  );
+      tb.Flush();
 
       int thr = ThrPix( roc, colmin, rowmin, dac, step, nTrig );
 
@@ -7999,7 +9035,7 @@ CMD_PROC( modvthrcomp )
     cout << "set VthrComp to " << vthr << endl;
     dacval[roc][VthrComp] = vthr;
     tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
-    tb.Flush(  );
+    tb.Flush();
 
   } // rocs
 
@@ -8165,7 +9201,7 @@ CMD_PROC( modtrim )
   } // rocs
 
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // take threshold map, find hardest pixel
@@ -8206,8 +9242,8 @@ CMD_PROC( modtrim )
 	h11->Fill( modthr[roc][col][row] );
 
   h11->Draw( "hist" );
-  c1->Update(  );
-  h11->Write(  );
+  c1->Update();
+  h11->Write();
 
   cout << endl;
 
@@ -8262,7 +9298,7 @@ CMD_PROC( modtrim )
 
       tb.SetDAC( Vtrim, itrim );
       tb.uDelay( 120 );
-      tb.Flush(  );
+      tb.Flush();
 
       int thr = ThrPix( roc, colmax, rowmax, dac, step, nTrig );
 
@@ -8281,8 +9317,8 @@ CMD_PROC( modtrim )
 
     tb.roc_Pix_Mask( colmax, rowmax );
     tb.roc_Col_Enable( colmax, 0 );
-    tb.roc_ClrCal(  );
-    tb.Flush(  );
+    tb.roc_ClrCal();
+    tb.Flush();
 
   } // rocs
 
@@ -8335,8 +9371,8 @@ CMD_PROC( modtrim )
 	  h12->Fill( modthr[roc][col][row] );
 
     h12->Draw( "hist" );
-    c1->Update(  );
-    h12->Write(  );
+    c1->Update();
+    h12->Write();
 
     int correction = 4;
     step = 4;
@@ -8359,8 +9395,8 @@ CMD_PROC( modtrim )
 	  h13->Fill( modthr[roc][col][row] );
 
     h13->Draw( "hist" );
-    c1->Update(  );
-    h13->Write(  );
+    c1->Update();
+    h13->Write();
 
     correction = 2;
     step = 2;
@@ -8383,8 +9419,8 @@ CMD_PROC( modtrim )
 	  h14->Fill( modthr[roc][col][row] );
 
     h14->Draw( "hist" );
-    c1->Update(  );
-    h14->Write(  );
+    c1->Update();
+    h14->Write();
 
     correction = 1;
     step = 1;
@@ -8407,8 +9443,8 @@ CMD_PROC( modtrim )
 	  h15->Fill( modthr[roc][col][row] );
 
     h15->Draw( "hist" );
-    c1->Update(  );
-    h15->Write(  );
+    c1->Update();
+    h15->Write();
 
     correction = 1;
     step = 1;
@@ -8431,8 +9467,8 @@ CMD_PROC( modtrim )
 	  h16->Fill( modthr[roc][col][row] );
 
     h16->Draw( "hist" );
-    c1->Update(  );
-    h16->Write(  );
+    c1->Update();
+    h16->Write();
 
     cout << "SetTrimValues in FPGA" << endl;
 
@@ -8458,7 +9494,7 @@ CMD_PROC( modtrim )
 
   } // contTrim
 
-  tb.Flush(  );
+  tb.Flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -8473,6 +9509,7 @@ CMD_PROC( modtrim )
 // Daniel Pitzl, DESY, 15.2.2015, adjust trimbits of weak pixels
 CMD_PROC( modtrimbits )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   // analyze latest mod thr map:
 
   int sum = 0;
@@ -8618,7 +9655,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
 
   DacScanPix( roc, col, row, dac, stp, nTrig, nReadouts, PHavg, PHrms );
 
-  int nstp = nReadouts.size(  );
+  int nstp = nReadouts.size();
 
   if( ldb ) cout << "nstp " << nstp << endl;
 
@@ -8627,7 +9664,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
   h10 = new
     TH1D( Form( "N_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
           Form( "responses vs %s ROC %i col %i row %i;%s [DAC];responses",
-                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
+                dacName[dac].c_str(), roc, col, row, dacName[dac].c_str() ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h10->Sumw2();
 
@@ -8636,7 +9673,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
   h11 = new
     TH1D( Form( "ph_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
           Form( "PH vs %s ROC %i col %i row %i;%s [DAC];<PH> [ADC]",
-                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
+                dacName[dac].c_str(), roc, col, row, dacName[dac].c_str() ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h11->Sumw2();
 
@@ -8648,7 +9685,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
                 "Vcal vs %s ROC %i col %i row %i;%s [DAC];calibrated PH [small Vcal DAC]"
                 :
                 "Vcal vs %s ROC %i col %i row %i;%s [DAC];calibrated PH [large Vcal DAC]",
-                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
+                dacName[dac].c_str(), roc, col, row, dacName[dac].c_str() ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h12->Sumw2();
 
@@ -8657,7 +9694,7 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
   h13 = new
     TH1D( Form( "rms_dac%02i_roc%02i_%02i_%02i", dac, roc, col, row ),
           Form( "RMS vs %s ROC %i col %i row %i;%s [DAC];PH RMS [ADC]",
-                dacName[dac].c_str(  ), row, col, row, dacName[dac].c_str(  ) ),
+                dacName[dac].c_str(), row, col, row, dacName[dac].c_str() ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h13->Sumw2();
 
@@ -8718,17 +9755,17 @@ CMD_PROC( phdac ) // phdac col row dac [stp] [nTrig] [roc] (PH vs dac)
     if( ldb ) cout << endl;
   } // dacs
   Log.printf( "\n" );
-  Log.flush(  );
+  Log.flush();
 
   cout << "min PH " << phmin << endl;
 
-  h10->Write(  );
-  h11->Write(  );
-  h12->Write(  );
-  h13->Write(  );
+  h10->Write();
+  h11->Write();
+  h12->Write();
+  h13->Write();
   h11->SetStats( 0 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 10, 11, 12, 13" << endl;
 
   gettimeofday( &tv, NULL );
@@ -8783,16 +9820,16 @@ CMD_PROC( calsdac ) // calsdac col row dac [nTrig] [roc] (cals PH vs dac)
   DacScanPix( roc, col, row, dac, stp, -nTrig, nReadouts, PHavg, PHrms ); // negative nTrig = cals
 
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
-  tb.Flush(  );
+  tb.Flush();
 
-  int nstp = nReadouts.size(  );
+  int nstp = nReadouts.size();
 
   if( h11 )
     delete h11;
   h11 = new
     TH1D( Form( "cals_dac%02i_%02i_%02i_%02i", dac, roc, col, row ),
           Form( "CALS vs %s roc %i col %i row %i;%s [DAC];<CALS> [ADC]",
-                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
+                dacName[dac].c_str(), roc, col, row, dacName[dac].c_str() ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h11->Sumw2();
 
@@ -8801,7 +9838,7 @@ CMD_PROC( calsdac ) // calsdac col row dac [nTrig] [roc] (cals PH vs dac)
   h12 = new
     TH1D( Form( "resp_cals_dac%02i_%02i_%02i_%02i", dac, roc, col, row ),
           Form( "CALS responses vs %s roc %i col %i row %i;%s [DAC];cals responses",
-                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ) ),
+                dacName[dac].c_str(), roc, col, row, dacName[dac].c_str() ),
           nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h12->Sumw2();
 
@@ -8826,13 +9863,13 @@ CMD_PROC( calsdac ) // calsdac col row dac [nTrig] [roc] (cals PH vs dac)
   cout << endl;
   Log.printf( "\n" );
   cout << "min PH " << phmin << endl;
-  Log.flush(  );
+  Log.flush();
 
-  h11->Write(  );
-  h12->Write(  );
+  h11->Write();
+  h12->Write();
   h12->SetStats( 0 );
   h12->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 12" << endl;
 
   gettimeofday( &tv, NULL );
@@ -8875,7 +9912,7 @@ int effvsdac( int col, int row, int dac, int stp, int nTrig, int roc )
 
   DacScanPix( roc, col, row, dac, stp, nTrig, nReadouts, PHavg, PHrms );
 
-  int nstp = nReadouts.size(  );
+  int nstp = nReadouts.size();
 
   if( h11 )
     delete h11;
@@ -8883,7 +9920,7 @@ int effvsdac( int col, int row, int dac, int stp, int nTrig, int roc )
     TH1D( Form( "eff_dac%02i_roc%02i_col%02i_row%02i_stp%02i",
 		dac, roc, col, row, stp ),
           Form( "Responses vs %s ROC %i col %i row %i;%s [DAC] step %i;responses",
-                dacName[dac].c_str(  ), roc, col, row, dacName[dac].c_str(  ), stp ),
+                dacName[dac].c_str(), roc, col, row, dacName[dac].c_str(), stp ),
 	  nstp, dacStrt(dac)-0.5*stp, dacStop(dac) + 0.5*stp );
   h11->Sumw2();
 
@@ -8911,15 +9948,15 @@ int effvsdac( int col, int row, int dac, int stp, int nTrig, int roc )
   } // dacs
   cout << endl;
   Log.printf( "\n" );
-  Log.flush(  );
+  Log.flush();
 
   if( dac == Vcal )
     cout << "  thr " << i50 << ", sigma " << (i90 - i10)/2.5631*stp << endl;
 
-  h11->Write(  );
+  h11->Write();
   h11->SetStats( 0 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
   gettimeofday( &tv, NULL );
@@ -9006,7 +10043,7 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
     TH1D( Form( "thr_dac%02i_%02i_%02i_bits%02i", dac, col, row, trim ),
           Form
           ( "thr vs %s col %i row %i bits %i;%s [DAC];threshold [small Vcal DAC]",
-            dacName[dac].c_str(  ), col, row, trim, dacName[dac].c_str(  ) ),
+            dacName[dac].c_str(), col, row, trim, dacName[dac].c_str() ),
           nstp, dacStrt(dac)-0.5*dacstep, dacStop(dac) + 0.5*dacstep );
   h11->Sumw2();
 
@@ -9017,7 +10054,7 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
 
     tb.SetDAC( dac, i );
     tb.uDelay( 1000 );
-    tb.Flush(  );
+    tb.Flush();
 
     // NIOS code pixel_dtb.cc
     //for( int16_t i = 0; i < nTriggers; ++i) {
@@ -9048,18 +10085,18 @@ CMD_PROC( thrdac ) // thrdac col row dac (thr vs dac)
   cout << "min Vcal threshold " << tmin << " at dac " << dac << " " << imin <<
     endl;
 
-  h11->Write(  );
+  h11->Write();
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
   tb.roc_Col_Enable( col, 0 );
-  tb.roc_ClrCal(  );
+  tb.roc_ClrCal();
   tb.roc_Pix_Mask( col, row );
   tb.SetDAC( dac, vdac ); // restore dac value
   tb.SetDAC( CtrlReg, dacval[0][CtrlReg] );
 
-  tb.Flush(  );
+  tb.Flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -9096,7 +10133,7 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
 
   tb.roc_I2cAddr( roc );
   tb.SetDAC( CtrlReg, 0 ); // small Vcal
-  tb.Flush(  );
+  tb.Flush();
 
   int nTrig = 20; // for S-curve
   int step = 1;
@@ -9117,7 +10154,7 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
     TH1D( Form( "thr_dac%02i_%02i_%02i_bits%02i", dac, col, row, trim ),
           Form
           ( "thr vs %s col %i row %i bits %i;%s [DAC];threshold [small Vcal DAC]",
-            dacName[dac].c_str(  ), col, row, trim, dacName[dac].c_str(  ) ),
+            dacName[dac].c_str(), col, row, trim, dacName[dac].c_str() ),
           nstp, dacStrt(dac)-0.5*dacstep, dacStop(dac) + 0.5*dacstep );
   h11->Sumw2();
 
@@ -9128,7 +10165,7 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
 
     tb.SetDAC( dac, i );
     tb.uDelay( 1000 );
-    tb.Flush(  );
+    tb.Flush();
 
     int thr = ThrPix( roc, col, row, Vcal, step, nTrig );
 
@@ -9148,15 +10185,15 @@ CMD_PROC( modthrdac ) // modthrdac col row dac (thr vs dac on module)
   cout << "min Vcal threshold " << tmin << " at dac " << dac << " " << imin <<
     endl;
 
-  h11->Write(  );
+  h11->Write();
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
   tb.SetDAC( dac, vdac ); // restore dac value
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] );
 
-  tb.Flush(  );
+  tb.Flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -9183,9 +10220,9 @@ bool GetRocData( int nTrig, vector < int16_t > & nReadouts,
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
+  tb.Daq_Start();
   tb.uDelay( 100 );
 
   // all on:
@@ -9200,7 +10237,7 @@ bool GetRocData( int nTrig, vector < int16_t > & nReadouts,
     */
   }
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
   cout << "  GetRocData mTrig " << mTrig << ", flags " << flags << endl;
 
@@ -9208,41 +10245,41 @@ bool GetRocData( int nTrig, vector < int16_t > & nReadouts,
     tb.LoopSingleRocAllPixelsCalibrate( 0, mTrig, flags );
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
-  tb.Daq_Stop(  );
+  tb.Daq_Stop();
 
   // header = 1 word
   // pixel = +2 words
   // size = 4160 * nTrig * 3 = 124'800 words
 
   vector < uint16_t > data;
-  data.reserve( tb.Daq_GetSize(  ) );
-  cout << "  DAQ size " << tb.Daq_GetSize(  ) << endl;
+  data.reserve( tb.Daq_GetSize() );
+  cout << "  DAQ size " << tb.Daq_GetSize() << endl;
 
   try {
     uint32_t rest;
     tb.Daq_Read( data, Blocksize, rest );
-    cout << "  data size " << data.size(  )
+    cout << "  data size " << data.size()
       //<< ", remaining " << rest
-	 << " of " << data.capacity(  )
+	 << " of " << data.capacity()
 	 << endl;
     while( rest > 0 ) {
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest );
-      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "  data size " << data.size(  )
+      data.insert( data.end(), dataB.begin(), dataB.end() );
+      cout << "  data size " << data.size()
 	//<< ", remaining " << rest
-	   << " of " << data.capacity(  )
+	   << " of " << data.capacity()
 	   << endl;
-      dataB.clear(  );
+      dataB.clear();
     }
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
@@ -9250,14 +10287,14 @@ bool GetRocData( int nTrig, vector < int16_t > & nReadouts,
 
   for( int col = 0; col < 52; col += 2 ) // DC
     tb.roc_Col_Enable( col, 0 );
-  tb.roc_Chip_Mask(  );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_Chip_Mask();
+  tb.roc_ClrCal();
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   // unpack data:
@@ -9333,9 +10370,9 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > & nReadouts,
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
+  tb.Daq_Start();
   tb.uDelay( 100 );
 
   // all on:
@@ -9353,7 +10390,7 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > & nReadouts,
     */
   }
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
   // now mask all pixels and save initial trim values
 
@@ -9380,37 +10417,37 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > & nReadouts,
     tb.LoopSingleRocAllPixelsCalibrate( 0, mTrig, flags );
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
-  tb.Daq_Stop(  );
+  tb.Daq_Stop();
 
   // header = 1 word
   // pixel = +2 words
   // size = 4160 * nTrig * 3 = 124'800 words
 
   vector < uint16_t > data;
-  data.reserve( tb.Daq_GetSize(  ) );
-  cout << "  DAQ size " << tb.Daq_GetSize(  ) << endl;
+  data.reserve( tb.Daq_GetSize() );
+  cout << "  DAQ size " << tb.Daq_GetSize() << endl;
 
   try {
     uint32_t rest;
     tb.Daq_Read( data, Blocksize, rest );
-    cout << "  data size " << data.size(  )
+    cout << "  data size " << data.size()
 	 << ", remaining " << rest << endl;
     while( rest > 0 ) {
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest );
-      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "  data size " << data.size(  )
+      data.insert( data.end(), dataB.begin(), dataB.end() );
+      cout << "  data size " << data.size()
 	   << ", remaining " << rest << endl;
-      dataB.clear(  );
+      dataB.clear();
     }
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
@@ -9418,14 +10455,14 @@ bool GetRocDataMasked( int nTrig, vector < int16_t > & nReadouts,
 
   for( int col = 0; col < 52; col += 2 ) // DC
     tb.roc_Col_Enable( col, 0 );
-  tb.roc_Chip_Mask(  );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_Chip_Mask();
+  tb.roc_ClrCal();
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   // unpack data:
@@ -9567,25 +10604,25 @@ bool geteffmap( int nTrig )
       Log.printf( " %i", cnt );
 
       ++j;
-      if( j == nReadouts.size(  ) )
+      if( j == nReadouts.size() )
         break;
 
     } // row
 
     Log.printf( "\n" );
-    if( j == nReadouts.size(  ) )
+    if( j == nReadouts.size() )
       break;
 
   } // col
 
-  h11->Write(  );
-  h21->Write(  );
+  h11->Write();
+  h21->Write();
   h21->SetStats( 0 );
   h21->SetMinimum( 0 );
   h21->SetMaximum( nTrig );
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 21" << endl;
 
   cout << endl;
@@ -9593,7 +10630,7 @@ bool geteffmap( int nTrig )
   cout << ">50% pixels: " << nActive << endl;
   cout << "100% pixels: " << nPerfect << endl;
 
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -9694,31 +10731,31 @@ CMD_PROC( effmask )
       Log.printf( " %i", cnt );
 
       ++j;
-      if( j == nReadouts.size(  ) )
+      if( j == nReadouts.size() )
         break;
 
     } // row
 
     Log.printf( "\n" );
-    if( j == nReadouts.size(  ) )
+    if( j == nReadouts.size() )
       break;
 
   } // col
 
-  h21->Write(  );
+  h21->Write();
   h21->SetStats( 0 );
   h21->SetMinimum( 0 );
   h21->SetMaximum( 2 );
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
   h21->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histo 21" << endl;
 
   cout << endl;
   cout << " Pixels Masked and Responding: " << nError << endl;
   cout << " Pixels Masked and not Responding: " << nOk << endl;
 
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -9762,13 +10799,13 @@ void ModPixelAlive( int nTrig )
     tb.SetTrimValues( roc, trimvalues ); // load into FPGA
   } // roc
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize, 0 );
   tb.Daq_Open( Blocksize, 1 );
 #endif
-  tb.Daq_Select_Deser400(  );
+  tb.Daq_Select_Deser400();
   tb.uDelay( 100 );
   tb.Daq_Deser400_Reset( 3 );
   tb.uDelay( 100 );
@@ -9807,7 +10844,7 @@ void ModPixelAlive( int nTrig )
       done = tb.LoopMultiRocAllPixelsCalibrate( rocAddress, nTrig, flags );
     }
     catch( CRpcError & e ) {
-      e.What(  );
+      e.What();
       return;
     }
 
@@ -9839,26 +10876,26 @@ void ModPixelAlive( int nTrig )
       try {
         uint32_t rest;
         tb.Daq_Read( dataB, Blocksize, rest, tbmch );
-        data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
-                            dataB.end(  ) );
-        cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+        data[tbmch].insert( data[tbmch].end(), dataB.begin(),
+                            dataB.end() );
+        cout << "\tdata[" << tbmch << "] size " << data[tbmch].size()
 	  //<< ", remaining " << rest
-	     << " of " << data[tbmch].capacity(  )
+	     << " of " << data[tbmch].capacity()
 	     << endl;
         while( rest > 0 ) {
-          dataB.clear(  );
+          dataB.clear();
           tb.uDelay( 5000 );
           tb.Daq_Read( dataB, Blocksize, rest, tbmch );
-          data[tbmch].insert( data[tbmch].end(  ), dataB.begin(  ),
-                              dataB.end(  ) );
-          cout << "\tdata[" << tbmch << "] size " << data[tbmch].size(  )
+          data[tbmch].insert( data[tbmch].end(), dataB.begin(),
+                              dataB.end() );
+          cout << "\tdata[" << tbmch << "] size " << data[tbmch].size()
 	    //<< ", remaining " << rest
-	       << " of " << data[tbmch].capacity(  )
+	       << " of " << data[tbmch].capacity()
 	       << endl;
         }
       }
       catch( CRpcError & e ) {
-        e.What(  );
+        e.What();
         return;
       }
 
@@ -9874,7 +10911,7 @@ void ModPixelAlive( int nTrig )
   cout << "\tLoopMultiRocAllPixelsCalibrate takes "
        << dtloop << " s" << endl;
   cout << "\tDaq_Read takes " << dtread << " s" << " = "
-       << 2 * ( data[0].size(  ) + data[1].size(  ) ) / dtread / 1024 / 1024
+       << 2 * ( data[0].size() + data[1].size() ) / dtread / 1024 / 1024
        << " MiB/s" << endl;
 
   // read and analyze:
@@ -9896,7 +10933,7 @@ void ModPixelAlive( int nTrig )
   for( int tbmch = 0; tbmch < 2; ++tbmch ) {
     countLoop = -1;
     cout << "\tDAQ size channel " << tbmch
-	 << " = " << data[tbmch].size(  ) << " words " << endl;
+	 << " = " << data[tbmch].size() << " words " << endl;
 
     uint32_t raw = 0;
     uint32_t hdr = 0;
@@ -9906,7 +10943,7 @@ void ModPixelAlive( int nTrig )
     cout << "\tnrocsa " << nrocsa << " nrocsb " << nrocsb << endl;
     // nDAC * nTrig * (TBM header, some ROC headers, one pixel, more ROC headers, TBM trailer)
 
-    for( size_t i = 0; i < data[tbmch].size(  ); ++i ) {
+    for( size_t i = 0; i < data[tbmch].size(); ++i ) {
 
       int d = data[tbmch].at( i ) & 0xfff; // 12 bits data
       int v = ( data[tbmch].at( i ) >> 12 ) & 0xe; // 3 flag bits
@@ -10028,19 +11065,19 @@ void ModPixelAlive( int nTrig )
     tb.roc_I2cAddr( roc );
     for( int col = 0; col < 52; col += 2 ) // DC
       tb.roc_Col_Enable( col, 0 );
-    tb.roc_Chip_Mask(  );
-    tb.roc_ClrCal(  );
+    tb.roc_Chip_Mask();
+    tb.roc_ClrCal();
   }
-  tb.Flush(  );
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Close( 0 );
   tb.Daq_Close( 1 );
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
-  Log.flush(  );
+  Log.flush();
 
   for ( size_t iroc = 0; iroc < enabledrocslist.size(); ++iroc ) {
     int roc = enabledrocslist[iroc];
@@ -10061,7 +11098,7 @@ bool tunePHmod( int col, int row, int roc )
 
   tb.roc_I2cAddr( roc );
   tb.SetDAC( CtrlReg, 4 ); // large Vcal
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // scan Vcal for one pixel
@@ -10078,16 +11115,16 @@ bool tunePHmod( int col, int row, int roc )
 
   DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
-  if( nReadouts.size(  ) < 256 ) {
-    cout << "only " << nReadouts.size(  ) << " Vcal points"
+  if( nReadouts.size() < 256 ) {
+    cout << "only " << nReadouts.size() << " Vcal points"
 	 << ". choose different pixel, check CalDel, check Ia, or give up"
 	 << endl;
     return 0;
   }
 
-  if( nReadouts.at( nReadouts.size(  ) - 1 ) < nTrig ) {
-    cout << "only " << nReadouts.at( nReadouts.size(  ) - 1 )
-	 << " responses at " << nReadouts.size(  ) - 1
+  if( nReadouts.at( nReadouts.size() - 1 ) < nTrig ) {
+    cout << "only " << nReadouts.at( nReadouts.size() - 1 )
+	 << " responses at " << nReadouts.size() - 1
 	 << ". choose different pixel, check CalDel, check Ia, or give up" <<
       endl;
     return 0;
@@ -10097,7 +11134,7 @@ bool tunePHmod( int col, int row, int roc )
 
   int minVcal = 255;
 
-  for( int idac = nReadouts.size(  ) - 1; idac >= 0; --idac )
+  for( int idac = nReadouts.size() - 1; idac >= 0; --idac )
     if( nReadouts.at( idac ) == nTrig )
       minVcal = idac;
   cout << "min responding Vcal " << minVcal << endl;
@@ -10123,7 +11160,7 @@ bool tunePHmod( int col, int row, int roc )
   // set gain to minimal (at DAC 255), to avoid overflow or underflow:
 
   tb.SetDAC( gaindac, 255 );
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // Scan col row PH vs offset at Vcal 255:
@@ -10131,8 +11168,8 @@ bool tunePHmod( int col, int row, int roc )
   tb.SetDAC( Vcal, 255 ); // max Vcal
   vector < double >PHmax;
   PHmax.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
+  nReadouts.clear();
+  PHrms.clear();
   DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmax, PHrms );
 
   // Scan col row PH vs offset at minVcal:
@@ -10140,15 +11177,15 @@ bool tunePHmod( int col, int row, int roc )
   tb.SetDAC( Vcal, minVcal );
   vector < double >PHmin;
   PHmin.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
+  nReadouts.clear();
+  PHrms.clear();
   DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmin, PHrms );
 
   // use offset to center PH at 132:
 
   int offs = 0;
   double phmid = 0;
-  for( size_t idac = 0; idac < PHmin.size(  ); ++idac ) {
+  for( size_t idac = 0; idac < PHmin.size(); ++idac ) {
     double phmean = 0.5 * ( PHmin.at( idac ) + PHmax.at( idac ) );
     if( fabs( phmean - 132 ) < fabs( phmid - 132 ) ) {
       offs = idac;
@@ -10159,7 +11196,7 @@ bool tunePHmod( int col, int row, int roc )
   cout << "mid PH " << phmid << " at offset " << offs << endl;
 
   tb.SetDAC( offsdac, offs );
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // scan col row PH vs gain at Vcal 255 and at minVcal:
@@ -10167,22 +11204,22 @@ bool tunePHmod( int col, int row, int roc )
   tb.SetDAC( Vcal, 255 );
   vector < double >PHtop;
   PHtop.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
+  nReadouts.clear();
+  PHrms.clear();
 
   DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHtop, PHrms );
 
   tb.SetDAC( Vcal, minVcal );
   vector < double >PHbot;
   PHbot.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
+  nReadouts.clear();
+  PHrms.clear();
 
   DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHbot, PHrms );
 
   // set gain:
 
-  int gain = PHtop.size(  ) - 1;
+  int gain = PHtop.size() - 1;
   for( ; gain >= 1; --gain ) {
     if( PHtop.at( gain ) > 233 )
       break;
@@ -10197,13 +11234,13 @@ bool tunePHmod( int col, int row, int roc )
        << " for Vcal " << minVcal << " for pixel " << col << " " << row << endl;
 
   tb.SetDAC( gaindac, gain );
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // check for all pixels:
 
   tb.SetDAC( Vcal, 255 );
-  tb.Flush(  );
+  tb.Flush();
 
   bool again = 0;
 
@@ -10244,7 +11281,7 @@ bool tunePHmod( int col, int row, int roc )
 
       // set gain:
 
-      int gain = PHmax.size(  ) - 1;
+      int gain = PHmax.size() - 1;
       for( ; gain >= 1; --gain ) {
 	if( PHmax.at( gain ) > 233 )
 	  break;
@@ -10255,7 +11292,7 @@ bool tunePHmod( int col, int row, int roc )
 
       gain += 1; // reduce gain
       tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
+      tb.Flush();
 
       cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
 
@@ -10273,7 +11310,7 @@ bool tunePHmod( int col, int row, int roc )
   // check all pixels for underflow at minVcal:
 
   tb.SetDAC( Vcal, minVcal );
-  tb.Flush(  );
+  tb.Flush();
 
   again = 0;
 
@@ -10315,7 +11352,7 @@ bool tunePHmod( int col, int row, int roc )
 
       // set gain:
 
-      int gain = PHmin.size(  ) - 1;
+      int gain = PHmin.size() - 1;
       for( ; gain >= 1; --gain ) {
 	if( PHmin.at( gain ) < 23 )
 	  break;
@@ -10326,7 +11363,7 @@ bool tunePHmod( int col, int row, int roc )
 
       gain += 1; // reduce gain
       tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
+      tb.Flush();
 
       cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
 
@@ -10359,7 +11396,7 @@ bool tunePHmod( int col, int row, int roc )
     bool measure = 1;
     while( measure ) {
       tb.SetDAC( Vcal, minVcal );
-      tb.Flush(  );
+      tb.Flush();
       GetPixData( roc, colmin, rowmin, nTrig, cnt, phmin, rms );
       cout << "min " << setw(2) << colmin << setw(3) << rowmin << " " << cnt
 	   << " " << phmin << endl;
@@ -10371,7 +11408,7 @@ bool tunePHmod( int col, int row, int roc )
 	measure = 0; // done
     }
     tb.SetDAC( Vcal, 255 );
-    tb.Flush(  );
+    tb.Flush();
     double phmax = 0;
     GetPixData( roc, colmax, rowmax, nTrig, cnt, phmax, rms );
     cout << "max " << setw(2) << colmax << setw(3) << rowmax << " " << phmax << endl;
@@ -10392,7 +11429,7 @@ bool tunePHmod( int col, int row, int roc )
     }
     if( again ) {
       tb.SetDAC( offsdac, offs );
-      tb.Flush(  );
+      tb.Flush();
       cout << "offs dac " << dacName[offsdac] << " set to " << offs << endl;
     }
 
@@ -10410,7 +11447,7 @@ bool tunePHmod( int col, int row, int roc )
     }
     if( again ) {
       tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
+      tb.Flush();
       cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
     }
   } while( again );
@@ -10429,11 +11466,11 @@ bool tunePHmod( int col, int row, int roc )
 
   Log.printf( "[SETDAC] %i  %i\n", gaindac, gain );
   Log.printf( "[SETDAC] %i  %i\n", offsdac, offs );
-  Log.flush(  );
+  Log.flush();
 
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
-  tb.Flush(  );
+  tb.Flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -10520,7 +11557,7 @@ CMD_PROC( modmap ) // pixelAlive for modules
                   "Module hit map;col;row;responses",
                   8*52, -0.5, 8*52 - 0.5, 2*80, -0.5, 2*80 - 0.5 );
   gStyle->SetOptStat( 10 ); // entries
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
 
   if( h22 )
     delete h22;
@@ -10583,16 +11620,16 @@ CMD_PROC( modmap ) // pixelAlive for modules
 
   cout << "dead " << ND << endl;
 
-  h11->Write(  );
-  h12->Write(  );
-  h13->Write(  );
-  h21->Write(  );
-  h22->Write(  );
-  h23->Write(  );
+  h11->Write();
+  h12->Write();
+  h13->Write();
+  h21->Write();
+  h22->Write();
+  h23->Write();
   h21->SetMinimum( 0 );
   h21->SetMaximum( nTrig );
   h21->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 12, 13, 21, 22, 23" << endl;
 
   gettimeofday( &tv, NULL );
@@ -10625,13 +11662,13 @@ void RocThrMap( int roc, int start, int step, int nTrig, int xtalk, int cals )
 
   tb.roc_I2cAddr( roc ); // just to be sure
 
-  tb.Flush(  );
+  tb.Flush();
 
   for( int col = 0; col < 52; ++col ) {
 
     tb.roc_Col_Enable( col, true );
     cout << setw( 3 ) << col;
-    cout.flush(  );
+    cout.flush();
 
     for( int row = 0; row < 80; ++row ) {
 
@@ -10663,7 +11700,7 @@ void RocThrMap( int roc, int start, int step, int nTrig, int xtalk, int cals )
   cout << endl;
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
 
-  tb.Flush(  );
+  tb.Flush();
 }
 
 //------------------------------------------------------------------------------
@@ -10711,7 +11748,7 @@ CMD_PROC( thrmap ) // for single ROCs
   RocThrMap( roc, guess, step, nTrig, xtalk, cals ); // fills modthr
 
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
-  tb.Flush(  );
+  tb.Flush();
 
   int nok = 0;
   printThrMap( 1, roc, nok );
@@ -10724,13 +11761,13 @@ CMD_PROC( thrmap ) // for single ROCs
 
   cout << " valid thr " << nok << endl;
 
-  h11->Write(  );
-  h21->Write(  );
+  h11->Write();
+  h21->Write();
 
   gStyle->SetOptStat( 111111 );
   gStyle->SetStatY( 0.60 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 21" << endl;
 
   gettimeofday( &tv, NULL );
@@ -10772,7 +11809,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
 
   // all on:
@@ -10785,7 +11822,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     }
   }
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
   uint16_t flags = 0; // normal CAL
   if( ils )
@@ -10829,7 +11866,7 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     long s1 = tv.tv_sec; // seconds since 1.1.1970
     long u1 = tv.tv_usec; // microseconds
 
-    tb.Daq_Start(  );
+    tb.Daq_Start();
     tb.uDelay( 100 );
 
     try {
@@ -10844,11 +11881,11 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
       //       loop trig
     }
     catch( CRpcError & e ) {
-      e.What(  );
+      e.What();
       return 0;
     }
 
-    int dSize = tb.Daq_GetSize(  );
+    int dSize = tb.Daq_GetSize();
 
     tb.Daq_Stop(); // avoid extra (noise) data
 
@@ -10869,19 +11906,19 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
     try {
       uint32_t rest;
       tb.Daq_Read( dataB, Blocksize, rest );
-      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "data size " << data.size(  )
+      data.insert( data.end(), dataB.begin(), dataB.end() );
+      cout << "data size " << data.size()
 	   << ", remaining " << rest << endl;
       while( rest > 0 ) {
-        dataB.clear(  );
+        dataB.clear();
         tb.Daq_Read( dataB, Blocksize, rest );
-        data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-        cout << "data size " << data.size(  )
+        data.insert( data.end(), dataB.begin(), dataB.end() );
+        cout << "data size " << data.size()
 	     << ", remaining " << rest << endl;
       }
     }
     catch( CRpcError & e ) {
-      e.What(  );
+      e.What();
       return 0;
     }
 
@@ -10899,16 +11936,16 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
 
   for( int col = 0; col < 52; ++col )
     tb.roc_Col_Enable( col, 0 );
-  tb.roc_Chip_Mask(  );
-  tb.roc_ClrCal(  );
+  tb.roc_Chip_Mask();
+  tb.roc_ClrCal();
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] );
-  tb.Flush(  );
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   if( h11 )
@@ -11020,18 +12057,18 @@ CMD_PROC( thrmapsc ) // raw data S-curve: 60 s / ROC
 
   } // col
 
-  Log.flush(  );
+  Log.flush();
 
   int nok = 0;
   printThrMap( 1, roc, nok );
 
-  h11->Write(  );
-  h12->Write(  );
-  h13->Write(  );
+  h11->Write();
+  h12->Write();
+  h13->Write();
   gStyle->SetOptStat( 111111 );
   gStyle->SetStatY( 0.60 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 12, 13" << endl;
 
   gettimeofday( &tv, NULL );
@@ -11151,7 +12188,7 @@ CMD_PROC( vthrcomp5 )
 
   tb.SetDAC( CtrlReg, 0 ); // this ROC, small Vcal
 
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // look at a few pixels:
@@ -11197,7 +12234,7 @@ CMD_PROC( vthrcomp5 )
 
   cout << "min thr " << vmin << " at " << colmin << " " << rowmin << endl;
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // setVthrComp using min pixel:
@@ -11221,7 +12258,7 @@ CMD_PROC( vthrcomp5 )
   int tbits = modtrm[roc][colmin][rowmin];
   tb.roc_Pix_Trim( colmin, rowmin, tbits );
 
-  tb.Flush(  );
+  tb.Flush();
 
   guess = vmin;
 
@@ -11229,7 +12266,7 @@ CMD_PROC( vthrcomp5 )
 
     tb.SetDAC( VthrComp, vthr );
     tb.uDelay( 1000 );
-    tb.Flush(  );
+    tb.Flush();
 
     int thr = ThrPix( 0, colmin, rowmin, Vcal, step, nTrig );
     /* before FW 4.4
@@ -11248,8 +12285,8 @@ CMD_PROC( vthrcomp5 )
   } // vthr
 
   h11->Draw( "hist" );
-  c1->Update(  );
-  h11->Write(  );
+  c1->Update();
+  h11->Write();
 
   vthr -= 1; // margin towards harder threshold
   tb.SetDAC( VthrComp, vthr );
@@ -11258,12 +12295,12 @@ CMD_PROC( vthrcomp5 )
 
   tb.roc_Pix_Mask( colmin, rowmin );
   tb.roc_Col_Enable( colmin, 0 );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_ClrCal();
+  tb.Flush();
 
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
-  tb.Flush(  );
+  tb.Flush();
   cout << "roc " << roc << " back to Vcal " << dacval[roc][Vcal]
        << ", CtrlReg " << dacval[roc][CtrlReg]
        << endl;
@@ -11341,8 +12378,8 @@ CMD_PROC( vthrcomp )
       h10->Fill( modthr[roc][col][row] );
 
   h10->Draw( "hist" );
-  c1->Update(  );
-  h10->Write(  );
+  c1->Update();
+  h10->Write();
 
   int vmin = 255;
   int colmin = -1;
@@ -11383,7 +12420,7 @@ CMD_PROC( vthrcomp )
   int tbits = modtrm[roc][colmin][rowmin];
   tb.roc_Pix_Trim( colmin, rowmin, tbits );
 
-  tb.Flush(  );
+  tb.Flush();
 
   guess = vmin;
 
@@ -11391,7 +12428,7 @@ CMD_PROC( vthrcomp )
 
     tb.SetDAC( VthrComp, vthr );
     tb.uDelay( 1000 );
-    tb.Flush(  );
+    tb.Flush();
 
     int thr = ThrPix( 0, colmin, rowmin, Vcal, step, nTrig );
     /* before FW 4.4
@@ -11410,8 +12447,8 @@ CMD_PROC( vthrcomp )
   } // vthr
 
   h11->Draw( "hist" );
-  c1->Update(  );
-  h11->Write(  );
+  c1->Update();
+  h11->Write();
 
   vthr -= 1; // margin towards harder threshold
   tb.SetDAC( VthrComp, vthr );
@@ -11420,12 +12457,12 @@ CMD_PROC( vthrcomp )
 
   tb.roc_Pix_Mask( colmin, rowmin );
   tb.roc_Col_Enable( colmin, 0 );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_ClrCal();
+  tb.Flush();
 
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
-  tb.Flush(  );
+  tb.Flush();
   cout << "roc " << roc << " back to Vcal " << dacval[roc][Vcal]
        << ", CtrlReg " << dacval[roc][CtrlReg]
        << endl;
@@ -11511,8 +12548,8 @@ CMD_PROC( trim )
         h10->Fill( modthr[roc][col][row] );
 
     h10->Draw( "hist" );
-    c1->Update(  );
-    h10->Write(  );
+    c1->Update();
+    h10->Write();
 
     cout << endl;
 
@@ -11567,14 +12604,14 @@ CMD_PROC( trim )
               colmax, rowmax ), 128, 0, 256 );
     h11->Sumw2();
 
-    tb.Flush(  );
+    tb.Flush();
 
     vtrm = 1;
     for( ; vtrm < 253; vtrm += 2 ) {
 
       tb.SetDAC( Vtrim, vtrm );
       tb.uDelay( 100 );
-      tb.Flush(  );
+      tb.Flush();
 
       int thr = ThrPix( 0, colmax, rowmax, Vcal, step, nTrig );
       /* before FW 4.4
@@ -11590,8 +12627,8 @@ CMD_PROC( trim )
     } // vtrm
 
     h11->Draw( "hist" );
-    c1->Update(  );
-    h11->Write(  );
+    c1->Update();
+    h11->Write();
 
     vtrm += 2; // margin
     tb.SetDAC( Vtrim, vtrm );
@@ -11600,8 +12637,8 @@ CMD_PROC( trim )
 
     tb.roc_Pix_Mask( colmax, rowmax );
     tb.roc_Col_Enable( colmax, 0 );
-    tb.roc_ClrCal(  );
-    tb.Flush(  );
+    tb.roc_ClrCal();
+    tb.Flush();
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // iterate trim bits:
@@ -11634,8 +12671,8 @@ CMD_PROC( trim )
         h12->Fill( modthr[roc][col][row] );
 
     h12->Draw( "hist" );
-    c1->Update(  );
-    h12->Write(  );
+    c1->Update();
+    h12->Write();
 
     int correction = 4;
 
@@ -11654,8 +12691,8 @@ CMD_PROC( trim )
         h13->Fill( modthr[roc][col][row] );
 
     h13->Draw( "hist" );
-    c1->Update(  );
-    h13->Write(  );
+    c1->Update();
+    h13->Write();
 
     correction = 2;
 
@@ -11674,8 +12711,8 @@ CMD_PROC( trim )
         h14->Fill( modthr[roc][col][row] );
 
     h14->Draw( "hist" );
-    c1->Update(  );
-    h14->Write(  );
+    c1->Update();
+    h14->Write();
 
     correction = 1;
 
@@ -11694,8 +12731,8 @@ CMD_PROC( trim )
         h15->Fill( modthr[roc][col][row] );
 
     h15->Draw( "hist" );
-    c1->Update(  );
-    h15->Write(  );
+    c1->Update();
+    h15->Write();
 
     correction = 1;
 
@@ -11714,8 +12751,8 @@ CMD_PROC( trim )
         h16->Fill( modthr[roc][col][row] );
 
     h16->Draw( "hist" );
-    c1->Update(  );
-    h16->Write(  );
+    c1->Update();
+    h16->Write();
 
     vector < uint8_t > trimvalues( 4160 ); // uint8 in 2.15
     for( int col = 0; col < 52; ++col )
@@ -11728,7 +12765,7 @@ CMD_PROC( trim )
 
     tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
     tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
-    tb.Flush(  );
+    tb.Flush();
     cout << "roc " << roc << " back to Vcal " << dacval[roc][Vcal]
 	 << ", CtrlReg " << dacval[roc][CtrlReg]
 	 << endl;
@@ -11748,6 +12785,7 @@ CMD_PROC( trim )
 // Daniel Pitzl, DESY, 30.5.2014: fine tune trim bits (full efficiency)
 CMD_PROC( trimbits )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   if( ierror ) return false;
 
   Log.section( "TRIMBITS", true );
@@ -11788,7 +12826,7 @@ CMD_PROC( trimbits )
 
   for( int col = 0; col < 52; ++col ) {
 
-    for( int row = 0; row < 80 && j < nReadouts.size(  ); ++row ) {
+    for( int row = 0; row < 80 && j < nReadouts.size(); ++row ) {
 
       int cnt = nReadouts.at( j );
       ++j;
@@ -11821,7 +12859,7 @@ CMD_PROC( trimbits )
             trimvalues[i] = modtrm[roc][ix][iy];
           } // iy
         tb.SetTrimValues( roc, trimvalues ); // load into FPGA
-        tb.Flush(  );
+        tb.Flush();
 
         double ph;
         double rms;
@@ -11857,7 +12895,7 @@ bool tunePH( int col, int row, int roc )
   long u0 = tv.tv_usec; // microseconds
 
   //tb.SetDAC( CtrlReg, 4 ); // large Vcal
-  //tb.Flush(  );
+  //tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // scan Vcal for one pixel
@@ -11874,16 +12912,16 @@ bool tunePH( int col, int row, int roc )
 
   DacScanPix( roc, col, row, dac, 1, nTrig, nReadouts, PHavg, PHrms );
 
-  if( nReadouts.size(  ) < 256 ) {
-    cout << "only " << nReadouts.size(  ) << " Vcal points"
+  if( nReadouts.size() < 256 ) {
+    cout << "only " << nReadouts.size() << " Vcal points"
 	 << ". choose different pixel, check CalDel, check Ia, or give up"
 	 << endl;
     return 0;
   }
 
-  if( nReadouts.at( nReadouts.size(  ) - 1 ) < nTrig ) {
-    cout << "only " << nReadouts.at( nReadouts.size(  ) - 1 )
-	 << " responses at " << nReadouts.size(  ) - 1
+  if( nReadouts.at( nReadouts.size() - 1 ) < nTrig ) {
+    cout << "only " << nReadouts.at( nReadouts.size() - 1 )
+	 << " responses at " << nReadouts.size() - 1
 	 << ". choose different pixel, check CalDel, check Ia, or give up" <<
       endl;
     return 0;
@@ -11893,7 +12931,7 @@ bool tunePH( int col, int row, int roc )
 
   int minVcal = 255;
 
-  for( int idac = nReadouts.size(  ) - 1; idac >= 0; --idac )
+  for( int idac = nReadouts.size() - 1; idac >= 0; --idac )
     if( nReadouts.at( idac ) == nTrig )
       minVcal = idac;
   cout << "min responding Vcal " << minVcal << endl;
@@ -11918,7 +12956,7 @@ bool tunePH( int col, int row, int roc )
   // set gain to minimal (at DAC 255), to avoid overflow or underflow:
 
   tb.SetDAC( gaindac, 255 );
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // Scan PH vs offset at Vcal 255:
@@ -11926,8 +12964,8 @@ bool tunePH( int col, int row, int roc )
   tb.SetDAC( Vcal, 255 ); // max Vcal
   vector < double >PHmax;
   PHmax.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
+  nReadouts.clear();
+  PHrms.clear();
   DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmax, PHrms );
 
   // Scan PH vs offset at minVcal:
@@ -11935,15 +12973,15 @@ bool tunePH( int col, int row, int roc )
   tb.SetDAC( Vcal, minVcal );
   vector < double >PHmin;
   PHmin.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
+  nReadouts.clear();
+  PHrms.clear();
   DacScanPix( roc, col, row, offsdac, 1, nTrig, nReadouts, PHmin, PHrms );
 
   // use offset to center PH at 132:
 
   int offs = 0;
   double phmid = 0;
-  for( size_t idac = 0; idac < PHmin.size(  ); ++idac ) {
+  for( size_t idac = 0; idac < PHmin.size(); ++idac ) {
     double phmean = 0.5 * ( PHmin.at( idac ) + PHmax.at( idac ) );
     if( fabs( phmean - 132 ) < fabs( phmid - 132 ) ) {
       offs = idac;
@@ -11954,7 +12992,7 @@ bool tunePH( int col, int row, int roc )
   cout << "mid PH " << phmid << " at offset " << offs << endl;
 
   tb.SetDAC( offsdac, offs );
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // scan PH vs gain at Vcal 255 and at minVcal
@@ -11962,22 +13000,22 @@ bool tunePH( int col, int row, int roc )
   tb.SetDAC( Vcal, 255 );
   vector < double >PHtop;
   PHtop.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
+  nReadouts.clear();
+  PHrms.clear();
 
   DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHtop, PHrms );
 
   tb.SetDAC( Vcal, minVcal );
   vector < double >PHbot;
   PHbot.reserve( 256 );
-  nReadouts.clear(  );
-  PHrms.clear(  );
+  nReadouts.clear();
+  PHrms.clear();
 
   DacScanPix( roc, col, row, gaindac, 1, nTrig, nReadouts, PHbot, PHrms );
 
   // set gain:
 
-  int gain = PHtop.size(  ) - 1;
+  int gain = PHtop.size() - 1;
   for( ; gain >= 1; --gain ) {
     if( PHtop.at( gain ) > 233 )
       break;
@@ -11992,7 +13030,7 @@ bool tunePH( int col, int row, int roc )
        << " for Vcal " << minVcal << " for pixel " << col << " " << row << endl;
 
   tb.SetDAC( gaindac, gain );
-  tb.Flush(  );
+  tb.Flush();
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // check for all pixels:
@@ -12005,7 +13043,7 @@ bool tunePH( int col, int row, int roc )
   QHrms.reserve( 4160 );
 
   tb.SetDAC( Vcal, 255 );
-  tb.Flush(  );
+  tb.Flush();
 
   bool again = 0;
 
@@ -12031,12 +13069,12 @@ bool tunePH( int col, int row, int roc )
         }
 
         ++j;
-        if( j == nReadouts.size(  ) )
+        if( j == nReadouts.size() )
           break;
 
       } // row
 
-      if( j == nReadouts.size(  ) )
+      if( j == nReadouts.size() )
         break;
 
     } // col
@@ -12047,14 +13085,14 @@ bool tunePH( int col, int row, int roc )
 
       gain += 1; // reduce gain
       tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
+      tb.Flush();
 
       cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
 
       again = 1;
-      nResponses.clear(  );
-      QHmax.clear(  );
-      QHrms.clear(  );
+      nResponses.clear();
+      QHmax.clear();
+      QHrms.clear();
 
     }
     else
@@ -12067,11 +13105,11 @@ bool tunePH( int col, int row, int roc )
 
   vector < double >QHmin;
   QHmin.reserve( 4160 );
-  nResponses.clear(  );
-  QHrms.clear(  );
+  nResponses.clear();
+  QHrms.clear();
 
   tb.SetDAC( Vcal, minVcal );
-  tb.Flush(  );
+  tb.Flush();
 
   again = 0;
 
@@ -12103,12 +13141,12 @@ bool tunePH( int col, int row, int roc )
         }
 
         ++j;
-        if( j == nReadouts.size(  ) )
+        if( j == nReadouts.size() )
           break;
 
       } // row
 
-      if( j == nReadouts.size(  ) )
+      if( j == nReadouts.size() )
         break;
 
     } // col
@@ -12119,14 +13157,14 @@ bool tunePH( int col, int row, int roc )
 
       gain += 1; // reduce gain
       tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
+      tb.Flush();
 
       cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
 
       again = 1;
-      nResponses.clear(  );
-      QHmin.clear(  );
-      QHrms.clear(  );
+      nResponses.clear();
+      QHmin.clear();
+      QHrms.clear();
 
     }
     else
@@ -12146,12 +13184,12 @@ bool tunePH( int col, int row, int roc )
     double rms;
 
     tb.SetDAC( Vcal, minVcal );
-    tb.Flush(  );
+    tb.Flush();
     double phmin = 255;
     GetPixData( roc, colmin, rowmin, nTrig, cnt, phmin, rms );
 
     tb.SetDAC( Vcal, 255 );
-    tb.Flush(  );
+    tb.Flush();
     double phmax = 0;
     GetPixData( roc, colmax, rowmax, nTrig, cnt, phmax, rms );
 
@@ -12171,7 +13209,7 @@ bool tunePH( int col, int row, int roc )
     }
     if( again ) {
       tb.SetDAC( offsdac, offs );
-      tb.Flush(  );
+      tb.Flush();
       cout << "offs dac " << dacName[offsdac] << " set to " << offs << endl;
     }
 
@@ -12189,7 +13227,7 @@ bool tunePH( int col, int row, int roc )
     }
     if( again ) {
       tb.SetDAC( gaindac, gain );
-      tb.Flush(  );
+      tb.Flush();
       cout << "gain dac " << dacName[gaindac] << " set to " << gain << endl;
     }
   } while( again );
@@ -12205,11 +13243,11 @@ bool tunePH( int col, int row, int roc )
 
   Log.printf( "[SETDAC] %i  %i\n", gaindac, gain );
   Log.printf( "[SETDAC] %i  %i\n", offsdac, offs );
-  Log.flush(  );
+  Log.flush();
 
   tb.SetDAC( Vcal, dacval[roc][Vcal] ); // restore
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
-  tb.Flush(  );
+  tb.Flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -12361,25 +13399,25 @@ CMD_PROC( phmap ) // check gain tuning and calibration
       }
 
       ++j;
-      if( j == nReadouts.size(  ) )
+      if( j == nReadouts.size() )
         break;
 
     } // row
 
     Log.printf( "\n" );
-    if( j == nReadouts.size(  ) )
+    if( j == nReadouts.size() )
       break;
 
   } // col
 
   cout << endl;
 
-  h11->Write(  );
-  h12->Write(  );
-  h13->Write(  );
-  h21->Write(  );
-  h22->Write(  );
-  h23->Write(  );
+  h11->Write();
+  h12->Write();
+  h13->Write();
+  h21->Write();
+  h22->Write();
+  h23->Write();
   cout << "  histos 11, 12, 13, 21, 22" << endl;
 
   gStyle->SetOptStat( 111111 );
@@ -12388,7 +13426,7 @@ CMD_PROC( phmap ) // check gain tuning and calibration
   h12->SetLineColor( 2 );
   h12->SetMarkerColor( 2 );
   h12->Draw( "same" );
-  c1->Update(  );
+  c1->Update();
 
   cout << endl;
   cout << "CtrlReg " << dacval[0][CtrlReg]
@@ -12402,7 +13440,7 @@ CMD_PROC( phmap ) // check gain tuning and calibration
     double rms = sqrt( su2 / nok - mid * mid );
     cout << "PH mean " << mid << ", rms " << rms << endl;
   }
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -12458,7 +13496,7 @@ CMD_PROC( calsmap ) // test PH map through sensor
 
   for( int col = 0; col < 52; ++col ) {
     cout << endl << setw( 2 ) << col << " ";
-    for( int row = 0; row < 80 && j < nReadouts.size(  ); ++row ) {
+    for( int row = 0; row < 80 && j < nReadouts.size(); ++row ) {
       int cnt = nReadouts.at( j );
       double ph = PHavg.at( j );
       cout << setw( 4 ) << ( ( ph > -0.1 ) ? int ( ph + 0.5 ) : -1 )
@@ -12481,11 +13519,11 @@ CMD_PROC( calsmap ) // test PH map through sensor
     Log.printf( "\n" );
   } // col
 
-  h11->Write(  );
+  h11->Write();
   gStyle->SetOptStat( 111111 );
   gStyle->SetStatY( 0.60 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11" << endl;
 
   cout << endl;
@@ -12500,7 +13538,7 @@ CMD_PROC( calsmap ) // test PH map through sensor
     double rms = sqrt( su2 / nok - mid * mid );
     cout << "PH mean " << mid << ", rms " << rms << endl;
   }
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -12533,7 +13571,7 @@ CMD_PROC( bbtest ) // bump bond test
   const int vcal = dacval[0][Vcal];
   tb.SetDAC( Vcal, 255 ); // max Vcal
 
-  tb.Flush(  );
+  tb.Flush();
 
   // measure:
 
@@ -12548,7 +13586,7 @@ CMD_PROC( bbtest ) // bump bond test
 
   tb.SetDAC( Vcal, vcal ); // restore
   tb.SetDAC( CtrlReg, vctl );
-  tb.Flush(  );
+  tb.Flush();
 
   // analyze:
 
@@ -12584,7 +13622,7 @@ CMD_PROC( bbtest ) // bump bond test
 
   for( int col = 0; col < 52; ++col ) {
     cout << endl << setw( 2 ) << col << " ";
-    for( int row = 0; row < 80 && j < nReadouts.size(  ); ++row ) {
+    for( int row = 0; row < 80 && j < nReadouts.size(); ++row ) {
       int cnt = nReadouts.at( j );
       double ph = PHavg.at( j );
       cout << setw( 3 ) << cnt
@@ -12620,19 +13658,19 @@ CMD_PROC( bbtest ) // bump bond test
     } // row
     Log.printf( "\n" );
   } // col
-  Log.flush(  );
+  Log.flush();
 
-  h11->Write(  );
-  h21->Write(  );
-  h22->Write(  );
+  h11->Write();
+  h21->Write();
+  h22->Write();
   cout << "  histos 11, 21, 22" << endl;
 
   h21->SetStats( 0 );
-  h21->GetYaxis(  )->SetTitleOffset( 1.3 );
+  h21->GetYaxis()->SetTitleOffset( 1.3 );
   h21->SetMinimum( 0 );
   h21->SetMaximum( nTrig );
   h21->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
 
   cout << endl;
   cout << "Cals PH test: " << endl;
@@ -12698,7 +13736,7 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
 
   // all on:
@@ -12711,7 +13749,7 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
     }
   }
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
   int n0 = 0;
   int idel = 10;
@@ -12720,9 +13758,9 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
   do {
 
     tb.SetDAC( CalDel, idel );
-    tb.Daq_Start(  );
+    tb.Daq_Start();
     tb.uDelay( 1000 );
-    tb.Flush(  );
+    tb.Flush();
 
     int n01, n50, n99;
 
@@ -12762,20 +13800,20 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
   while( n0 < 4 && idel < 256 );
 
   cout << endl;
-  Log.flush(  );
+  Log.flush();
 
   // all off:
 
   for( int col = 0; col < 52; col += 2 ) // DC
     tb.roc_Col_Enable( col, 0 );
-  tb.roc_Chip_Mask(  );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_Chip_Mask();
+  tb.roc_ClrCal();
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   // compress and sort:
@@ -12794,13 +13832,13 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
   int nstp = j;
   cout << j << " points" << endl;
 
-  h11->Write(  );
-  h12->Write(  );
+  h11->Write();
+  h12->Write();
 
   h11->SetStats( 0 );
   h12->SetStats( 0 );
   h12->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
 
   cout << "  histos 11, 12" << endl;
 
@@ -12847,6 +13885,7 @@ void CalDelRoc() // scan and set CalDel using all pixel: 17 s
 //------------------------------------------------------------------------------
 CMD_PROC( caldelroc ) // scan and set CalDel using all pixel: 17 s
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   if( ierror ) return false;
   CalDelRoc();
   return true;
@@ -12890,7 +13929,7 @@ CMD_PROC( scanvthr )
 
   tb.roc_I2cAddr( roc );
   tb.SetDAC( CtrlReg, 0 ); // measure thresholds at ctl 0
-  tb.Flush(  );
+  tb.Flush();
 
   Log.section( "SCANVTHR", true );
 
@@ -12953,7 +13992,7 @@ CMD_PROC( scanvthr )
       mid = ( double ) sum / ( double ) nok;
       double rms = sqrt( ( double ) su2 / ( double ) nok - mid * mid );
       cout << "  mean thr " << mid << ", rms " << rms << endl;
-      Log.flush(  );
+      Log.flush();
 
       Log.printf( "%i %f\n", vthr, mid );
       h14->Fill( vthr, mid );
@@ -12968,21 +14007,21 @@ CMD_PROC( scanvthr )
   tb.SetDAC( CtrlReg, dacval[roc][CtrlReg] ); // restore
   tb.SetDAC( VthrComp, dacval[roc][VthrComp] );
   tb.SetDAC( Vcal, dacval[roc][Vcal] );
-  tb.Flush(  );
+  tb.Flush();
 
   // plot profile:
-  h13->Write(  );
+  h13->Write();
 
-  h14->Write(  );
+  h14->Write();
 
-  h15->Write(  );
+  h15->Write();
   h15->SetStats( 0 );
   h15->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
 
   cout << "  histos 13, 14, 15" << endl;
 
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -12996,6 +14035,7 @@ CMD_PROC( scanvthr )
 //------------------------------------------------------------------------------
 CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   if( ierror ) return false;
 
   Log.section( "VANAROC", true );
@@ -13044,7 +14084,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
 
   // all on:
@@ -13057,7 +14097,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
     }
   }
   tb.uDelay( 1000 );
-  tb.Flush(  );
+  tb.Flush();
 
   int idac = 10;
   int step = 10;
@@ -13067,9 +14107,9 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
   do {
 
     tb.SetDAC( Vana, idac );
-    tb.Daq_Start(  );
+    tb.Daq_Start();
     tb.uDelay( 1000 );
-    tb.Flush(  );
+    tb.Flush();
 
     int n01, n50, n99;
 
@@ -13087,7 +14127,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
     if( n99 == nmax )
       ++kmax;
 
-    double ia = tb.GetIA(  ) * 1E3;
+    double ia = tb.GetIA() * 1E3;
 
     h10->Fill( idac, ia );
     h11->Fill( idac, n50 );
@@ -13130,20 +14170,20 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
   while( idac < 256 );
 
   cout << endl;
-  Log.flush(  );
+  Log.flush();
 
   // all off:
 
   for( int col = 0; col < 52; col += 2 ) // DC
     tb.roc_Col_Enable( col, 0 );
-  tb.roc_Chip_Mask(  );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_Chip_Mask();
+  tb.roc_ClrCal();
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   // compress and sort:
@@ -13164,15 +14204,15 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
 
   // plot:
 
-  h11->Write(  );
-  h12->Write(  );
-  h13->Write(  );
-  if( par.isInteractive(  ) ) {
+  h11->Write();
+  h12->Write();
+  h13->Write();
+  if( par.isInteractive() ) {
     h11->SetStats( 0 );
     h12->SetStats( 0 );
     h13->SetStats( 0 );
     h12->Draw( "hist" );
-    c1->Update(  );
+    c1->Update();
   }
   cout << "  histos 11, 12, 13" << endl;
 
@@ -13212,6 +14252,7 @@ CMD_PROC( vanaroc ) // scan and set Vana using all pixel: 17 s
 //------------------------------------------------------------------------------
 CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   if( ierror ) return false;
 
   Log.section( "GAINDAC", false );
@@ -13263,9 +14304,9 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
   for( int32_t ical = dacstrt; ical <= dacstop; ical += dacstep ) {
 
     tb.SetDAC( Vcal, ical );
-    tb.Daq_Start(  );
+    tb.Daq_Start();
     tb.uDelay( 1000 );
-    tb.Flush(  );
+    tb.Flush();
 
     // measure:
 
@@ -13290,7 +14331,7 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
     size_t j = 0;
 
     for( int col = 0; col < 52; ++col ) {
-      for( int row = 0; row < 80 && j < nReadouts.size(  ); ++row ) {
+      for( int row = 0; row < 80 && j < nReadouts.size(); ++row ) {
         int cnt = nReadouts.at( j );
         double ph = PHavg.at( j );
         hph[j].Fill( ical, ph );
@@ -13324,20 +14365,20 @@ CMD_PROC( gaindac ) // calibrated PH vs Vcal: check gain
   } // ical
 
   tb.SetDAC( Vcal, dacval[0][Vcal] ); // restore
-  tb.Flush(  );
+  tb.Flush();
 
   j = 0;
   for( int col = 0; col < 52; ++col )
     for( int row = 0; row < 80; ++row ) {
-      hph[j].Write(  );
+      hph[j].Write();
       ++j;
     }
 
-  h14->Write(  );
-  h11->Write(  );
+  h14->Write();
+  h11->Write();
   h11->SetStats( 0 );
   h11->Draw( "hist" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 11, 14" << endl;
 
   gettimeofday( &tv, NULL );
@@ -13370,7 +14411,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
 
   // all on:
@@ -13392,7 +14433,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     ctl = 4;
   }
 
-  tb.Flush(  );
+  tb.Flush();
 
   uint16_t flags = 0; // normal CAL
   if( nTrig < 0 ) {
@@ -13432,7 +14473,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     long s1 = tv.tv_sec; // seconds since 1.1.1970
     long u1 = tv.tv_usec; // microseconds
 
-    tb.Daq_Start(  );
+    tb.Daq_Start();
     tb.uDelay( 100 );
 
     try {
@@ -13440,11 +14481,11 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 	tb.LoopSingleRocAllPixelsDacScan( 0, mTrig, flags, dac, step, dacLower1, dacUpper1 );
     }
     catch( CRpcError & e ) {
-      e.What(  );
+      e.What();
       return 0;
     }
 
-    int dSize = tb.Daq_GetSize(  );
+    int dSize = tb.Daq_GetSize();
     cout << "DAQ size " << dSize << " words" << endl;
 
     tb.Daq_Stop(); // avoid extra (noise) data
@@ -13464,23 +14505,23 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     try {
       uint32_t rest;
       tb.Daq_Read( dataB, Blocksize, rest );
-      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "data size " << data.size(  )
+      data.insert( data.end(), dataB.begin(), dataB.end() );
+      cout << "data size " << data.size()
 	//<< ", remaining " << rest
-	   << " of " << data.capacity(  )
+	   << " of " << data.capacity()
 	   << endl;
       while( rest > 0 ) {
-	dataB.clear(  );
+	dataB.clear();
 	tb.Daq_Read( dataB, Blocksize, rest );
-	data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-	cout << "data size " << data.size(  )
+	data.insert( data.end(), dataB.begin(), dataB.end() );
+	cout << "data size " << data.size()
 	  //<< ", remaining " << rest
-	     << " of " << data.capacity(  )
+	     << " of " << data.capacity()
 	     << endl;
       }
     }
     catch( CRpcError & e ) {
-      e.What(  );
+      e.What();
       return 0;
     }
 
@@ -13504,14 +14545,14 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
   for( int col = 0; col < 52; col += 2 ) // DC
     tb.roc_Col_Enable( col, 0 );
-  tb.roc_Chip_Mask(  );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_Chip_Mask();
+  tb.roc_ClrCal();
+  tb.Flush();
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   if( h11 )
@@ -13528,15 +14569,15 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
   if( nTrig < 0 ) // cals
     h21 = new TH2D( Form( "cals_PH_DAC%02i_map", dac ),
 		    Form( "cals PH vs %s map;pixel;%s [DAC];cals PH [ADC]",
-			  dacName[dac].c_str(  ),
-			  dacName[dac].c_str(  ) ),
+			  dacName[dac].c_str(),
+			  dacName[dac].c_str() ),
 		    4160, -0.5, 4160-0.5,
 		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step );
   else
     h21 = new TH2D( Form( "PH_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
 		    Form( "PH vs %s CR %i Vcal %i map;pixel;%s [DAC];PH [ADC]",
-			  dacName[dac].c_str(  ), ctl, cal,
-			  dacName[dac].c_str(  ) ),
+			  dacName[dac].c_str(), ctl, cal,
+			  dacName[dac].c_str() ),
 		    4160, -0.5, 4160-0.5,
 		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step ); // 23.8.2014 * step
 
@@ -13545,15 +14586,15 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
   if( nTrig < 0 ) // cals
     h22 = new TH2D( Form( "cals_N_DAC%02i_map", dac ),
 		    Form( "cals N vs %s map;pixel;%s [DAC];cals responses",
-			  dacName[dac].c_str(  ),
-			  dacName[dac].c_str(  ) ),
+			  dacName[dac].c_str(),
+			  dacName[dac].c_str() ),
 		    4160, -0.5, 4160-0.5,
 		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step );
   else
     h22 = new TH2D( Form( "N_DAC%02i_CR%i_Vcal%03i_map", dac, ctl, cal ),
 		    Form( "N vs %s CR %i Vcal %i map;pixel;%s [DAC];responses",
-			  dacName[dac].c_str(  ), ctl, cal,
-			  dacName[dac].c_str(  ) ),
+			  dacName[dac].c_str(), ctl, cal,
+			  dacName[dac].c_str() ),
 		    4160, -0.5, 4160-0.5,
 		    nstp, dacLower1 - 0.5*step, dacUpper1 + 0.5*step ); // 23.8.2014 * step
 
@@ -13636,10 +14677,10 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
   } // col
 
-  h11->Write(  );
-  h21->Write(  );
-  h22->Write(  );
-  h23->Write(  );
+  h11->Write();
+  h21->Write();
+  h22->Write();
+  h23->Write();
 
   if( nTrig < 0 && dac == 12 ) { // BB test
 
@@ -13664,8 +14705,8 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
     // Localize the missing Bump from h22
 
-    int nbinx = h22->GetNbinsX(  ); // pix
-    int nbiny = h22->GetNbinsY(  ); // dac
+    int nbinx = h22->GetNbinsX(); // pix
+    int nbiny = h22->GetNbinsY(); // dac
 
     int nActive = 0;
     int nMissing = 0;
@@ -13677,7 +14718,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
     for( int ibin = 1; ibin <= nbinx; ++ibin ) {
 
-      ipx = h22->GetXaxis(  )->GetBinCenter( ibin );
+      ipx = h22->GetXaxis()->GetBinCenter( ibin );
 
       // max response:
 
@@ -13705,7 +14746,7 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
 	for( int jbin = 0; jbin <= nbiny; ++jbin ) {
 
-	  int idac = h22->GetYaxis(  )->GetBinCenter( jbin );
+	  int idac = h22->GetYaxis()->GetBinCenter( jbin );
 
 	  int cnt = h22->GetBinContent( ibin, jbin );
 
@@ -13739,19 +14780,19 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
 
     } // x-bins
 
-    h12->Write(  );
+    h12->Write();
 
     // save the map in the log file
 
-    for( int ibin = 1; ibin <= h24->GetNbinsX(  ); ++ibin ) {
-      for( int jbin = 1; jbin <= h24->GetNbinsY(  ); ++jbin ) {
+    for( int ibin = 1; ibin <= h24->GetNbinsX(); ++ibin ) {
+      for( int jbin = 1; jbin <= h24->GetNbinsY(); ++jbin ) {
 	int c_val = h24->GetBinContent( ibin, jbin );
 	Log.printf( " %i", c_val );
 	//cout << ibin << " " << jbin << " " << c_val << endl;
       } //row
       Log.printf( "\n" );
     } // col
-    Log.flush(  );
+    Log.flush();
 
     Log.printf( "Number of Active bump bonds [above trig/2]: %i\n", nActive );
     Log.printf( "Number of Missing bump bonds: %i\n", nMissing );
@@ -13761,14 +14802,14 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
     cout << "Number of Missing bump bonds: " << nMissing << endl;
     cout << "Number of Dead pixel: " << nIneff << endl;
 
-    h24->Write(  );
-    h25->Write(  );
+    h24->Write();
+    h25->Write();
 
     h25->SetStats( 0 );
     h25->SetMinimum(0);
     h25->SetMaximum(2);
     h25->Draw( "colz" );
-    c1->Update(  );
+    c1->Update();
     cout << "  histos 11, 12, 21, 22, 23, 24, 25" << endl;
 
   } // BB test
@@ -13776,11 +14817,11 @@ bool dacscanroc( int dac, int nTrig=10, int step=1, int stop=255 )
   else {
     h22->SetStats( 0 );
     h22->Draw( "colz" );
-    c1->Update(  );
+    c1->Update();
     cout << "  histos 11, 21, 22, 23" << endl;
   }
 
-  Log.flush(  );
+  Log.flush();
 
   gettimeofday( &tv, NULL );
   long s9 = tv.tv_sec; // seconds since 1.1.1970
@@ -13839,9 +14880,9 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize ); // 2^24
 #endif
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
   tb.uDelay( 100 );
-  tb.Daq_Start(  );
+  tb.Daq_Start();
   tb.uDelay( 100 );
 
   // pixel on:
@@ -13849,7 +14890,7 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
   tb.roc_Col_Enable( col, 1 );
   int trim = modtrm[0][col][row];
   tb.roc_Pix_Trim( col, row, trim );
-  tb.Flush(  );
+  tb.Flush();
 
   uint16_t nTrig = 10; // size = 4160 * 256 * nTrig * 3 words = 32 MW for 10 trig
 
@@ -13901,13 +14942,13 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
     //     loop trig
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
-  tb.Daq_Stop(  ); // avoid extra (noise) data
+  tb.Daq_Stop(); // avoid extra (noise) data
 
-  int dSize = tb.Daq_GetSize(  );
+  int dSize = tb.Daq_GetSize();
 
   gettimeofday( &tv, NULL );
   long s2 = tv.tv_sec; // seconds since 1.1.1970
@@ -13921,9 +14962,9 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
   tb.SetDAC( dac2, dacval[0][dac2] ); // restore
 
   tb.roc_Col_Enable( col, 0 );
-  tb.roc_Chip_Mask(  );
-  tb.roc_ClrCal(  );
-  tb.Flush(  );
+  tb.roc_Chip_Mask();
+  tb.roc_ClrCal();
+  tb.Flush();
 
   // header = 1 word
   // pixel = +2 words
@@ -13932,29 +14973,29 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
   cout << "DAQ size " << dSize << endl;
 
   vector < uint16_t > data;
-  data.reserve( tb.Daq_GetSize(  ) );
+  data.reserve( tb.Daq_GetSize() );
 
   try {
     uint32_t rest;
     tb.Daq_Read( data, Blocksize, rest );
-    cout << "data size " << data.size(  )
+    cout << "data size " << data.size()
       //<< ", remaining " << rest
-	 << " of " << data.capacity(  )
+	 << " of " << data.capacity()
 	 << endl;
     while( rest > 0 ) {
       vector < uint16_t > dataB;
       dataB.reserve( Blocksize );
       tb.Daq_Read( dataB, Blocksize, rest );
-      data.insert( data.end(  ), dataB.begin(  ), dataB.end(  ) );
-      cout << "data size " << data.size(  )
+      data.insert( data.end(), dataB.begin(), dataB.end() );
+      cout << "data size " << data.size()
 	//<< ", remaining " << rest
-	   << " of " << data.capacity(  )
+	   << " of " << data.capacity()
 	   << endl;
-      dataB.clear(  );
+      dataB.clear();
     }
   }
   catch( CRpcError & e ) {
-    e.What(  );
+    e.What();
     return 0;
   }
 
@@ -13966,9 +15007,9 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
        << " = " << 2 * dSize / dtr / 1024 / 1024 << " MiB/s" << endl;
 
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
   //tb.Daq_DeselectAll();
-  tb.Flush(  );
+  tb.Flush();
 #endif
 
   if( h21 )
@@ -13976,8 +15017,8 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
   h21 = new
     TH2D( Form( "PH_DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
           Form( "PH vs %s vs %s col %i row %i;%s [DAC];%s [DAC];PH [ADC]",
-                dacName[dac1].c_str(  ), dacName[dac2].c_str(  ), col, row,
-                dacName[dac1].c_str(  ), dacName[dac2].c_str(  ) ),
+                dacName[dac1].c_str(), dacName[dac2].c_str(), col, row,
+                dacName[dac1].c_str(), dacName[dac2].c_str() ),
           nstp1, -0.5, nstp1 - 0.5, nstp2, -0.5, nstp2 - 0.5 );
 
   if( h22 )
@@ -13985,8 +15026,8 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
   h22 = new
     TH2D( Form( "N_DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
           Form( "N vs %s vs %s col %i row %i;%s [DAC];%s [DAC];responses",
-                dacName[dac1].c_str(  ), dacName[dac2].c_str(  ), col, row,
-                dacName[dac1].c_str(  ), dacName[dac2].c_str(  ) ),
+                dacName[dac1].c_str(), dacName[dac2].c_str(), col, row,
+                dacName[dac1].c_str(), dacName[dac2].c_str() ),
           nstp1, -0.5, nstp1 - 0.5, nstp2, -0.5, nstp2 - 0.5 );
 
   if( h23 )
@@ -13996,8 +15037,8 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
           ( "N_Trig2DAC%02i_DAC%02i_col%02i_row%02i", dac1, dac2, col, row ),
           Form
           ( "Responses vs %s vs %s col %i row %i;%s [DAC];%s [DAC];responses",
-            dacName[dac1].c_str(  ), dacName[dac2].c_str(  ), col, row,
-            dacName[dac1].c_str(  ), dacName[dac2].c_str(  ) ), nstp1, -0.5,
+            dacName[dac1].c_str(), dacName[dac2].c_str(), col, row,
+            dacName[dac1].c_str(), dacName[dac2].c_str() ), nstp1, -0.5,
           nstp1 - 0.5, nstp2, -0.5, nstp2 - 0.5 );
 
   TH1D *h_one =
@@ -14062,15 +15103,15 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
 
   } // dac
 
-  Log.flush(  );
+  Log.flush();
 
-  h21->Write(  );
-  h22->Write(  );
-  h23->Write(  );
+  h21->Write();
+  h22->Write();
+  h23->Write();
 
   h23->SetStats( 0 );
   h23->Draw( "colz" );
-  c1->Update(  );
+  c1->Update();
   cout << "  histos 21, 22, 23" << endl;
 
   if( cals && dac1 == 26 && dac2 == 12 ) { // Tornado plot: VthrComp vs CalDel
@@ -14126,7 +15167,7 @@ bool dacdac( int col, int row, int dac1, int dac2, int cals=0 )
 
     Log.printf( "dac2 %i Plateau begin %i end %i\n", dac2, i0, i9 );
 
-    h_one->Write(  );
+    h_one->Write();
     delete h_one;
 
   } // Tornado
@@ -14187,20 +15228,21 @@ CMD_PROC( dacdac ) // LoopSingleRocOnePixelDacDacScan:
 */
 CMD_PROC( readback )
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   int i;
 
 #ifdef DAQOPENCLOSE
   tb.Daq_Open( Blocksize );
 #endif
-  tb.Pg_Stop(  );
+  tb.Pg_Stop();
   tb.Pg_SetCmd( 0, PG_TOK );
-  tb.Daq_Select_Deser160( tbState.GetDeserPhase(  ) );
+  tb.Daq_Select_Deser160( tbState.GetDeserPhase() );
 
   // take data:
 
-  tb.Daq_Start(  );
+  tb.Daq_Start();
   for( i = 0; i < 36; ++i ) {
-    tb.Pg_Single(  );
+    tb.Pg_Single();
     tb.uDelay( 20 );
   }
   tb.Daq_Stop();
@@ -14209,7 +15251,7 @@ CMD_PROC( readback )
   vector < uint16_t > data;
   tb.Daq_Read( data, 40 );
 #ifdef DAQOPENCLOSE
-  tb.Daq_Close(  );
+  tb.Daq_Close();
 #endif
 
   //analyze data
@@ -14276,6 +15318,7 @@ CMD_PROC( readback )
 //------------------------------------------------------------------------------
 CMD_PROC( oneroc ) // single ROC test
 {
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
   int roc = 0;
 
   int target = 30; // [IA [mA]
@@ -14348,7 +15391,7 @@ CMD_PROC( oneroc ) // single ROC test
 
   tb.SetDAC( CtrlReg, ctl ); // restore
   dacval[roc][CtrlReg] = ctl;
-  tb.Flush(  );
+  tb.Flush();
 
   return ok;
 
@@ -14449,7 +15492,7 @@ CMD_PROC( bare ) // bare module test, without or with Hansen bump height test
 
   tb.SetDAC( CtrlReg, ctl ); // restore
   dacval[roc][CtrlReg] = ctl;
-  tb.Flush(  );
+  tb.Flush();
 
   // write all dac values in a file with name from the root-file
 
@@ -14463,7 +15506,7 @@ CMD_PROC( bare ) // bare module test, without or with Hansen bump height test
 }
 
 //------------------------------------------------------------------------------
-void cmdHelp(  )
+void cmdHelp()
 {
   fputs(
 	"+-cmd commands --------------+\n"
@@ -14477,12 +15520,13 @@ void cmdHelp(  )
 //------------------------------------------------------------------------------
 CMD_PROC( h )
 {
-  cmdHelp(  );
+  int dummy; if( !PAR_IS_INT( dummy, 0, 1 ) ) dummy = 80;
+  cmdHelp();
   return true;
 }
 
 //------------------------------------------------------------------------------
-void cmd(  ) // called once from psi46test
+void cmd() // called once from psi46test
 {
   CMD_REG( scan,      0, "scan                          enumerate USB devices" );
   CMD_REG( open,      0, "open <name>                   open USB connection to DTB" );
@@ -14513,7 +15557,8 @@ void cmd(  ) // called once from psi46test
   CMD_REG( fsel,      1, "fsel <freqdiv>                clock frequency select" );
   CMD_REG( stretch,   1, "stretch <src> <delay> <width> stretch clock" );
 
-  CMD_REG( deser160,  1, "deser160                      allign deser160" );
+  CMD_REG( deser160,  1, "deser160                      align deser160" );
+  CMD_REG( deser160,  1, "deserext                      scan deser160 edxt trig" );
   CMD_REG( deser,     1, "deser value                   controls deser160" );
 
   CMD_REG( clk,       1, "clk <delay>                   clk delay" );
@@ -14594,6 +15639,7 @@ void cmd(  ) // called once from psi46test
   CMD_REG( vana,      3, "vana value                    set Vana" );
   CMD_REG( vtrim,     3, "vtrim value                   set Vtrim" );
   CMD_REG( vthr,      3, "vthr value                    set VthrComp" );
+  CMD_REG( subvthr,   3, "subvthr value                 subtract from VthrComp" );
   CMD_REG( vcal,      3, "vcal value                    set Vcal" );
   CMD_REG( ctl,       3, "ctl value                     set control register" );
   CMD_REG( wbc,       3, "wbc value                     set WBC" );
@@ -14694,7 +15740,7 @@ void cmd(  ) // called once from psi46test
   CMD_REG( show1,     5, "show1 dac                     print one dac for all ROCs" );
   CMD_REG( upd,       5, "upd <histo>                   re-draw ROOT histo in canvas" );
 
-  cmdHelp(  );
+  cmdHelp();
 
   cmd_intp.SetScriptPath( settings.path );
 
@@ -14797,23 +15843,23 @@ void cmd(  ) // called once from psi46test
 
   gStyle->SetPalette( 20, pal );
 
-  gStyle->SetHistMinimumZero(  ); // no zero suppression
+  gStyle->SetHistMinimumZero(); // no zero suppression
 
-  gStyle->SetOptDate(  );
+  gStyle->SetOptDate();
 
   cout << "open ROOT window..." << endl;
-  MyMainFrame *myMF = new MyMainFrame( gClient->GetRoot(  ), 800, 600 );
+  MyMainFrame *myMF = new MyMainFrame( gClient->GetRoot(), 800, 600 );
 
   myMF->SetWMPosition( 99, 0 );
 
   cout << "open Canvas..." << endl;
-  c1 = myMF->GetCanvas(  );
+  c1 = myMF->GetCanvas();
 
   c1->SetBottomMargin( 0.15 );
   c1->SetLeftMargin( 0.15 );
   c1->SetRightMargin( 0.18 );
 
-  gPad->Update(  ); // required
+  gPad->Update(); // required
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // command loop:
