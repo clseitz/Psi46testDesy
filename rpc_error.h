@@ -26,10 +26,12 @@ public:
     UNDEF
   } error;
   int functionId;
-    CRpcError(  ):error( CRpcError::OK ), functionId( -1 ) {
-  } CRpcError( errorId e ):error( e ) {
+ CRpcError(  ):error( CRpcError::OK ), functionId( -1 ) {
   }
-  void SetFunction( unsigned int cmdId ) {
+ CRpcError( errorId e ):error( e ) {
+  }
+  void SetFunction( unsigned int cmdId )
+  {
     functionId = cmdId;
   }
   const char *GetMsg(  );

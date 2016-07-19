@@ -13,10 +13,12 @@ struct PixelReadoutData {
   int x;                        // x of first pixel
   int y;                        // y of first pixel
   int p;                        // pulse heigth
-  void Clear(  ) {
+  void Clear(  )
+  {
     hdr = 0;
     n = x = y = p = 0;
-}};
+  }
+};
 
 
 void DumpData( const vector < uint16_t > &x, unsigned int n );
@@ -32,19 +34,28 @@ class CReadback:public CAnalyzer {
   unsigned int data;
   void ( *alert ) ( unsigned int );
   CRocEvent *Read(  );
-public:
-    CReadback(  ):valid( 0 ), data( 0 ), alert( 0 ) {
-  } bool IsValid(  ) {
+
+ public:
+
+ CReadback(  ):valid( 0 ), data( 0 ), alert( 0 ) {
+  }
+
+  bool IsValid(  )
+  {
     return valid;
   }
-  unsigned int GetData(  ) {
+
+  unsigned int GetData(  )
+  {
     if( valid ) {
       valid = 0;
       return data;
     }
     return 0;
   }
-  unsigned int SetCallback( void ( *callback ) ( unsigned int ) ) {
+
+  unsigned int SetCallback( void ( *callback ) ( unsigned int ) )
+  {
     alert = callback;
     return 0;
   }

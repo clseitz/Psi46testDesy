@@ -33,41 +33,69 @@ class CCmdLine {
   bool interactive;
   char s[CMDLINELENGTH + 1];
   char *cmd, *par;
-  bool read( FILE * f );
-  bool isCmd( const char name[] ) {
-    return strcmp( cmd, name ) == 0;
-  } static const CSymbol symtable[];
 
-  static bool isAlpha( char ch ) {
+  bool read( FILE * f );
+
+  bool isCmd( const char name[] )
+  {
+    return strcmp( cmd, name ) == 0;
+  }
+
+  static const CSymbol symtable[];
+
+  static bool isAlpha( char ch )
+  {
     return ( 'A' <= ch && ch <= 'Z' ) || ( 'a' <= ch && ch <= 'z' );
   }
-  static bool isNumber( char ch ) {
+
+  static bool isNumber( char ch )
+  {
     return '0' <= ch && ch <= '9';
   }
-  static bool isAlphaNum( char ch ) {
+
+  static bool isAlphaNum( char ch )
+  {
     return isAlpha( ch ) || isNumber( ch );
   }
-  static bool isWhitespace( char ch ) {
+
+  static bool isWhitespace( char ch )
+  {
     return ch == ' ' || ch == '\t';
   }
+
   static int GetHex( char ch );
+
   bool getSymbol( int &value );
+
   bool getNumber( int &value );
-  void setInteractive( bool on ) {
+
+  void setInteractive( bool on )
+  {
     interactive = on;
   }
-public:
-  const char *getName(  ) {
+
+ public:
+
+  const char *getName(  )
+  {
     return cmd;
   }
+
   bool getInt( int &value, int min, int max );
+
   bool getIntRange( int &valuemin, int &valuemax, int skipmin, int skipmax );
+
   bool getString( char *value, int size );
+
   bool getStringEOL( char *value, int size );
-  bool isInteractive(  ) {
+
+  bool isInteractive(  )
+  {
     return interactive;
   }
+
   friend class CInterpreter;
+
 };
 
 typedef bool( *CMDFUNCTION ) ( CCmdLine & );
@@ -77,8 +105,8 @@ class CCommand {
   CMDFUNCTION m_exec;
   int m_grp;
   const char *m_help;
-public:
-    friend class CInterpreter;
+ public:
+  friend class CInterpreter;
 };
 
 //------------------------------------------------------------------------------
@@ -87,9 +115,9 @@ class CInterpreter {
   CCmdLine cmdline;
   char scriptPath[256];
   void help(  );
-public:
-    CInterpreter(  );
-   ~CInterpreter(  ) {
+ public:
+  CInterpreter(  );
+  ~CInterpreter(  ) {
   };
   void SetScriptPath( const char path[] );
   void AddCommand( const char name[], CMDFUNCTION f, int grp, const char help[] );
@@ -113,7 +141,7 @@ extern CInterpreter cmd_intp;
 #define PAR_RANGE( varmin, varmax, min, max ) if( !par.getIntRange( varmin, varmax, (min), (max) ) ) \
     { printf( "missing or illegal range parameter!\n" ); return false; }
 
-#define PAR_STRING( var, size ) if( !par.getString( var, size ) ) \
+#define PAR_STRING( var, size ) if( !par.getString( var, size ) )	\
     { printf( "missing or illegal string parameter!\n" ); return false; }
 
 #define PAR_IS_STRING( var, size ) ( par.getString( var, size ) )

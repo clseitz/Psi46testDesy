@@ -22,12 +22,12 @@ uint16_t CDtbSource::FillBuffer(  )
   do {
     dtbState = tb.Daq_Read( buffer, DTB_SOURCE_BLOCK_SIZE, dtbRemainingSize );
 
-   /*          if( dtbRemainingSize < 100000)
-      {
-      if      (dtbRemainingSize > 1000) tb.mDelay(  1);
-      else if( dtbRemainingSize >    0) tb.mDelay( 10);
-      else                              tb.mDelay(100);
-      }
+    /* if( dtbRemainingSize < 100000)
+       {
+       if      (dtbRemainingSize > 1000) tb.mDelay(  1);
+       else if( dtbRemainingSize >    0) tb.mDelay( 10);
+       else                              tb.mDelay(100);
+       }
     */
     if( buffer.size(  ) == 0 ) {
       if( stopAtEmptyData )
@@ -39,10 +39,10 @@ uint16_t CDtbSource::FillBuffer(  )
   }
   while( buffer.size(  ) == 0 );
 
- /*    printf("----------------\n");
-    for (unsigned int i=0; i<buffer.size(); i++)
-    printf(" %4X", (unsigned int)(buffer[i]));
-    printf("\n----------------\n");
+  /* printf("----------------\n");
+     for (unsigned int i=0; i<buffer.size(); i++)
+     printf(" %4X", (unsigned int)(buffer[i]));
+     printf("\n----------------\n");
   */
   return lastSample = buffer[pos++];
 }
@@ -92,9 +92,9 @@ CDataRecord *CDataRecordScanner::Read(  )
   else
     record.SetEndError(  );
 
- /*    for (unsigned int i=0; i<record.data.size(); i++)
-    printf(" %4X", (unsigned int)(record.data[i]));
-    printf("\n");
+  /* for (unsigned int i=0; i<record.data.size(); i++)
+     printf(" %4X", (unsigned int)(record.data[i]));
+     printf("\n");
   */
   return &record;
 }
@@ -122,12 +122,12 @@ CRocEvent *CRocDecoder::Read(  )
     }
   }
 
- /*    printf("====== %03X ======\n", (unsigned int)(roc_event.header));
-    for (unsigned int i=0; i<roc_event.pixel.size(); i++)
-    printf(" %06X (%05o) [%3i, %3i, %3i]\n", 
-    (unsigned int)(roc_event.pixel[i].raw), (unsigned int)(roc_event.pixel[i].raw >> 9),
-    int(roc_event.pixel[i].x), int(roc_event.pixel[i].y), int(roc_event.pixel[i].ph));
-    printf("\n");
+  /* printf("====== %03X ======\n", (unsigned int)(roc_event.header));
+     for (unsigned int i=0; i<roc_event.pixel.size(); i++)
+     printf(" %06X (%05o) [%3i, %3i, %3i]\n", 
+     (unsigned int)(roc_event.pixel[i].raw), (unsigned int)(roc_event.pixel[i].raw >> 9),
+     int(roc_event.pixel[i].x), int(roc_event.pixel[i].y), int(roc_event.pixel[i].ph));
+     printf("\n");
   */
   return &roc_event;
 }

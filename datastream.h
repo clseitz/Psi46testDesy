@@ -14,65 +14,92 @@ using namespace std;
 
 //------------------------------------------------------------------------------
 class DS_buffer_overflow:public DataPipeException {
-public:
-  DS_buffer_overflow(  ):DataPipeException( "Buffer overflow" ) {
+ public:
+ DS_buffer_overflow(  ):DataPipeException( "Buffer overflow" ) {
   };
 };
 
 class DS_empty:public DataPipeException {
-public:
-  DS_empty(  ):DataPipeException( "Buffer empty" ) {
+ public:
+ DS_empty(  ):DataPipeException( "Buffer empty" ) {
   };
 };
 
 //------------------------------------------------------------------------------
 class CDataRecord {
- /*
+  /*
     bit 0 = misaligned start
     bit 1 = no end detected
     bit 2 = overflow
   */
   vector < uint16_t > data;
   unsigned int flags;
-public:
-  void SetStartError(  ) {
+
+ public:
+
+  void SetStartError(  )
+  {
     flags |= 1;
-  } void SetEndError(  ) {
+  }
+
+  void SetEndError(  )
+  {
     flags |= 2;
   }
-  void SetOverflow(  ) {
+
+  void SetOverflow(  )
+  {
     flags |= 4;
   }
-  void ResetStartError(  ) {
+
+  void ResetStartError(  )
+  {
     flags &= ~1;
   }
-  void ResetEndError(  ) {
+
+  void ResetEndError(  )
+  {
     flags &= ~2;
   }
-  void ResetOverflow(  ) {
+
+  void ResetOverflow(  )
+  {
     flags &= ~4;
   }
-  void Clear(  ) {
+
+  void Clear(  )
+  {
     flags = 0;
     data.clear(  );
   }
-  bool IsStartError(  ) {
+
+  bool IsStartError(  )
+  {
     return ( flags & 1 ) != 0;
   }
-  bool IsEndError(  ) {
+
+  bool IsEndError(  )
+  {
     return ( flags & 2 ) != 0;
   }
-  bool IsOverflow(  ) {
+
+  bool IsOverflow(  )
+  {
     return ( flags & 4 ) != 0;
   }
 
-  unsigned int GetSize(  ) {
+  unsigned int GetSize(  )
+  {
     return data.size(  );
   }
-  void Add( uint16_t value ) {
+
+  void Add( uint16_t value )
+  {
     data.push_back( value );
   }
-  uint16_t operator[] ( int index ) {
+
+  uint16_t operator[] ( int index )
+  {
     return data[index];
   }
 };
@@ -89,7 +116,7 @@ struct CRocPixel {
 
 struct CRocEvent {
   unsigned short header;
-    vector < CRocPixel > pixel;
+  vector < CRocPixel > pixel;
 };
 
 //------------------------------------------------------------------------------
@@ -98,41 +125,53 @@ struct CRocEvent {
 #define DTB_SOURCE_BLOCK_SIZE 4096
 
 class CDtbSource:public CSource < uint16_t > {
+
   volatile bool stopAtEmptyData;
 
- // DTB control/state
-    CTestboard & tb;
+  // DTB control/state
+  CTestboard & tb;
   uint32_t dtbRemainingSize;
   uint8_t dtbState;
 
- // data buffer
+  // data buffer
   uint16_t lastSample;
   unsigned int pos;
-    vector < uint16_t > buffer;
+  vector < uint16_t > buffer;
   uint16_t FillBuffer(  );
 
- // virtual data access methods
-  uint16_t Read(  ) {
+  // virtual data access methods
+
+  uint16_t Read(  )
+  {
     return ( pos < buffer.size(  ) )? lastSample =
       buffer[pos++] : FillBuffer(  );
-  } uint16_t ReadLast(  ) {
-    return lastSample;
-  }
-public:
-  CDtbSource( CTestboard & src, bool endlesStream )
-:  
-  stopAtEmptyData( endlesStream ), tb( src ), lastSample( 0x4000 ),
-  pos( 0 ) {
   }
 
- // control and status
-  uint8_t GetState(  ) {
+  uint16_t ReadLast(  )
+  {
+    return lastSample;
+  }
+
+ public:
+
+ CDtbSource( CTestboard & src, bool endlesStream ):
+  stopAtEmptyData( endlesStream ), tb( src ), lastSample( 0x4000 ), pos( 0 ) {
+  }
+
+  // control and status
+
+  uint8_t GetState(  )
+  {
     return dtbState;
   }
-  uint32_t GetRemainingSize(  ) {
+
+  uint32_t GetRemainingSize(  )
+  {
     return dtbRemainingSize;
   }
-  void Stop(  ) {
+
+  void Stop(  )
+  {
     stopAtEmptyData = true;
   }
 };
@@ -148,25 +187,36 @@ class CBinaryFileSource:public CSource < uint16_t > {
 
   unsigned int size;
   unsigned int pos;
-    vector < uint16_t > buffer;
+  vector < uint16_t > buffer;
   uint16_t FillBuffer(  );
 
-  uint16_t Read(  ) {
+  uint16_t Read(  )
+  {
     return ( pos < size ) ? lastSample = buffer[pos++] : FillBuffer(  );
-  } uint16_t ReadLast(  ) {
+  }
+
+  uint16_t ReadLast(  )
+  {
     return lastSample;
   }
-public:
-CBinaryFileSource(  ):f( 0 ), lastSample( 0 ), size( 0 ), pos( 0 ) {
+
+ public:
+
+ CBinaryFileSource(  ):f( 0 ), lastSample( 0 ), size( 0 ), pos( 0 ) {
     buffer.reserve( FILE_SOURCE_BLOCK_SIZE );
   }
+
   ~CBinaryFileSource(  ) {
     Close(  );
   }
-  bool Open( const char *filename ) {
+
+  bool Open( const char *filename )
+  {
     return ( f = fopen( filename, "rb" ) ) != 0;
   }
-  void Close(  ) {
+
+  void Close(  )
+  {
     if( f ) {
       fclose( f );
       f = 0;
@@ -178,27 +228,37 @@ CBinaryFileSource(  ):f( 0 ), lastSample( 0 ), size( 0 ), pos( 0 ) {
 class CDataRecordScanner:public CDataPipe < uint16_t, CDataRecord * > {
   CDataRecord record;
   CDataRecord *Read(  );
-  CDataRecord *ReadLast(  ) {
+  CDataRecord *ReadLast(  )
+  {
     return &record;
-} public:
-    CDataRecordScanner(  ) {
+  }
+ public:
+  CDataRecordScanner(  ) {
   }
 };
 
 //------------------------------------------------------------------------------
 class CRocDecoder:public CDataPipe < CDataRecord *, CRocEvent * > {
   CRocEvent roc_event;
+
   CRocEvent *Read(  );
-  CRocEvent *ReadLast(  ) {
+
+  CRocEvent *ReadLast(  )
+  {
     return &roc_event;
-}};
+  }
+};
 
 //------------------------------------------------------------------------------
 class CAnalyzer:public CDataPipe < CRocEvent *, CRocEvent * > {
-  CRocEvent *Read(  ) {
+
+  CRocEvent *Read(  )
+  {
     return Get(  );
   };
-  CRocEvent *ReadLast(  ) {
+
+  CRocEvent *ReadLast(  )
+  {
     return GetLast(  );
   }
 };

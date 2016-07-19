@@ -38,12 +38,12 @@ void cmd(  );
 
 class MyMainFrame:public TGMainFrame {
 
-private:
+ private:
   TGMainFrame * fMain;
   TRootEmbeddedCanvas *fEcanvas;
-public:
-    MyMainFrame( const TGWindow * p, UInt_t w, UInt_t h );
-    virtual ~ MyMainFrame(  );
+ public:
+  MyMainFrame( const TGWindow * p, UInt_t w, UInt_t h );
+  virtual ~ MyMainFrame(  );
   TCanvas *GetCanvas(  );
 };
 

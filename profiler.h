@@ -7,7 +7,7 @@
 
 // MSVC: __FUNCTION__ __FUNCDNAME__ __FUNCSIG__
 // GCC:  __func__     __FUNCTION__  __PRETT_FUNCTION__
-//
+
 #ifdef ENABLE_PROFILING
 #define PROFILING static Watchpoint profiler_watchpoint(__FUNCTION__); AutoCounter profiler_counter(profiler_watchpoint);
 #else
@@ -20,18 +20,21 @@ class Watchpoint {
   static long long frequency;
   static std::list < Watchpoint * >*wplist;
 
-    std::string name;
+  std::string name;
   unsigned int n;
   long long t;
 
-  bool IsRunning(  ) {
+  bool IsRunning(  )
+  {
     return wplist != 0;
-  } void Incr( long long dt ) {
+  }
+  void Incr( long long dt )
+  {
     t += dt;
     n++;
   }
   static void Report( const char *filename );
-public:
+ public:
   Watchpoint( const char *fname );
   ~Watchpoint(  );
   friend class AutoCounter;
@@ -40,13 +43,16 @@ public:
 class AutoCounter {
   Watchpoint *m_wp;
   long long m_start;
-  void Start(  ) {
+  void Start(  )
+  {
     m_start = __rdtsc(  );
-  } void Stop(  ) {
+  }
+  void Stop(  )
+  {
     m_wp->Incr( __rdtsc(  ) - m_start );
   }
-public:
-AutoCounter( Watchpoint & handle ):m_wp( &handle ) {
+ public:
+ AutoCounter( Watchpoint & handle ):m_wp( &handle ) {
     Start(  );
   }
   ~AutoCounter(  ) {

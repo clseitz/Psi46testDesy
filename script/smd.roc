@@ -16,6 +16,7 @@ ia  800 mA
 #fsel 1 # 0 = 40 MHz, 1 = 20 MHz, influences ID
 
 --- setup timing & levels -------------------
+
 clk  4  (base
 ctr  4  (CLK +  0)
 sda 19  (CLK + 15)
