@@ -9,22 +9,23 @@ log === startModRespin ===
 --- set voltages and current limits
 
 vd 2800 mV # needed for TBM08b
-va 1800 mV
+va 1900 mV
 id  900 mA
 ia  600 mA
 
 #fsel 1 # 0 = 40 MHz, 1 = 20 MHz, influences ID
 
 --- setup timing & levels -------------------
+
 clk  4  (base
 ctr  4  (CLK +  0)
 sda 19  (CLK + 15)
 tin  9  (CLK +  5)
 
-clklvl  15  # for DESY module with TBM08b and KIT adapter
-ctrlvl  15  # 15 OK, 12 OK, 8 OK, 5 ineff
-sdalvl  15  # D4020 in A needs 12
-tinlvl  15
+clklvl  13  # for DESY module with TBM08b and KIT adapter
+ctrlvl  13  # 15 OK, 12 OK, 8 OK, 5 ineff
+sdalvl  13  # D4020 in A needs 12
+tinlvl  13
 
 --- power on --------------------------------
 pon
@@ -33,7 +34,7 @@ mdelay 400
 resoff
 mdelay 200
 
---- setup TBM08a: 2 cores at E and F
+--- setup TBM08ab: 2 cores at E and F
 
 modsel b11111  # Module address 31
 
@@ -49,21 +50,24 @@ tbmset $F2 b11000000
 tbmset $E8 9          Set PKAM Counter (x+1)*6.4us
 tbmset $F8 9
 
-tbmset $EA b00000000  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
-tbmset $FA b00000000  OK
+#tbmset $EA b00000000  delay_TBM_Hdr/Trl  delay_ROC_port1  delay_ROC_port0
+#tbmset $FA b00000000  OK
+tbmset $EA b01101101  del_tin del_TBM_Hdr/Trl  del_ROC_port1  del_ROC_port0
+tbmset $FA b01101101  like pXar: OK
 
-tbmset $EC 9         Auto reset rate (x+1)*256
-tbmset $FC 9
+tbmset $EC 99         Auto reset rate (x+1)*256
+tbmset $FC 99
 
-tbmset $EE b00100000  160/400 MHz phase adjust  OK, also cold
+#tbmset $EE b00100000  160/400 MHz phase adjust  OK, also cold
+tbmset $EE b00101101  3 + 3 = 160 + 400 MHz phase adjust  pXar
 
 tbmset $FE $00        Temp measurement control
 
 mdelay 100
 
-select b1111111111111111  # all ROCs on
+select 0:15  # all ROCs active
 
-module 4020
+module 4022
 
 chip 500  # must be after select
 
@@ -128,8 +132,8 @@ pgset 0 b011000  16  pg_rest pg_resr  (reset TBM and ROCs)
 pgset 1 b000100 106  pg_cal (WBC + 6 for digV2)
 pgset 2 b100010   0  pg_trg pg_sync. (delay zero = end of pgset)
 
-trigdel 200  # delay in trigger loop 200 BC =  5 us
-#trigdel 400  # delay in trigger loop 400 BC = 10 us
+#trigdel 200  # delay in trigger loop 200 BC =  5 us
+trigdel 400  # delay in trigger loop 400 BC = 10 us for large events
 #trigdel 0  # delay in trigger loop [BC] Simon says: should work
 
 dopen  30500100  0  [daq_open]
